@@ -7,7 +7,7 @@
 
 int main() {
     std::vector<std::string> initial_candidates = {
-        "しりとり", "すいか", "かめら", "らいおん", 
+        "しりとり", "すいか", "かめら", 
         "さくら", "らくだ", "だんご", "ごりら"
     };
 
