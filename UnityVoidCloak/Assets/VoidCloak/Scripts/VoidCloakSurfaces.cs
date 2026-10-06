@@ -26,6 +26,8 @@ namespace VoidCloak
         public Vector3 normal;
         /// <summary>Optional 0..1 extra density weight (used for ground wrinkle crests).</summary>
         public float wrinkle;
+        /// <summary>0 = hanging cloth, 1 = cloth lying on the floor (lets the shader drag it while moving).</summary>
+        public float floor;
 
         public void Reset()
         {
@@ -40,6 +42,7 @@ namespace VoidCloak
             hasNormal = false;
             normal = Vector3.up;
             wrinkle = 0f;
+            floor = 0f;
         }
     }
 
@@ -650,6 +653,7 @@ namespace VoidCloak
             s.position = p;
             s.major = ridgeM;
             s.secondary = ridgeS;
+            s.floor = groundMode ? bendW : 0f;
             float hemEdge = groundMode ? CloakMath.Smooth(0.96f, 1f, v) : CloakMath.Smooth(0.95f, 1f, v);
             s.edge = Mathf.Max(hemEdge, frontEdge);
 

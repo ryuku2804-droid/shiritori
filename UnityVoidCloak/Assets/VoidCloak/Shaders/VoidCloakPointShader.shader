@@ -12,7 +12,7 @@
 //   COLOR     r = part id / 32, g = major ridge (0 valley .. 1 crest), b = void amount, a = random
 //   TEXCOORD0 x = size multiplier, y = wind weight
 //   TEXCOORD1 x = secondary ridge (0..1), y = baked occlusion
-//   TEXCOORD2 x = material (0 cloth, 1 steel, 2 leather)
+//   TEXCOORD2 x = material (0 cloth, 1 steel, 2 leather), y = floor (1 = cloth lying on the ground)
 Shader "VoidCloak/ClothPoint"
 {
     Properties
@@ -71,6 +71,7 @@ Shader "VoidCloak/ClothPoint"
         [Header(Walking set by VoidCloakMover)]
         _MotionLag ("Motion Lag (object)", Vector) = (0, 0, 0, 0)
         _Gait ("Gait (phase, push, bob, billow)", Vector) = (0, 0, 0, 0)
+        _FloorMotion ("Floor Cloth (follow, lift)", Vector) = (0.85, 0.3, 0, 0)
 
         [Header(Debug)]
         [Toggle] _DebugParts ("Show Part Colors", Float) = 0
@@ -140,6 +141,7 @@ Shader "VoidCloak/ClothPoint"
                 float4 _GripColor;
                 float4 _MotionLag;
                 float4 _Gait;
+                float4 _FloorMotion;
             CBUFFER_END
 
             struct Attributes
@@ -196,9 +198,11 @@ Shader "VoidCloak/ClothPoint"
             // forward on one side, and the whole figure bobs a little. While running
             // (_Gait.w = billow) the trailing side puffs out and lifts, waves run down the
             // cloak and the hem flaps. The wind weight (0 on hood / shoulders / sword,
-            // 1 at the hem) decides how much each point moves.
-            float3 MotionOffset(float3 positionOS, float weight)
+            // 1 at the hem) decides how much each point moves. Cloth lying on the floor
+            // (floorAmount = 1) is dragged along like a train and lifts off the ground.
+            float3 MotionOffset(float3 positionOS, float windWeight, float floorAmount)
             {
+                float weight = max(windWeight, floorAmount * _FloorMotion.x);
                 float w2 = weight * weight;
                 float billow = _Gait.w;
 
@@ -221,6 +225,10 @@ Shader "VoidCloak/ClothPoint"
                 // hem flapping sideways
                 offset.x += sin(t * 6.5 + positionOS.y * 1.3 + positionOS.z * 1.1) * billow * w2 * 0.07;
 
+                // the train on the floor rises and ripples while running, most on the trailing side
+                float floorWave = 0.75 + 0.25 * sin(t * 9.0 - length(positionOS.xz) * 3.0 + positionOS.x * 1.3);
+                offset.y += floorAmount * billow * _FloorMotion.y * (0.35 + 0.65 * behind) * floorWave;
+
                 // steps
                 float side = clamp(positionOS.x / 0.5, -1.0, 1.0);       // left / right leg
                 float front = saturate(positionOS.z / 0.8 + 0.4);        // mostly the front of the cloak
@@ -235,7 +243,9 @@ Shader "VoidCloak/ClothPoint"
                 V2G o;
                 float rnd = input.color.a;
                 float3 posOS = input.positionOS.xyz + WindOffset(input.positionOS.xyz, input.uv0.y, rnd)
-                             + MotionOffset(input.positionOS.xyz, input.uv0.y);
+                             + MotionOffset(input.positionOS.xyz, input.uv0.y, input.uv2.y);
+                // cloth on the floor never sinks below it
+                if (input.uv2.y > 0.01) posOS.y = max(posOS.y, 0.003);
                 o.positionWS = TransformObjectToWorld(posOS);
                 o.positionCS = TransformWorldToHClip(o.positionWS);
                 o.normalWS = TransformObjectToWorldNormal(input.normalOS);

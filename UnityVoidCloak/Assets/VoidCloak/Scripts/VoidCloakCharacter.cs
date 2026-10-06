@@ -94,6 +94,7 @@ namespace VoidCloak
         // Walking state, written by VoidCloakMover (object space, already smoothed).
         Vector3 motionLag;
         Vector4 gait;   // x = step phase (radians), y = step push, z = body bob, w = billow (running)
+        Vector4 floorMotion = new Vector4(0.85f, 0.3f, 0f, 0f);   // x = floor cloth follow, y = floor cloth lift
 
         static readonly int PointSizeId = Shader.PropertyToID("_PointSize");
         static readonly int PointVariationId = Shader.PropertyToID("_PointVariation");
@@ -128,6 +129,7 @@ namespace VoidCloak
         static readonly int GripColorId = Shader.PropertyToID("_GripColor");
         static readonly int MotionLagId = Shader.PropertyToID("_MotionLag");
         static readonly int GaitId = Shader.PropertyToID("_Gait");
+        static readonly int FloorMotionId = Shader.PropertyToID("_FloorMotion");
 
         public int ParticleCount { get { return buffer.Count; } }
 
@@ -144,10 +146,14 @@ namespace VoidCloak
         /// <param name="stepPush">How far each step pushes the front of the cloak forward.</param>
         /// <param name="bob">Vertical body offset.</param>
         /// <param name="billow">0 = calm, 1 = full billowing (waves running down the cloak while running).</param>
-        public void SetMotion(Vector3 lagObjectSpace, float stepPhase, float stepPush, float bob, float billow = 0f)
+        /// <param name="floorFollow">0..1, how much the cloth lying on the floor is dragged along.</param>
+        /// <param name="floorLift">How high the floor cloth lifts while running.</param>
+        public void SetMotion(Vector3 lagObjectSpace, float stepPhase, float stepPush, float bob, float billow = 0f,
+                              float floorFollow = 0.85f, float floorLift = 0.3f)
         {
             motionLag = lagObjectSpace;
             gait = new Vector4(stepPhase, stepPush, bob, billow);
+            floorMotion = new Vector4(floorFollow, floorLift, 0f, 0f);
         }
 
         void OnEnable()
@@ -307,6 +313,7 @@ namespace VoidCloak
             m.SetColor(GripColorId, gripColor);
             m.SetVector(MotionLagId, motionLag);
             m.SetVector(GaitId, gait);
+            m.SetVector(FloorMotionId, floorMotion);
         }
 
         void BuildReport()

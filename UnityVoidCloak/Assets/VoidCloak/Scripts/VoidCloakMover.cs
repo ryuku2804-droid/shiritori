@@ -43,6 +43,10 @@ namespace VoidCloak
         [SerializeField, Range(0f, 2f)] private float runBillow = 1f;
         [Tooltip("A little billowing already while walking (0 = none).")]
         [SerializeField, Range(0f, 1f)] private float walkBillow = 0.15f;
+        [Tooltip("How much the cloth lying on the floor is dragged along (0 = stays put, 1 = moves like the hem).")]
+        [SerializeField, Range(0f, 1f)] private float floorFollow = 0.85f;
+        [Tooltip("How high the cloth on the floor lifts off the ground while running.")]
+        [SerializeField, Range(0f, 1f)] private float floorLift = 0.3f;
         [Tooltip("How slowly the cloth follows changes of speed and direction.")]
         [SerializeField, Range(0.01f, 1f)] private float clothLagTime = 0.3f;
         [Tooltip("Distance covered by one step.")]
@@ -134,7 +138,7 @@ namespace VoidCloak
             gaitAmount = Mathf.MoveTowards(gaitAmount, targetGait, dt * 3f);
 
             float bob = -Mathf.Abs(Mathf.Sin(stepPhase)) * bobHeight * gaitAmount;
-            character.SetMotion(lag, stepPhase, stepPush * gaitAmount, bob, billowAmount);
+            character.SetMotion(lag, stepPhase, stepPush * gaitAmount, bob, billowAmount, floorFollow, floorLift);
         }
 
         void OnDisable()

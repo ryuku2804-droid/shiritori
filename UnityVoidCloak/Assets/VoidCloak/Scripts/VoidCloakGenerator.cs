@@ -14,7 +14,7 @@ namespace VoidCloak
     ///   color     : r = part id / 32, g = major ridge (0 valley .. 1 crest), b = void amount, a = random
     ///   uv0       : x = size multiplier, y = wind weight
     ///   uv1       : x = secondary ridge (0..1), y = baked occlusion (0..1)
-    ///   uv2       : x = material (0 cloth, 1 steel, 2 leather)
+    ///   uv2       : x = material (0 cloth, 1 steel, 2 leather), y = floor (1 = cloth lying on the ground)
     /// </summary>
     public sealed class ParticleBuffer
     {
@@ -43,7 +43,7 @@ namespace VoidCloak
 
         public void Add(CloakPart part, Vector3 p, Vector3 n, Vector3 flow, float layer, float ridge, float voidAmount,
                         float rnd, float size, float wind, float secondary, float ao,
-                        ParticleMaterial material = ParticleMaterial.Cloth)
+                        ParticleMaterial material = ParticleMaterial.Cloth, float floor = 0f)
         {
             positions.Add(p);
             normals.Add(n);
@@ -51,7 +51,7 @@ namespace VoidCloak
             colors.Add(new Color(((int)part + 0.5f) / 32f, ridge * 0.5f + 0.5f, voidAmount, rnd));
             uv0.Add(new Vector2(size, wind));
             uv1.Add(new Vector2(secondary * 0.5f + 0.5f, ao));
-            uv2.Add(new Vector2((float)material, 0f));
+            uv2.Add(new Vector2((float)material, floor));
             partCounts[(int)part]++;
         }
 
@@ -544,7 +544,7 @@ namespace VoidCloak
                 buffer.Add(part, p, n, flow, layerPos * 2f, s.major, s.voidAmount, rng.Value,
                            s.sizeScale * sizeScale * (1f - 0.15f * s.edge), s.wind, s.secondary,
                            Mathf.Clamp01(s.ao * (layer >= 3 ? 0.92f : 1f)),
-                           material);
+                           material, s.floor);
             }
         }
     }

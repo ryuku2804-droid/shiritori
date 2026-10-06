@@ -136,7 +136,9 @@ def main():
         lag_z, phase, push, bob = vals[:4]
         billow = vals[4] if len(vals) > 4 else 0.0
         t = vals[5] if len(vals) > 5 else 0.0
-        p, w = d[:, 0:3].copy(), d[:, 15]
+        p, w, floor = d[:, 0:3].copy(), d[:, 15], d[:, 19]
+        if '--no-floor' not in sys.argv:
+            w = np.maximum(w, floor * 0.85)
         w2 = w * w
         lag_len = abs(lag_z)
         trail = np.array([0.0, -np.sign(lag_z)]) if lag_len > 1e-4 else np.zeros(2)
@@ -153,11 +155,16 @@ def main():
         off[:, 2] += trail[1] * k
         off[:, 1] += wave * billow * w2 * 0.05
         off[:, 0] += np.sin(t * 6.5 + p[:, 1] * 1.3 + p[:, 2] * 1.1) * billow * w2 * 0.07
+        if '--no-floor' not in sys.argv:
+            floor_wave = 0.75 + 0.25 * np.sin(t * 9 - np.linalg.norm(p[:, [0, 2]], axis=1) * 3 + p[:, 0] * 1.3)
+            off[:, 1] += floor * billow * 0.3 * (0.35 + 0.65 * behind) * floor_wave
         side = np.clip(p[:, 0] / 0.5, -1, 1)
         front = np.clip(p[:, 2] / 0.8 + 0.4, 0, 1)
         off[:, 2] += np.sin(phase) * side * front * push * w
         off[:, 1] += bob * np.clip(p[:, 1] / 1.5, 0, 1)
         d[:, 0:3] = p + off
+        if '--no-floor' not in sys.argv:
+            d[floor > 0.01, 1] = np.maximum(d[floor > 0.01, 1], 0.003)
     imgs = [render(d, yaw, size, debug) for yaw in views]
     Image.fromarray(np.concatenate(imgs, axis=1)).save(out)
 
