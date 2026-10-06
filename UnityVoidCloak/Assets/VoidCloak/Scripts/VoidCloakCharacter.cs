@@ -75,7 +75,7 @@ namespace VoidCloak
 
         Mesh mesh;
         Material runtimeMaterial;
-        Material runtimeMaterialSource;
+        Object runtimeMaterialSource;   // the Material template or Shader the runtime material was made from
         bool dirty = true;
         readonly ParticleBuffer buffer = new ParticleBuffer();
 
