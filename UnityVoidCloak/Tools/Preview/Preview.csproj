@@ -14,5 +14,7 @@
     <Compile Include="../../Assets/VoidCloak/Scripts/VoidCloakMath.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/VoidCloakSurfaces.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/VoidCloakGenerator.cs" />
+    <Compile Include="../../Assets/VoidCloak/Scripts/VoidCloakGenerator.Sword.cs" />
+    <Compile Include="../../Assets/VoidCloak/Scripts/VoidCloakSword.cs" />
   </ItemGroup>
 </Project>

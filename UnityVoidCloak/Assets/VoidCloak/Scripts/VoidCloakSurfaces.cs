@@ -56,6 +56,8 @@ namespace VoidCloak
         /// <summary>Flow (tangent) direction = flowSign * dP/dv (or dP/du if flowAlongU).</summary>
         public float flowSign = 1f;
         public bool flowAlongU;
+        /// <summary>Flip the final normal (e.g. the inside wall of a sleeve).</summary>
+        public bool invertNormal;
 
         public abstract void Evaluate(float u, float v, ref SurfaceSample s);
 
@@ -64,6 +66,24 @@ namespace VoidCloak
         {
             return true;
         }
+
+        /// <summary>
+        /// Closed solids return a point inside the solid near (u, v); the sampler then turns the
+        /// normal so it points away from it, whatever the parameter orientation is.
+        /// </summary>
+        public virtual bool TryGetInteriorPoint(float u, float v, out Vector3 point)
+        {
+            point = Vector3.zero;
+            return false;
+        }
+    }
+
+    /// <summary>How the shader lights a particle.</summary>
+    public enum ParticleMaterial
+    {
+        Cloth = 0,
+        Steel = 1,
+        Leather = 2,
     }
 
     // ------------------------------------------------------------------------------------

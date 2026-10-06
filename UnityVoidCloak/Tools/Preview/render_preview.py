@@ -12,7 +12,8 @@ PART_COLORS = np.array([
     [.2, .6, 1], [.2, 1, 1], [.3, .8, .3], [.5, 1, .5], [.1, .5, .1], [.2, .7, .2],
     [.8, .4, 1], [1, .3, .7], [1, .6, .8], [.6, .3, .1], [.4, .4, 1], [.6, .6, 1],
     [.7, .5, .2], [.8, .6, .3], [.9, .7, .4], [.5, .7, .2], [.6, .8, .3], [.7, .9, .4],
-    [1, 1, 1], [1, 0, 1]])
+    [1, 1, 1], [1, 0, 1],
+    [.85, .9, 1], [1, 1, .6], [1, .85, .3], [.6, .35, .15], [.9, .9, .6], [.3, .3, .9], [.1, .1, .1]])
 
 
 def normalize(v):
@@ -50,6 +51,25 @@ def shade(d, cam, debug):
     c = base[None] * (0.35 + 1.5 * diffuse[:, None]) * ao[:, None]
     c += sheen[None] * (0.42 * spec * (0.55 + 0.9 * crest) * ao)[:, None]
     c += np.array([0.3, 0.32, 0.36])[None] * (0.25 * (1 - ndv) ** 4 * ao)[:, None]
+    mat = np.round(d[:, 18]).astype(int)
+    grip = mat == 2
+    c[grip] = (np.array([0.07, 0.045, 0.03])[None] * (0.35 + 1.5 * diffuse[grip, None]) * ao[grip, None]
+               + sheen[None] * (0.42 * 0.35 * spec[grip] * ao[grip])[:, None])
+    steel = mat == 1
+    back = back & ~steel
+    if steel.any():
+        Ns, Vs = N[steel], V[steel]
+        R = 2 * np.sum(Ns * Vs, 1)[:, None] * Ns - Vs
+        horizon = np.exp(-R[:, 1] ** 2 * 30) * 0.35
+        t = np.clip((R[:, 1] + 0.15) / 0.5, 0, 1); t = t * t * (3 - 2 * t)
+        lo, hi = np.array([0.03, 0.03, 0.035]), np.array([0.58, 0.6, 0.64])
+        env = lo[None] * (1 - t[:, None]) + hi[None] * t[:, None] + hi[None] * horizon[:, None]
+        fres = 0.6 + 0.4 * (1 - ndv[steel]) ** 3
+        sp = np.clip(np.sum(Ns * H[steel], 1), 0, 1) ** 90 * 1.6
+        wrap = np.clip((ndl[steel] + 0.5) / 1.5, 0, 1)
+        edge = 1 + 0.6 * np.clip(ridge[steel], 0, 1)
+        c[steel] = (np.array([0.42, 0.43, 0.45])[None] * (0.15 + 0.35 * wrap)[:, None]
+                    + env * (0.55 * fres * edge)[:, None] + sp[:, None])
     c = np.where(back[:, None], c * 0.12, c)
     c = c * (1 - void[:, None]) + 0.004 * void[:, None]
     return c
@@ -109,7 +129,7 @@ def main():
     views = [0.0, 0.6, np.pi / 2, np.pi]
     if '--views' in sys.argv:
         views = [float(v) for v in sys.argv[sys.argv.index('--views') + 1].split(',')]
-    d = np.fromfile(path, dtype=np.float32).reshape(-1, 18).astype(np.float64)
+    d = np.fromfile(path, dtype=np.float32).reshape(-1, 20).astype(np.float64)
     imgs = [render(d, yaw, size, debug) for yaw in views]
     Image.fromarray(np.concatenate(imgs, axis=1)).save(out)
 

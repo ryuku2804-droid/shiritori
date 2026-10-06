@@ -14,6 +14,7 @@ namespace VoidCloak
     ///   color     : r = part id / 32, g = major ridge (0 valley .. 1 crest), b = void amount, a = random
     ///   uv0       : x = size multiplier, y = wind weight
     ///   uv1       : x = secondary ridge (0..1), y = baked occlusion (0..1)
+    ///   uv2       : x = material (0 cloth, 1 steel, 2 leather)
     /// </summary>
     public sealed class ParticleBuffer
     {
@@ -23,6 +24,7 @@ namespace VoidCloak
         public readonly List<Color> colors = new List<Color>();
         public readonly List<Vector2> uv0 = new List<Vector2>();
         public readonly List<Vector2> uv1 = new List<Vector2>();
+        public readonly List<Vector2> uv2 = new List<Vector2>();
         public readonly int[] partCounts = new int[(int)CloakPart.Count];
 
         public int Count { get { return positions.Count; } }
@@ -35,11 +37,13 @@ namespace VoidCloak
             colors.Clear();
             uv0.Clear();
             uv1.Clear();
+            uv2.Clear();
             Array.Clear(partCounts, 0, partCounts.Length);
         }
 
         public void Add(CloakPart part, Vector3 p, Vector3 n, Vector3 flow, float layer, float ridge, float voidAmount,
-                        float rnd, float size, float wind, float secondary, float ao)
+                        float rnd, float size, float wind, float secondary, float ao,
+                        ParticleMaterial material = ParticleMaterial.Cloth)
         {
             positions.Add(p);
             normals.Add(n);
@@ -47,6 +51,7 @@ namespace VoidCloak
             colors.Add(new Color(((int)part + 0.5f) / 32f, ridge * 0.5f + 0.5f, voidAmount, rnd));
             uv0.Add(new Vector2(size, wind));
             uv1.Add(new Vector2(secondary * 0.5f + 0.5f, ao));
+            uv2.Add(new Vector2((float)material, 0f));
             partCounts[(int)part]++;
         }
 
@@ -66,12 +71,13 @@ namespace VoidCloak
     /// Coordinate system: feet at Y = 0, character faces +Z, +X is the character's right.
     /// Everything is authored for a 4.2 unit tall figure and scaled to shape.height at the end.
     /// </summary>
-    public sealed class VoidCloakGenerator
+    public sealed partial class VoidCloakGenerator
     {
         public const float ReferenceHeight = 4.2f;
 
         readonly VoidCloakShape shape;
         readonly VoidCloakDensity density;
+        readonly VoidCloakSword sword;
         readonly BuildStage stage;
         readonly int seed;
         readonly ParticleBuffer buffer;
@@ -88,7 +94,14 @@ namespace VoidCloak
         const float BodyCenterZ = -0.03f;
 
         public VoidCloakGenerator(VoidCloakShape shape, VoidCloakDensity density, BuildStage stage, int seed, ParticleBuffer buffer)
+            : this(shape, density, null, stage, seed, buffer)
         {
+        }
+
+        public VoidCloakGenerator(VoidCloakShape shape, VoidCloakDensity density, VoidCloakSword sword, BuildStage stage, int seed,
+                                  ParticleBuffer buffer)
+        {
+            this.sword = sword;
             this.shape = shape;
             this.density = density;
             this.stage = stage;
@@ -113,6 +126,7 @@ namespace VoidCloak
             if (AtLeast(BuildStage.Step05_FrontCloak)) GenerateFrontCloak();
             if (AtLeast(BuildStage.Step06_LowerDrape)) GenerateLowerDrape();
             if (AtLeast(BuildStage.Step07_GroundCloth)) GenerateGroundCloth();
+            if (sword != null && sword.enabled) GenerateSword();
 
             buffer.Scale(shape.height / ReferenceHeight);
         }
@@ -421,7 +435,8 @@ namespace VoidCloak
         /// </summary>
         void Sample(ClothSurface surf, int count, float u0, float u1, float v0, float v1,
                     Func<float, float, SurfaceSample, CloakPart> classify,
-                    Func<SurfaceSample, float> weight, float sizeScale, int gridU, int gridV)
+                    Func<SurfaceSample, float> weight, float sizeScale, int gridU, int gridV,
+                    ParticleMaterial material = ParticleMaterial.Cloth)
         {
             if (count <= 0 || u1 <= u0 || v1 <= v0) return;
 
@@ -505,6 +520,10 @@ namespace VoidCloak
                     n = Vector3.Cross(pu, pv);
                     if (surf.flipNormal) n = -n;
                     if (n.sqrMagnitude < 1e-12f) n = Vector3.up;
+                    // closed solids (sword parts, sleeves) orient the normal away from their axis
+                    Vector3 inside;
+                    if (surf.TryGetInteriorPoint(u, v, out inside) && Vector3.Dot(n, s.position - inside) < 0f) n = -n;
+                    if (surf.invertNormal) n = -n;
                 }
                 n.Normalize();
 
@@ -524,7 +543,8 @@ namespace VoidCloak
                 CloakPart part = classify(u, v, s);
                 buffer.Add(part, p, n, flow, layerPos * 2f, s.major, s.voidAmount, rng.Value,
                            s.sizeScale * sizeScale * (1f - 0.15f * s.edge), s.wind, s.secondary,
-                           Mathf.Clamp01(s.ao * (layer >= 3 ? 0.92f : 1f)));
+                           Mathf.Clamp01(s.ao * (layer >= 3 ? 0.92f : 1f)),
+                           material);
             }
         }
     }

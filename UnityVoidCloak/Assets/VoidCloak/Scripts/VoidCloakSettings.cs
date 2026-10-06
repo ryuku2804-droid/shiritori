@@ -41,7 +41,15 @@ namespace VoidCloak
 
         HemEdge = 24,
 
-        Count = 25,
+        SwordBlade = 25,
+        SwordEdge = 26,
+        SwordGuard = 27,
+        SwordGrip = 28,
+        SwordPommel = 29,
+        Sleeve = 30,
+        SleeveVoid = 31,
+
+        Count = 32,
     }
 
     /// <summary>

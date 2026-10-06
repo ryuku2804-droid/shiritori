@@ -12,6 +12,7 @@
 //   COLOR     r = part id / 32, g = major ridge (0 valley .. 1 crest), b = void amount, a = random
 //   TEXCOORD0 x = size multiplier, y = wind weight
 //   TEXCOORD1 x = secondary ridge (0..1), y = baked occlusion
+//   TEXCOORD2 x = material (0 cloth, 1 steel, 2 leather)
 Shader "VoidCloak/ClothPoint"
 {
     Properties
@@ -57,6 +58,15 @@ Shader "VoidCloak/ClothPoint"
         _WindFrequency ("Wind Frequency", Float) = 1.3
         _WindDirection ("Wind Direction (object)", Vector) = (1, 0, 0.35, 0)
         _WindFlutter ("Small Flutter", Range(0, 1)) = 0.25
+
+        [Header(Sword)]
+        _SteelColor ("Steel Color", Color) = (0.42, 0.43, 0.45, 1)
+        _SteelEnvLow ("Steel Reflection (below horizon)", Color) = (0.03, 0.03, 0.035, 1)
+        _SteelEnvHigh ("Steel Reflection (sky)", Color) = (0.58, 0.6, 0.64, 1)
+        _SteelReflection ("Steel Reflection Strength", Range(0, 2)) = 0.55
+        _SteelSpecular ("Steel Specular", Range(0, 4)) = 1.6
+        _SteelGloss ("Steel Gloss", Range(4, 512)) = 90
+        _GripColor ("Grip Leather Color", Color) = (0.07, 0.045, 0.03, 1)
 
         [Header(Debug)]
         [Toggle] _DebugParts ("Show Part Colors", Float) = 0
@@ -117,6 +127,13 @@ Shader "VoidCloak/ClothPoint"
                 float4 _WindDirection;
                 float _WindFlutter;
                 float _DebugParts;
+                float4 _SteelColor;
+                float4 _SteelEnvLow;
+                float4 _SteelEnvHigh;
+                float _SteelReflection;
+                float _SteelSpecular;
+                float _SteelGloss;
+                float4 _GripColor;
             CBUFFER_END
 
             struct Attributes
@@ -127,6 +144,7 @@ Shader "VoidCloak/ClothPoint"
                 float4 color      : COLOR;
                 float2 uv0        : TEXCOORD0;
                 float2 uv1        : TEXCOORD1;
+                float2 uv2        : TEXCOORD2;
             };
 
             struct V2G
@@ -137,6 +155,7 @@ Shader "VoidCloak/ClothPoint"
                 float4 flowWS     : TEXCOORD2;   // xyz flow, w layer
                 float4 data       : TEXCOORD3;   // part, ridge, void, random
                 float4 extra      : TEXCOORD4;   // size, wind, secondary, ao
+                float material    : TEXCOORD5;   // 0 cloth, 1 steel, 2 leather
             };
 
             struct G2F
@@ -149,6 +168,7 @@ Shader "VoidCloak/ClothPoint"
                 float4 data       : TEXCOORD4;
                 float4 extra      : TEXCOORD5;
                 float fogFactor   : TEXCOORD6;
+                float material    : TEXCOORD7;
             };
 
             // ---------------------------------------------------------------- wind
@@ -176,6 +196,7 @@ Shader "VoidCloak/ClothPoint"
                 o.flowWS = float4(TransformObjectToWorldDir(input.tangentOS.xyz), input.tangentOS.w);
                 o.data = input.color;
                 o.extra = float4(input.uv0.x, input.uv0.y, input.uv1.x, input.uv1.y);
+                o.material = input.uv2.x;
                 return o;
             }
 
@@ -205,6 +226,7 @@ Shader "VoidCloak/ClothPoint"
                 o.flowWS = p.flowWS.xyz;
                 o.data = p.data;
                 o.extra = p.extra;
+                o.material = p.material;
 
                 [unroll]
                 for (int i = 0; i < 4; i++)
@@ -283,11 +305,32 @@ Shader "VoidCloak/ClothPoint"
                 float valley = saturate(-ridge);
                 float occlusion = ao * (1.0 - _ValleyDarkening * valley);
 
-                float3 color = _BaseColor.rgb * (_AmbientColor.rgb + diffuse * lightColor) * occlusion;
-                color += _SheenColor.rgb * lightColor * spec * _SpecularStrength * (0.55 + _RidgeHighlight * crest) * occlusion;
+                float material = floor(input.material + 0.5);
+                float3 baseColor = material > 1.5 ? _GripColor.rgb : _BaseColor.rgb;
+                float specScale = material > 1.5 ? 0.35 : 1.0;
+
+                float3 color = baseColor * (_AmbientColor.rgb + diffuse * lightColor) * occlusion;
+                color += _SheenColor.rgb * lightColor * spec * _SpecularStrength * specScale * (0.55 + _RidgeHighlight * crest) * occlusion;
                 color += _RimColor.rgb * pow(1.0 - NdotV, _RimPower) * _RimStrength * occlusion;
 
-                color *= lerp(1.0, _BackfaceDarkness, inside);
+                if (material > 0.5 && material < 1.5)
+                {
+                    // steel: dark metal body + fake sky / ground reflection + tight highlight,
+                    // edges (ridge channel) catch a bit more light
+                    float3 R = reflect(-V, N);
+                    float horizon = exp(-R.y * R.y * 30.0) * 0.35;
+                    float3 env = lerp(_SteelEnvLow.rgb, _SteelEnvHigh.rgb, smoothstep(-0.15, 0.35, R.y)) + _SteelEnvHigh.rgb * horizon;
+                    float fresnel = 0.6 + 0.4 * pow(1.0 - NdotV, 3.0);
+                    float steelSpec = pow(saturate(dot(N, H)), _SteelGloss) * _SteelSpecular;
+                    float edgeGlow = 1.0 + 0.6 * saturate(ridge);
+                    color = _SteelColor.rgb * (0.15 + 0.35 * wrapped) * lightColor
+                          + env * _SteelReflection * fresnel * edgeGlow
+                          + steelSpec * lightColor;
+                }
+                else
+                {
+                    color *= lerp(1.0, _BackfaceDarkness, inside);
+                }
 
                 // hood void: almost black, with a hint of depth so it is not a flat plate
                 float depthHint = 1.0 - _VoidDepthVariation + _VoidDepthVariation * rnd * NdotV;

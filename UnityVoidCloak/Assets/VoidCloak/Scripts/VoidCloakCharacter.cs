@@ -33,6 +33,8 @@ namespace VoidCloak
 
         [SerializeField] private VoidCloakShape shape = new VoidCloakShape();
         [SerializeField] private VoidCloakDensity density = new VoidCloakDensity();
+        [Tooltip("Medieval longsword held by hands hidden in the sleeves.")]
+        [SerializeField] private VoidCloakSword sword = new VoidCloakSword();
 
         [Header("Particles")]
         [Tooltip("World size of one particle (radius of its quad).")]
@@ -70,6 +72,16 @@ namespace VoidCloak
         [Tooltip("Color every particle group differently to check the structure.")]
         [SerializeField] private bool debugPartColors;
 
+        [Header("Sword Look")]
+        [SerializeField] private Color steelColor = new Color(0.42f, 0.43f, 0.45f, 1f);
+        [Tooltip("Reflected environment below / above the horizon (fake, no reflection probe needed).")]
+        [SerializeField] private Color steelEnvironmentLow = new Color(0.03f, 0.03f, 0.035f, 1f);
+        [SerializeField] private Color steelEnvironmentHigh = new Color(0.58f, 0.6f, 0.64f, 1f);
+        [SerializeField, Range(0f, 2f)] private float steelReflection = 0.55f;
+        [SerializeField, Range(0f, 4f)] private float steelSpecular = 1.6f;
+        [SerializeField, Range(4f, 512f)] private float steelGloss = 90f;
+        [SerializeField] private Color gripColor = new Color(0.07f, 0.045f, 0.03f, 1f);
+
         [Header("Info (read only)")]
         [SerializeField, TextArea(3, 30)] private string generationReport;
 
@@ -103,6 +115,13 @@ namespace VoidCloak
         static readonly int WindDirectionId = Shader.PropertyToID("_WindDirection");
         static readonly int WindFlutterId = Shader.PropertyToID("_WindFlutter");
         static readonly int DebugPartsId = Shader.PropertyToID("_DebugParts");
+        static readonly int SteelColorId = Shader.PropertyToID("_SteelColor");
+        static readonly int SteelEnvLowId = Shader.PropertyToID("_SteelEnvLow");
+        static readonly int SteelEnvHighId = Shader.PropertyToID("_SteelEnvHigh");
+        static readonly int SteelReflectionId = Shader.PropertyToID("_SteelReflection");
+        static readonly int SteelSpecularId = Shader.PropertyToID("_SteelSpecular");
+        static readonly int SteelGlossId = Shader.PropertyToID("_SteelGloss");
+        static readonly int GripColorId = Shader.PropertyToID("_GripColor");
 
         public int ParticleCount { get { return buffer.Count; } }
 
@@ -147,7 +166,7 @@ namespace VoidCloak
         {
             dirty = false;
 
-            var generator = new VoidCloakGenerator(shape, density, buildStage, seed, buffer);
+            var generator = new VoidCloakGenerator(shape, density, sword, buildStage, seed, buffer);
             generator.Generate();
             BuildMesh();
             ApplyMaterial();
@@ -169,6 +188,7 @@ namespace VoidCloak
             mesh.SetColors(buffer.colors);
             mesh.SetUVs(0, buffer.uv0);
             mesh.SetUVs(1, buffer.uv1);
+            mesh.SetUVs(2, buffer.uv2);
 
             var indices = new int[buffer.Count];
             for (int i = 0; i < indices.Length; i++) indices[i] = i;
@@ -253,6 +273,13 @@ namespace VoidCloak
             m.SetVector(WindDirectionId, windDirection);
             m.SetFloat(WindFlutterId, windFlutter);
             m.SetFloat(DebugPartsId, debugPartColors ? 1f : 0f);
+            m.SetColor(SteelColorId, steelColor);
+            m.SetColor(SteelEnvLowId, steelEnvironmentLow);
+            m.SetColor(SteelEnvHighId, steelEnvironmentHigh);
+            m.SetFloat(SteelReflectionId, steelReflection);
+            m.SetFloat(SteelSpecularId, steelSpecular);
+            m.SetFloat(SteelGlossId, steelGloss);
+            m.SetColor(GripColorId, gripColor);
         }
 
         void BuildReport()

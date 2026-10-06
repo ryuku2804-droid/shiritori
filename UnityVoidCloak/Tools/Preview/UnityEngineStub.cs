@@ -23,6 +23,7 @@ namespace UnityEngine
         public static Vector3 up => new Vector3(0, 1, 0);
         public static Vector3 down => new Vector3(0, -1, 0);
         public static Vector3 forward => new Vector3(0, 0, 1);
+        public static Vector3 right => new Vector3(1, 0, 0);
         public float sqrMagnitude => x * x + y * y + z * z;
         public float magnitude => (float)Math.Sqrt(sqrMagnitude);
         public Vector3 normalized { get { float m = magnitude; return m > 1e-5f ? this / m : zero; } }
@@ -49,6 +50,7 @@ namespace UnityEngine
         public static float Pow(float f, float p) => (float)Math.Pow(f, p);
         public static float Exp(float f) => (float)Math.Exp(f);
         public static float Abs(float f) => Math.Abs(f);
+        public static float Sign(float f) => f >= 0f ? 1f : -1f;
         public static float Min(float a, float b) => Math.Min(a, b);
         public static float Max(float a, float b) => Math.Max(a, b);
         public static int Max(int a, int b) => Math.Max(a, b);

@@ -23,6 +23,8 @@
 | `Assets/VoidCloak/Scripts/VoidCloakGenerator.cs` | 各Particle群の生成関数（`GenerateHood()` 〜 `GenerateGroundWrinkles()`）とサーフェスサンプラー |
 | `Assets/VoidCloak/Scripts/VoidCloakSurfaces.cs` | 布面の数式定義（フード殻・開口部・縁・Void・肩ケープ・ドレープ） |
 | `Assets/VoidCloak/Scripts/VoidCloakMath.cs` | `FoldField`（シワの山と谷）、プロファイル曲線、乱数、ノイズ |
+| `Assets/VoidCloak/Scripts/VoidCloakSword.cs` | 剣の設定（`VoidCloakSword`）と、刀身・鍔・グリップ・柄頭・袖の形状 |
+| `Assets/VoidCloak/Scripts/VoidCloakGenerator.Sword.cs` | 剣と袖のParticle生成（持ち方ごとの配置） |
 | `Assets/VoidCloak/Scripts/VoidCloakSettings.cs` | 形状パラメータ、Particle数、`CloakPart`、`BuildStage` |
 | `Assets/VoidCloak/Shaders/VoidCloakPointShader.shader` | URP用シェーダー `VoidCloak/ClothPoint` |
 | `Tools/Preview/` | Unity外で形状を確認するためのツール（Unityにはインポートしない） |
@@ -77,6 +79,21 @@ Inspectorの **Build Stage** で、引き継ぎ資料の制作順どおりに確
 - **地面**: 布束（左右それぞれOuter/Middle/Inner）で裾の到達距離と高さを変え、横・斜めのシワ（GroundWrinkles）を足している。最外周にHemEdge。
 - **サンプリング**: 布面を格子に分けて実面積×密度ウェイトでCDFを作り、層化してParticleを配置（塊や穴ができない）。法線と流れ方向は折り目を含む最終形状から差分で求めるので、シワの山にハイライトが乗る。各Particleは Front / Front-Middle / Back-Middle / Back の4層の薄い厚みの中に置く。
 
+## 中世の剣（Sword）
+
+![sword](Docs/preview_sword.png)
+
+Inspectorの **Sword** で設定します（`enabled` で表示/非表示）。剣もマントと同じParticleで作り、シェーダーで鋼（steel）と革（leather）として描画します。
+
+- **形**: ロングソード。刀身は菱形断面、先へ行くほど薄く細くなり、中央に溝（フラー）があり、先端は尖る。十字の鍔は両端が刃側へ少し曲がり、端が広がる。グリップは中央が少し太い革巻き（らせん状の巻き目）。柄頭は円盤形（ホイールポメル）。
+- **持ち方（Pose）**: 腕や手は出さず、**手は布の袖（ベルスリーブ）の中**。袖の奥は黒く、手は見えません。
+  - `LoweredRight`: 右手で剣を下げ、切っ先を前方の地面に置く
+  - `PlantedFront`: 体の前で剣を地面に立て、両手で柄を握る
+  - `Custom`: `Custom Tip`（切っ先の位置）と `Custom Blade Direction`（鍔から切っ先への向き）で自由に配置
+- **見た目（Sword Look）**: Steel Color、Steel Reflection（下/上）、Reflection Strength、Specular、Gloss、Grip Color。反射は空と地面の色を擬似的に映すだけなので、Reflection Probeは不要です。
+- 剣は風で揺れません。袖は少しだけ揺れます。
+- マントは剣や腕を避けるように変形しないので、袖の付け根はマントの中に隠れる位置から出しています。
+
 ## 頂点データ（C# → HLSL）
 
 | チャンネル | 内容 |
@@ -87,6 +104,7 @@ Inspectorの **Build Stage** で、引き継ぎ資料の制作順どおりに確
 | `COLOR` | r = Part ID / 32、g = 大シワ (0 谷 〜 1 山)、b = Void量、a = 乱数 |
 | `TEXCOORD0` | x = サイズ倍率、y = 風の影響度 |
 | `TEXCOORD1` | x = 中シワ、y = 焼き込みAO |
+| `TEXCOORD2` | x = 材質（0 布、1 鋼、2 革） |
 
 ## シェーダー
 
@@ -116,7 +134,7 @@ Inspectorの **Build Stage** で、引き継ぎ資料の制作順どおりに確
 
 ```bash
 cd Tools/Preview
-dotnet run -c Release -- cloak.bin 10        # 第2引数 = Build Stage (1-10)、第3引数 = seed
+dotnet run -c Release -- cloak.bin 10 1337 0   # Build Stage (1-10)、seed、剣の持ち方 (0-2、-1で剣なし)
 python3 render_preview.py cloak.bin out.png  # --debug でPart色分け、--views 0,1.57 で視点指定
 ```
 
