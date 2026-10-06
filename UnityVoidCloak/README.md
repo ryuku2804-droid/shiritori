@@ -25,6 +25,8 @@
 | `Assets/VoidCloak/Scripts/VoidCloakMath.cs` | `FoldField`（シワの山と谷）、プロファイル曲線、乱数、ノイズ |
 | `Assets/VoidCloak/Scripts/VoidCloakSword.cs` | 剣の設定（`VoidCloakSword`）と、刀身・鍔・グリップ・柄頭・袖の形状 |
 | `Assets/VoidCloak/Scripts/VoidCloakGenerator.Sword.cs` | 剣と袖のParticle生成（持ち方ごとの配置） |
+| `Assets/VoidCloak/Scripts/VoidCloakMover.cs` | WASDで歩く・走る、布の揺れをシェーダーに渡す |
+| `Assets/VoidCloak/Scripts/VoidCloakFollowCamera.cs` | 後ろから追いかけるカメラ（右ドラッグで回転、ホイールでズーム） |
 | `Assets/VoidCloak/Scripts/VoidCloakSettings.cs` | 形状パラメータ、Particle数、`CloakPart`、`BuildStage` |
 | `Assets/VoidCloak/Shaders/VoidCloakPointShader.shader` | URP用シェーダー `VoidCloak/ClothPoint` |
 | `Tools/Preview/` | Unity外で形状を確認するためのツール（Unityにはインポートしない） |
@@ -93,6 +95,28 @@ Inspectorの **Sword** で設定します（`enabled` で表示/非表示）。�
 - **見た目（Sword Look）**: Steel Color、Steel Reflection（下/上）、Reflection Strength、Specular、Gloss、Grip Color。反射は空と地面の色を擬似的に映すだけなので、Reflection Probeは不要です。
 - 剣は風で揺れません。袖は少しだけ揺れます。
 - マントは剣や腕を避けるように変形しないので、袖の付け根はマントの中に隠れる位置から出しています。
+
+## WASDで歩く
+
+![walk](Docs/preview_walk.png)
+
+（左：静止、中・右：歩行中。裾と地面の布が後ろへ流れる）
+
+1. キャラクターのGameObjectに **VoidCloakMover** を追加
+2. Main Cameraに **VoidCloakFollowCamera** を追加し、**Target** にキャラクターのGameObjectをドラッグ
+3. Playして操作する
+
+| 操作 | 内容 |
+|---|---|
+| W / A / S / D（矢印キーも可） | カメラから見た前後左右へ歩く（キャラクターは進む方向を向く） |
+| 左Shift | 走る |
+| 右クリックしながらドラッグ | カメラを回す |
+| マウスホイール | ズーム |
+
+- 新しいInput Systemと古いInput Managerのどちらでも動きます（Project Settings → Player → Active Input Handling の設定に自動で合わせる）。
+- 床との当たり判定が必要なら、同じGameObjectに **CharacterController** を追加します（重力つきで移動する。Height 4.2、Radius 0.8、Center Y 2.1 が目安）。追加しない場合は今の高さのまま滑るように移動し、床は不要です。
+- 歩くと、裾が後ろへ流れ、一歩ごとに前の布が左右交互に押し出され、体が少し上下します。フード・肩・剣は固定です。強さは VoidCloakMover の **Cloth Motion**（Trail Strength、Max Trail、Step Push、Bob Height など）で調整します。
+- 注意：`LoweredRight` の持ち方では、歩くと剣先が地面を滑ります。
 
 ## 頂点データ（C# → HLSL）
 

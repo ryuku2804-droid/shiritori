@@ -20,9 +20,9 @@ namespace VoidCloak
     {
         [Header("Rendering")]
         [Tooltip("VoidCloak/ClothPoint shader. Used when no material template is set.")]
-        [SerializeField] private Shader characterShader;
+        [SerializeField] private Shader characterShader = null;
         [Tooltip("Optional material using the VoidCloak/ClothPoint shader. A runtime copy is used.")]
-        [SerializeField] private Material materialTemplate;
+        [SerializeField] private Material materialTemplate = null;
 
         [Header("Build")]
         [Tooltip("Build the character step by step (hand-off document section 40).")]
@@ -70,7 +70,7 @@ namespace VoidCloak
         [SerializeField] private Color voidColor = new Color(0.004f, 0.004f, 0.005f, 1f);
         [SerializeField, Range(0f, 1f)] private float insideBrightness = 0.12f;
         [Tooltip("Color every particle group differently to check the structure.")]
-        [SerializeField] private bool debugPartColors;
+        [SerializeField] private bool debugPartColors = false;
 
         [Header("Sword Look")]
         [SerializeField] private Color steelColor = new Color(0.42f, 0.43f, 0.45f, 1f);
@@ -90,6 +90,10 @@ namespace VoidCloak
         Object runtimeMaterialSource;   // the Material template or Shader the runtime material was made from
         bool dirty = true;
         readonly ParticleBuffer buffer = new ParticleBuffer();
+
+        // Walking state, written by VoidCloakMover (object space, already smoothed).
+        Vector3 motionLag;
+        Vector4 gait;   // x = step phase (radians), y = step push, z = body bob
 
         static readonly int PointSizeId = Shader.PropertyToID("_PointSize");
         static readonly int PointVariationId = Shader.PropertyToID("_PointVariation");
@@ -122,8 +126,28 @@ namespace VoidCloak
         static readonly int SteelSpecularId = Shader.PropertyToID("_SteelSpecular");
         static readonly int SteelGlossId = Shader.PropertyToID("_SteelGloss");
         static readonly int GripColorId = Shader.PropertyToID("_GripColor");
+        static readonly int MotionLagId = Shader.PropertyToID("_MotionLag");
+        static readonly int GaitId = Shader.PropertyToID("_Gait");
 
         public int ParticleCount { get { return buffer.Count; } }
+
+        /// <summary>Total height of the character in world units (before transform scale).</summary>
+        public float Height { get { return shape.height; } }
+
+        /// <summary>
+        /// Called by <see cref="VoidCloakMover"/> every frame. The shader uses it to let the lower
+        /// cloak trail behind, sway with each step and bob slightly. Rigid parts (hood, shoulders,
+        /// sword) are not affected because their wind weight is ~0.
+        /// </summary>
+        /// <param name="lagObjectSpace">How far the hem trails, in object space (points opposite to the motion).</param>
+        /// <param name="stepPhase">Gait phase in radians (one full cycle = two steps).</param>
+        /// <param name="stepPush">How far each step pushes the front of the cloak forward.</param>
+        /// <param name="bob">Vertical body offset.</param>
+        public void SetMotion(Vector3 lagObjectSpace, float stepPhase, float stepPush, float bob)
+        {
+            motionLag = lagObjectSpace;
+            gait = new Vector4(stepPhase, stepPush, bob, 0f);
+        }
 
         void OnEnable()
         {
@@ -196,7 +220,7 @@ namespace VoidCloak
 
             mesh.RecalculateBounds();
             Bounds b = mesh.bounds;
-            b.Expand(windStrength * 4f + pointSize * 8f + 0.1f);
+            b.Expand(windStrength * 4f + pointSize * 8f + 1.5f); // room for wind and walking motion
             mesh.bounds = b;
 
             GetComponent<MeshFilter>().sharedMesh = mesh;
@@ -280,6 +304,8 @@ namespace VoidCloak
             m.SetFloat(SteelSpecularId, steelSpecular);
             m.SetFloat(SteelGlossId, steelGloss);
             m.SetColor(GripColorId, gripColor);
+            m.SetVector(MotionLagId, motionLag);
+            m.SetVector(GaitId, gait);
         }
 
         void BuildReport()

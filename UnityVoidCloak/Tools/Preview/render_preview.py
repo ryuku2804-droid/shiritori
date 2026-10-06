@@ -130,6 +130,19 @@ def main():
     if '--views' in sys.argv:
         views = [float(v) for v in sys.argv[sys.argv.index('--views') + 1].split(',')]
     d = np.fromfile(path, dtype=np.float32).reshape(-1, 20).astype(np.float64)
+    if '--motion' in sys.argv:
+        # mirrors MotionOffset() in the shader: --motion lagZ,stepPhase,stepPush,bob
+        lag_z, phase, push, bob = [float(v) for v in sys.argv[sys.argv.index('--motion') + 1].split(',')]
+        p, w = d[:, 0:3], d[:, 15]
+        w2 = w * w
+        off = np.zeros_like(p)
+        off[:, 2] = -lag_z * w2
+        off[:, 1] = abs(lag_z) * w2 * 0.12
+        side = np.clip(p[:, 0] / 0.5, -1, 1)
+        front = np.clip(p[:, 2] / 0.8 + 0.4, 0, 1)
+        off[:, 2] += np.sin(phase) * side * front * push * w
+        off[:, 1] += bob * np.clip(p[:, 1] / 1.5, 0, 1)
+        d[:, 0:3] = p + off
     imgs = [render(d, yaw, size, debug) for yaw in views]
     Image.fromarray(np.concatenate(imgs, axis=1)).save(out)
 

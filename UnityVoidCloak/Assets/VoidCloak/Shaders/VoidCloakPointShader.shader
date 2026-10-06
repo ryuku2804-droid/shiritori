@@ -68,6 +68,10 @@ Shader "VoidCloak/ClothPoint"
         _SteelGloss ("Steel Gloss", Range(4, 512)) = 90
         _GripColor ("Grip Leather Color", Color) = (0.07, 0.045, 0.03, 1)
 
+        [Header(Walking set by VoidCloakMover)]
+        _MotionLag ("Motion Lag (object)", Vector) = (0, 0, 0, 0)
+        _Gait ("Gait (phase, push, bob)", Vector) = (0, 0, 0, 0)
+
         [Header(Debug)]
         [Toggle] _DebugParts ("Show Part Colors", Float) = 0
     }
@@ -134,6 +138,8 @@ Shader "VoidCloak/ClothPoint"
                 float _SteelSpecular;
                 float _SteelGloss;
                 float4 _GripColor;
+                float4 _MotionLag;
+                float4 _Gait;
             CBUFFER_END
 
             struct Attributes
@@ -185,11 +191,30 @@ Shader "VoidCloak/ClothPoint"
                 return offset * (_WindStrength * weight);
             }
 
+            // ---------------------------------------------------------- walking
+            // The hem trails behind the motion, each step pushes the front of the cloak
+            // forward on one side, and the whole figure bobs a little. The wind weight
+            // (0 on hood / shoulders / sword, 1 at the hem) decides how much each point moves.
+            float3 MotionOffset(float3 positionOS, float weight)
+            {
+                float w2 = weight * weight;
+                float3 offset = -_MotionLag.xyz * w2;
+                offset.y += length(_MotionLag.xz) * w2 * 0.12;          // trailing cloth lifts a little
+
+                float side = clamp(positionOS.x / 0.5, -1.0, 1.0);       // left / right leg
+                float front = saturate(positionOS.z / 0.8 + 0.4);        // mostly the front of the cloak
+                offset.z += sin(_Gait.x) * side * front * _Gait.y * weight;
+
+                offset.y += _Gait.z * saturate(positionOS.y / 1.5);       // body bob, cloth on the floor stays down
+                return offset;
+            }
+
             V2G Vert(Attributes input)
             {
                 V2G o;
                 float rnd = input.color.a;
-                float3 posOS = input.positionOS.xyz + WindOffset(input.positionOS.xyz, input.uv0.y, rnd);
+                float3 posOS = input.positionOS.xyz + WindOffset(input.positionOS.xyz, input.uv0.y, rnd)
+                             + MotionOffset(input.positionOS.xyz, input.uv0.y);
                 o.positionWS = TransformObjectToWorld(posOS);
                 o.positionCS = TransformWorldToHClip(o.positionWS);
                 o.normalWS = TransformObjectToWorldNormal(input.normalOS);
