@@ -70,7 +70,7 @@ Shader "VoidCloak/ClothPoint"
 
         [Header(Walking set by VoidCloakMover)]
         _MotionLag ("Motion Lag (object)", Vector) = (0, 0, 0, 0)
-        _Gait ("Gait (phase, push, bob)", Vector) = (0, 0, 0, 0)
+        _Gait ("Gait (phase, push, bob, billow)", Vector) = (0, 0, 0, 0)
 
         [Header(Debug)]
         [Toggle] _DebugParts ("Show Part Colors", Float) = 0
@@ -191,16 +191,37 @@ Shader "VoidCloak/ClothPoint"
                 return offset * (_WindStrength * weight);
             }
 
-            // ---------------------------------------------------------- walking
+            // ---------------------------------------------------------- walking / running
             // The hem trails behind the motion, each step pushes the front of the cloak
-            // forward on one side, and the whole figure bobs a little. The wind weight
-            // (0 on hood / shoulders / sword, 1 at the hem) decides how much each point moves.
+            // forward on one side, and the whole figure bobs a little. While running
+            // (_Gait.w = billow) the trailing side puffs out and lifts, waves run down the
+            // cloak and the hem flaps. The wind weight (0 on hood / shoulders / sword,
+            // 1 at the hem) decides how much each point moves.
             float3 MotionOffset(float3 positionOS, float weight)
             {
                 float w2 = weight * weight;
-                float3 offset = -_MotionLag.xyz * w2;
-                offset.y += length(_MotionLag.xz) * w2 * 0.12;          // trailing cloth lifts a little
+                float billow = _Gait.w;
 
+                float lagLen = length(_MotionLag.xz);
+                float2 trailDir = lagLen > 1e-4 ? -_MotionLag.xz / lagLen : float2(0.0, 0.0);  // where the cloth streams to
+                float2 radial = positionOS.xz / max(length(positionOS.xz), 1e-3);
+                float behind = saturate(dot(radial, trailDir));                                  // 1 on the trailing side
+
+                // trailing: the back of the cloak puffs out, the front is pressed against the body
+                float puff = 0.65 + 0.7 * behind * (0.5 + 0.5 * saturate(billow));
+                float3 offset = float3(trailDir.x, 0.0, trailDir.y) * (lagLen * w2 * puff);
+                offset.y += lagLen * w2 * (0.12 + 0.3 * behind * saturate(billow));             // streaming cloth lifts
+
+                // billow: waves travelling from the shoulders down to the hem
+                float t = _Time.y;
+                float wave = sin(t * 8.0 - positionOS.y * 2.3 + positionOS.x * 1.7)
+                           + 0.5 * sin(t * 13.0 - positionOS.y * 3.9 - positionOS.z * 2.3);
+                offset.xz += trailDir * (wave * billow * weight * 0.1 * (0.4 + behind));
+                offset.y += wave * billow * w2 * 0.05;
+                // hem flapping sideways
+                offset.x += sin(t * 6.5 + positionOS.y * 1.3 + positionOS.z * 1.1) * billow * w2 * 0.07;
+
+                // steps
                 float side = clamp(positionOS.x / 0.5, -1.0, 1.0);       // left / right leg
                 float front = saturate(positionOS.z / 0.8 + 0.4);        // mostly the front of the cloak
                 offset.z += sin(_Gait.x) * side * front * _Gait.y * weight;

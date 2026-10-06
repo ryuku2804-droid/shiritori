@@ -35,8 +35,14 @@ namespace VoidCloak
         [Header("Cloth Motion")]
         [Tooltip("How far the hem trails behind: seconds of velocity.")]
         [SerializeField, Range(0f, 0.6f)] private float trailStrength = 0.16f;
-        [Tooltip("Maximum trailing distance of the hem.")]
+        [Tooltip("Maximum trailing distance of the hem while walking.")]
         [SerializeField, Range(0f, 2f)] private float maxTrail = 0.6f;
+        [Tooltip("Maximum trailing distance of the hem while running.")]
+        [SerializeField, Range(0f, 3f)] private float runMaxTrail = 1.4f;
+        [Tooltip("Waves running down the cloak and a flapping hem while running (0 = off).")]
+        [SerializeField, Range(0f, 2f)] private float runBillow = 1f;
+        [Tooltip("A little billowing already while walking (0 = none).")]
+        [SerializeField, Range(0f, 1f)] private float walkBillow = 0.15f;
         [Tooltip("How slowly the cloth follows changes of speed and direction.")]
         [SerializeField, Range(0.01f, 1f)] private float clothLagTime = 0.3f;
         [Tooltip("Distance covered by one step.")]
@@ -55,6 +61,7 @@ namespace VoidCloak
         Vector3 clothVelocityRef;
         float stepPhase;
         float gaitAmount;
+        float billowAmount;
 
         void Awake()
         {
@@ -107,10 +114,19 @@ namespace VoidCloak
             // when the character starts, stops or turns
             Vector3 local = transform.InverseTransformDirection(velocity);
             clothVelocity = Vector3.SmoothDamp(clothVelocity, local, ref clothVelocityRef, clothLagTime, Mathf.Infinity, dt);
-            Vector3 lag = clothVelocity * trailStrength;
-            if (lag.magnitude > maxTrail) lag = lag.normalized * maxTrail;
-
             float speed = new Vector3(velocity.x, 0f, velocity.z).magnitude;
+            // 0 at walking speed, 1 at full running speed
+            float runAmount = runSpeed > walkSpeed ? Mathf.Clamp01((speed - walkSpeed) / (runSpeed - walkSpeed)) : 0f;
+
+            Vector3 lag = clothVelocity * trailStrength;
+            float trailLimit = Mathf.Lerp(maxTrail, runMaxTrail, runAmount);
+            if (lag.magnitude > trailLimit) lag = lag.normalized * trailLimit;
+
+            // billowing builds up and calms down gradually instead of switching on and off
+            float walkAmount = walkSpeed > 0f ? Mathf.Clamp01(speed / walkSpeed) : 0f;
+            float targetBillow = walkAmount * walkBillow + runAmount * runBillow;
+            billowAmount = Mathf.MoveTowards(billowAmount, targetBillow, dt * 1.5f);
+
             // half a gait cycle per step
             stepPhase += speed / stepLength * Mathf.PI * dt;
             if (stepPhase > 1000f) stepPhase -= 2f * Mathf.PI * 150f;
@@ -118,7 +134,7 @@ namespace VoidCloak
             gaitAmount = Mathf.MoveTowards(gaitAmount, targetGait, dt * 3f);
 
             float bob = -Mathf.Abs(Mathf.Sin(stepPhase)) * bobHeight * gaitAmount;
-            character.SetMotion(lag, stepPhase, stepPush * gaitAmount, bob);
+            character.SetMotion(lag, stepPhase, stepPush * gaitAmount, bob, billowAmount);
         }
 
         void OnDisable()

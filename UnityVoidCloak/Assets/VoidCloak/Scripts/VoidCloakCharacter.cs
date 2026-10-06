@@ -93,7 +93,7 @@ namespace VoidCloak
 
         // Walking state, written by VoidCloakMover (object space, already smoothed).
         Vector3 motionLag;
-        Vector4 gait;   // x = step phase (radians), y = step push, z = body bob
+        Vector4 gait;   // x = step phase (radians), y = step push, z = body bob, w = billow (running)
 
         static readonly int PointSizeId = Shader.PropertyToID("_PointSize");
         static readonly int PointVariationId = Shader.PropertyToID("_PointVariation");
@@ -143,10 +143,11 @@ namespace VoidCloak
         /// <param name="stepPhase">Gait phase in radians (one full cycle = two steps).</param>
         /// <param name="stepPush">How far each step pushes the front of the cloak forward.</param>
         /// <param name="bob">Vertical body offset.</param>
-        public void SetMotion(Vector3 lagObjectSpace, float stepPhase, float stepPush, float bob)
+        /// <param name="billow">0 = calm, 1 = full billowing (waves running down the cloak while running).</param>
+        public void SetMotion(Vector3 lagObjectSpace, float stepPhase, float stepPush, float bob, float billow = 0f)
         {
             motionLag = lagObjectSpace;
-            gait = new Vector4(stepPhase, stepPush, bob, 0f);
+            gait = new Vector4(stepPhase, stepPush, bob, billow);
         }
 
         void OnEnable()

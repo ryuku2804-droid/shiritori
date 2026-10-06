@@ -131,13 +131,28 @@ def main():
         views = [float(v) for v in sys.argv[sys.argv.index('--views') + 1].split(',')]
     d = np.fromfile(path, dtype=np.float32).reshape(-1, 20).astype(np.float64)
     if '--motion' in sys.argv:
-        # mirrors MotionOffset() in the shader: --motion lagZ,stepPhase,stepPush,bob
-        lag_z, phase, push, bob = [float(v) for v in sys.argv[sys.argv.index('--motion') + 1].split(',')]
-        p, w = d[:, 0:3], d[:, 15]
+        # mirrors MotionOffset() in the shader: --motion lagZ,stepPhase,stepPush,bob,billow,time
+        vals = [float(v) for v in sys.argv[sys.argv.index('--motion') + 1].split(',')]
+        lag_z, phase, push, bob = vals[:4]
+        billow = vals[4] if len(vals) > 4 else 0.0
+        t = vals[5] if len(vals) > 5 else 0.0
+        p, w = d[:, 0:3].copy(), d[:, 15]
         w2 = w * w
+        lag_len = abs(lag_z)
+        trail = np.array([0.0, -np.sign(lag_z)]) if lag_len > 1e-4 else np.zeros(2)
+        radial = p[:, [0, 2]] / np.maximum(np.linalg.norm(p[:, [0, 2]], axis=1, keepdims=True), 1e-3)
+        behind = np.clip(radial @ trail, 0, 1)
+        puff = 0.65 + 0.7 * behind * (0.5 + 0.5 * min(billow, 1.0))
         off = np.zeros_like(p)
-        off[:, 2] = -lag_z * w2
-        off[:, 1] = abs(lag_z) * w2 * 0.12
+        off[:, 0] = trail[0] * lag_len * w2 * puff
+        off[:, 2] = trail[1] * lag_len * w2 * puff
+        off[:, 1] = lag_len * w2 * (0.12 + 0.3 * behind * min(billow, 1.0))
+        wave = np.sin(t * 8 - p[:, 1] * 2.3 + p[:, 0] * 1.7) + 0.5 * np.sin(t * 13 - p[:, 1] * 3.9 - p[:, 2] * 2.3)
+        k = wave * billow * w * 0.1 * (0.4 + behind)
+        off[:, 0] += trail[0] * k
+        off[:, 2] += trail[1] * k
+        off[:, 1] += wave * billow * w2 * 0.05
+        off[:, 0] += np.sin(t * 6.5 + p[:, 1] * 1.3 + p[:, 2] * 1.1) * billow * w2 * 0.07
         side = np.clip(p[:, 0] / 0.5, -1, 1)
         front = np.clip(p[:, 2] / 0.8 + 0.4, 0, 1)
         off[:, 2] += np.sin(phase) * side * front * push * w
