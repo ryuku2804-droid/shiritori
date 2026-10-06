@@ -115,6 +115,7 @@ Inspectorの **Sword** で設定します（`enabled` で表示/非表示）。�
 
 - 新しいInput Systemと古いInput Managerのどちらでも動きます（Project Settings → Player → Active Input Handling の設定に自動で合わせる）。
 - 床との当たり判定が必要なら、同じGameObjectに **CharacterController** を追加します（重力つきで移動する。Height 4.2、Radius 0.8、Center Y 2.1 が目安）。追加しない場合は今の高さのまま滑るように移動し、床は不要です。
+- カメラは自動では回りません（移動がカメラ基準なので、自動で回ると A/D/S でぐるぐる回ってしまうため）。向きを変えたいときは右ドラッグで回します。
 - 歩くと、裾が後ろへ流れ、一歩ごとに前の布が左右交互に押し出され、体が少し上下します。フード・肩・剣は固定です。強さは VoidCloakMover の **Cloth Motion**（Trail Strength、Max Trail、Step Push、Bob Height など）で調整します。
 - 注意：`LoweredRight` の持ち方では、歩くと剣先が地面を滑ります。
 
