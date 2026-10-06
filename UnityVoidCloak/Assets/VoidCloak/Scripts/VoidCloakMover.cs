@@ -7,7 +7,7 @@ namespace VoidCloak
     ///
     /// - Movement is relative to the camera (W = away from the camera).
     /// - The character turns smoothly to face the direction it walks.
-    /// - Hold Left Shift to run.
+    /// - Hold Left Shift to run (gamepad: left stick, press it or hold the right trigger to run).
     /// - Works with the new Input System package and with the old Input Manager.
     /// - If a CharacterController is on the same GameObject it is used (with gravity),
     ///   otherwise the character slides on its current height (no floor needed).
@@ -59,6 +59,14 @@ namespace VoidCloak
         VoidCloakCharacter character;
         CharacterController controller;
 
+        /// <summary>Raised on every footstep with the current speed (used for footstep echoes).</summary>
+        public event System.Action<float> Stepped;
+
+        public float WalkSpeed { get { return walkSpeed; } }
+        public float RunSpeed { get { return runSpeed; } }
+        /// <summary>Current horizontal speed in units per second.</summary>
+        public float CurrentSpeed { get { return new Vector3(velocity.x, 0f, velocity.z).magnitude; } }
+
         Vector3 velocity;          // world space, horizontal
         float verticalSpeed;
         Vector3 clothVelocity;     // object space, smoothed
@@ -66,6 +74,7 @@ namespace VoidCloak
         float stepPhase;
         float gaitAmount;
         float billowAmount;
+        int lastStepIndex;
 
         void Awake()
         {
@@ -134,6 +143,14 @@ namespace VoidCloak
             // half a gait cycle per step
             stepPhase += speed / stepLength * Mathf.PI * dt;
             if (stepPhase > 1000f) stepPhase -= 2f * Mathf.PI * 150f;
+
+            // one footstep every half gait cycle
+            int stepIndex = Mathf.FloorToInt(stepPhase / Mathf.PI);
+            if (stepIndex != lastStepIndex)
+            {
+                lastStepIndex = stepIndex;
+                if (speed > 0.3f && Stepped != null) Stepped(speed);
+            }
             float targetGait = walkSpeed > 0f ? Mathf.Clamp01(speed / walkSpeed) : 0f;
             gaitAmount = Mathf.MoveTowards(gaitAmount, targetGait, dt * 3f);
 
@@ -169,6 +186,17 @@ namespace VoidCloak
         {
             run = false;
 #if ENABLE_INPUT_SYSTEM
+            // gamepad: left stick to move, press the stick or hold the right trigger to run
+            var pad = UnityEngine.InputSystem.Gamepad.current;
+            if (pad != null)
+            {
+                Vector2 stick = pad.leftStick.ReadValue();
+                if (stick.sqrMagnitude > 0.04f)
+                {
+                    run = pad.leftStickButton.isPressed || pad.rightTrigger.ReadValue() > 0.5f;
+                    return stick;
+                }
+            }
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null)
             {

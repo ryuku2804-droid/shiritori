@@ -9,6 +9,7 @@ static class Program
 {
     static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "stage") return DumpStage(args.Length > 1 ? args[1] : "stage.bin");
         string outPath = args.Length > 0 ? args[0] : "cloak.bin";
         int stage = args.Length > 1 ? int.Parse(args[1]) : (int)BuildStage.Complete;
         int seed = args.Length > 2 ? int.Parse(args[2]) : 1337;
@@ -33,5 +34,41 @@ static class Program
             }
         }
         return 0;
+    }
+
+    // Echo Knight prototype stage: every kit piece + the Listener, in world space.
+    // Record: pos3, normal3, brightness, random, cavity, type (0 stone, 1 enemy) = 10 floats
+    static int DumpStage(string outPath)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        int total = 0;
+        using (var w = new BinaryWriter(File.Create(outPath)))
+        {
+            foreach (var placement in EchoKnight.EchoPrototypeLayout.Pieces())
+            {
+                var b = new EchoKnight.EchoPointBuilder(placement.spec.seed);
+                EchoKnight.EchoKitGenerator.Build(placement.spec, b, new System.Collections.Generic.List<UnityEngine.Bounds>());
+                Write(w, b, placement.position, placement.yaw, 0f);
+                Console.WriteLine($"  {placement.name,-14} {b.Count,8}");
+                total += b.Count;
+            }
+            var enemy = new EchoKnight.EchoPointBuilder(7);
+            EchoKnight.EchoListenerBody.Build(enemy);
+            Write(w, enemy, EchoKnight.EchoPrototypeLayout.ListenerSpawn, 180f, 1f);
+            Console.WriteLine($"  {"Listener",-14} {enemy.Count,8}");
+            total += enemy.Count;
+        }
+        Console.WriteLine($"stage points: {total} ({sw.ElapsedMilliseconds} ms)");
+        return 0;
+    }
+
+    static void Write(BinaryWriter w, EchoKnight.EchoPointBuilder b, UnityEngine.Vector3 pos, float yaw, float type)
+    {
+        var q = UnityEngine.Quaternion.Euler(0f, yaw, 0f);
+        for (int i = 0; i < b.Count; i++)
+        {
+            var p = q * b.positions[i] + pos; var n = q * b.normals[i]; var c = b.colors[i];
+            foreach (var f in new[] { p.x, p.y, p.z, n.x, n.y, n.z, c.r, c.g, c.b, type }) w.Write(f);
+        }
     }
 }

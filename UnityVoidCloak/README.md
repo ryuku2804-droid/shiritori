@@ -27,6 +27,14 @@
 | `Assets/VoidCloak/Scripts/VoidCloakGenerator.Sword.cs` | 剣と袖のParticle生成（持ち方ごとの配置） |
 | `Assets/VoidCloak/Scripts/VoidCloakMover.cs` | WASDで歩く・走る、布の揺れをシェーダーに渡す |
 | `Assets/VoidCloak/Scripts/VoidCloakFollowCamera.cs` | 後ろから追いかけるカメラ（右ドラッグで回転、ホイールでズーム） |
+| `Assets/VoidCloak/Scripts/Echo/EchoSystem.cs` | 音の波の管理（シェーダーへ渡す、敵へ知らせる） |
+| `Assets/VoidCloak/Scripts/Echo/EchoPlayer.cs` | 足音の波と鐘打ち |
+| `Assets/VoidCloak/Scripts/Echo/EchoKit.cs` / `EchoKitPiece.cs` | 中世建築の部品キット（数式で作る建物と当たり判定） |
+| `Assets/VoidCloak/Scripts/Echo/EchoPointBuilder.cs` | 石積み・敷石・円柱・屋根などの点の作り方 |
+| `Assets/VoidCloak/Scripts/Echo/EchoShapes.cs` | 聴き手の体と、プロトタイプステージの配置 |
+| `Assets/VoidCloak/Scripts/Echo/EchoListenerEnemy.cs` | 聴き手（音だけで追ってくる敵） |
+| `Assets/VoidCloak/Shaders/EchoWorldPoint.shader` | 波が通った所だけ見える世界用シェーダー |
+| `Assets/VoidCloak/Editor/EchoPrototypeSceneBuilder.cs` | メニューからプロトタイプのシーンを作る |
 | `Assets/VoidCloak/Scripts/VoidCloakSettings.cs` | 形状パラメータ、Particle数、`CloakPart`、`BuildStage` |
 | `Assets/VoidCloak/Shaders/VoidCloakPointShader.shader` | URP用シェーダー `VoidCloak/ClothPoint` |
 | `Tools/Preview/` | Unity外で形状を確認するためのツール（Unityにはインポートしない） |
@@ -130,6 +138,34 @@ Inspectorの **Sword** で設定します（`enabled` で表示/非表示）。�
 （左：地面の布が動かない以前の状態、中・右：地面の布も一緒になびく）
 
 - 注意：`LoweredRight` の持ち方では、歩くと剣先が地面を滑ります。
+
+## 残響の騎士 プロトタイプ（暗闇＋音の波）
+
+![echo](Docs/preview_echo.png)
+
+（左：歩いたときの波、中：鐘打ちの波が広がる瞬間、右：波が通り過ぎて手前から消えていくところ。赤いのは聴き手）
+
+### 作り方
+1. 全ファイルを入れてConsoleにエラーが無いことを確認
+2. メニュー **Tools > Echo Knight > Create Prototype Stage** を押す（新しいシーンが自動で作られる）
+3. **Ctrl+S** でシーンを保存して **Play**
+
+### 操作
+| 操作 | 内容 |
+|---|---|
+| WASD / 左スティック | 歩く（一歩ごとに小さな波） |
+| 左Shift / 左スティック押し込み・右トリガー | 走る（大きな波。敵に聞かれやすい） |
+| Space / ゲームパッドY | 鐘打ち（とても大きな波。4秒待つと再使用可） |
+| 右ドラッグ / 右スティック | カメラを回す |
+| ホイール | ズーム |
+
+### 仕組み
+- 世界（建物・床・敵）は **EchoKnight/WorldPoint** シェーダーで描かれ、普段は完全に見えない。音の波が通った点だけが一瞬光り、約1.5秒で消える（Inspectorの EchoSystem で調整）。
+- 地形は白、敵は赤。敵が出した音の波は、照らしたものを赤く染める。
+- 建物は数式の部品キット（`EchoKitPiece`）：Floor（敷石）、Wall（石積み、狭間つき可）、ArchWall（アーチの門）、Pillar（柱）、Tower（扉・矢狭間・円錐屋根の塔）、Stairs（階段）、Platform（台座）、Crate（木箱）、Barrel（樽）。Inspectorで大きさを変えると作り直され、当たり判定（BoxCollider）も自動で付く。
+- 聴き手（`EchoListenerEnemy`）は目が見えず、音だけで追ってくる。遠い音は調べに来て、近い音や鐘打ちには走ってくる。音が4秒しなければ諦めて徘徊に戻る。立ち止まっていれば見つからない。捕まるとスタート地点に戻される（戦闘は次の段階で追加）。
+- 音は壁を通り抜ける（壁の向こうの敵も波で見える）。
+- エディター上ではステージが薄く表示される（EchoSystem の Show Stage In Edit Mode）。
 
 ## 頂点データ（C# → HLSL）
 

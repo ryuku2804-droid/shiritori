@@ -16,5 +16,8 @@
     <Compile Include="../../Assets/VoidCloak/Scripts/VoidCloakGenerator.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/VoidCloakGenerator.Sword.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/VoidCloakSword.cs" />
+    <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoPointBuilder.cs" />
+    <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoKit.cs" />
+    <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoShapes.cs" />
   </ItemGroup>
 </Project>
