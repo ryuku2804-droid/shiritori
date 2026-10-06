@@ -1,0 +1,118 @@
+"""Offline point-splat preview of the generated cloak (mirrors VoidCloakPointShader lighting).
+
+usage: python3 render_preview.py cloak.bin out.png [--debug] [--size 900]
+Renders front / three-quarter / side / back views side by side.
+"""
+import sys
+import numpy as np
+from PIL import Image
+
+PART_COLORS = np.array([
+    [1, .2, .2], [1, .6, .2], [1, 1, .2], [.9, .9, .9], [.2, .2, .2],
+    [.2, .6, 1], [.2, 1, 1], [.3, .8, .3], [.5, 1, .5], [.1, .5, .1], [.2, .7, .2],
+    [.8, .4, 1], [1, .3, .7], [1, .6, .8], [.6, .3, .1], [.4, .4, 1], [.6, .6, 1],
+    [.7, .5, .2], [.8, .6, .3], [.9, .7, .4], [.5, .7, .2], [.6, .8, .3], [.7, .9, .4],
+    [1, 1, 1], [1, 0, 1]])
+
+
+def normalize(v):
+    return v / np.maximum(np.linalg.norm(v, axis=-1, keepdims=True), 1e-8)
+
+
+def shade(d, cam, debug):
+    P, N, T = d[:, 0:3], d[:, 3:6], d[:, 6:9]
+    col = d[:, 10:14]
+    uv0, uv1 = d[:, 14:16], d[:, 16:18]
+    part = np.floor(col[:, 0] * 32).astype(int).clip(0, len(PART_COLORS) - 1)
+    if debug:
+        return PART_COLORS[part] * (0.35 + 0.65 * np.clip(N @ normalize(np.array([-.4, .7, .6])), 0, 1))[:, None]
+
+    ridge = col[:, 1] * 2 - 1
+    void = col[:, 2]
+    ao = uv1[:, 1]
+    V = normalize(cam[None, :] - P)
+    ndv = np.sum(N * V, 1)
+    back = ndv < 0
+    N = np.where(back[:, None], -N, N)
+    ndv = np.abs(ndv)
+    L = normalize(np.array([-0.45, 0.75, 0.6]))
+    ndl = N @ L
+    diffuse = (ndl * 0.5 + 0.5) ** 2
+    H = normalize(L[None, :] + V)
+    B = normalize(np.cross(N, T))
+    ht, hb, hn = np.sum(H * T, 1), np.sum(H * B, 1), np.sum(H * N, 1)
+    ax, ay = 0.55, 0.16
+    e = ((ht / ax) ** 2 + (hb / ay) ** 2) / np.maximum(hn * hn, 1e-3)
+    spec = np.exp(-e) * np.sqrt(np.clip(ndl, 0, 1))
+    crest = np.clip(ridge, 0, 1)
+    base = np.array([0.022, 0.022, 0.025])
+    sheen = np.array([0.62, 0.64, 0.68])
+    c = base[None] * (0.35 + 1.5 * diffuse[:, None]) * ao[:, None]
+    c += sheen[None] * (0.42 * spec * (0.55 + 0.9 * crest) * ao)[:, None]
+    c += np.array([0.3, 0.32, 0.36])[None] * (0.25 * (1 - ndv) ** 4 * ao)[:, None]
+    c = np.where(back[:, None], c * 0.12, c)
+    c = c * (1 - void[:, None]) + 0.004 * void[:, None]
+    return c
+
+
+def render(d, yaw, size, debug, point_size=0.02):
+    target = np.array([0.0, 2.15, 0.0])
+    dist = 11.0
+    cam = target + dist * np.array([np.sin(yaw), 0.08, np.cos(yaw)])
+    fwd = normalize(target - cam)
+    right = normalize(np.cross(fwd, [0, 1, 0]))  # math cross; we flip x later
+    up = np.cross(right, fwd)
+    P = d[:, 0:3]
+    rel = P - cam
+    z = rel @ fwd
+    x = rel @ right
+    y = rel @ up
+    f = size / (2 * np.tan(np.radians(26) / 2))
+    W = H = size
+    px = W / 2 - x / z * f   # Unity is left handed: +X appears on screen right when looking down +Z... keep viewer convention
+    px = W / 2 + x / z * f
+    py = H / 2 - y / z * f
+    col = shade(d, cam, debug)
+    rad = np.maximum(point_size * d[:, 14] * f / z, 0.5)
+
+    img = np.ones((H, W, 3)) * np.array([0.93, 0.93, 0.92])
+    zbuf = np.full(H * W, np.inf)
+    R = int(np.ceil(rad.max()))
+    idx_all, z_all, c_all = [], [], []
+    for dy in range(-R, R + 1):
+        for dx in range(-R, R + 1):
+            m = dx * dx + dy * dy <= rad * rad + 0.25
+            ix = np.round(px[m] + dx).astype(int)
+            iy = np.round(py[m] + dy).astype(int)
+            ok = (ix >= 0) & (ix < W) & (iy >= 0) & (iy < H)
+            idx_all.append(iy[ok] * W + ix[ok])
+            z_all.append(z[m][ok])
+            c_all.append(col[m][ok])
+    idx = np.concatenate(idx_all); zz = np.concatenate(z_all); cc = np.concatenate(c_all)
+    order = np.lexsort((zz, idx))
+    idx, cc = idx[order], cc[order]
+    first = np.ones(len(idx), bool)
+    first[1:] = idx[1:] != idx[:-1]
+    flat = img.reshape(-1, 3)
+    flat[idx[first]] = cc[first]
+    img = flat.reshape(H, W, 3)
+    img = np.clip(img, 0, 1) ** (1 / 2.2)
+    return (img * 255).astype(np.uint8)
+
+
+def main():
+    path, out = sys.argv[1], sys.argv[2]
+    debug = '--debug' in sys.argv
+    size = 700
+    if '--size' in sys.argv:
+        size = int(sys.argv[sys.argv.index('--size') + 1])
+    views = [0.0, 0.6, np.pi / 2, np.pi]
+    if '--views' in sys.argv:
+        views = [float(v) for v in sys.argv[sys.argv.index('--views') + 1].split(',')]
+    d = np.fromfile(path, dtype=np.float32).reshape(-1, 18).astype(np.float64)
+    imgs = [render(d, yaw, size, debug) for yaw in views]
+    Image.fromarray(np.concatenate(imgs, axis=1)).save(out)
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,269 @@
+using UnityEngine;
+using UnityEngine.Rendering;
+
+namespace VoidCloak
+{
+    /// <summary>
+    /// Hooded black cloak character made of particles.
+    ///
+    /// C#  : builds the cloth shape (hood, void, shoulders, cloak, folds, front panels,
+    ///       lower drape, ground cloth) as points with per-particle attributes.
+    /// HLSL: VoidCloakPointShader draws every point as a small satin cloth particle.
+    ///
+    /// Attach to an empty GameObject, assign the shader (or a material made from it),
+    /// and press Play or just look at the Scene view (runs in edit mode as well).
+    /// </summary>
+    [ExecuteAlways]
+    [DisallowMultipleComponent]
+    [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
+    public class VoidCloakCharacter : MonoBehaviour
+    {
+        [Header("Rendering")]
+        [Tooltip("VoidCloak/ClothPoint shader. Used when no material template is set.")]
+        [SerializeField] private Shader characterShader;
+        [Tooltip("Optional material using the VoidCloak/ClothPoint shader. A runtime copy is used.")]
+        [SerializeField] private Material materialTemplate;
+
+        [Header("Build")]
+        [Tooltip("Build the character step by step (hand-off document section 40).")]
+        [SerializeField] private BuildStage buildStage = BuildStage.Complete;
+        [SerializeField] private int seed = 1337;
+        [Tooltip("Regenerate automatically when a shape / density value changes.")]
+        [SerializeField] private bool autoRegenerate = true;
+
+        [SerializeField] private VoidCloakShape shape = new VoidCloakShape();
+        [SerializeField] private VoidCloakDensity density = new VoidCloakDensity();
+
+        [Header("Particles")]
+        [Tooltip("World size of one particle (radius of its quad).")]
+        [SerializeField, Min(0.0001f)] private float pointSize = 0.016f;
+        [Tooltip("Small random size variation per particle.")]
+        [SerializeField, Range(0f, 1f)] private float pointVariation = 0.2f;
+        [Tooltip("Stretch of each particle along the cloth flow (fold direction).")]
+        [SerializeField, Range(0f, 3f)] private float flowStretch = 0.8f;
+
+        [Header("Wind")]
+        [SerializeField, Range(0f, 0.5f)] private float windStrength = 0.04f;
+        [SerializeField, Range(0f, 10f)] private float windSpeed = 1.2f;
+        [SerializeField, Range(0f, 6f)] private float windFrequency = 1.3f;
+        [SerializeField] private Vector3 windDirection = new Vector3(1f, 0f, 0.35f);
+        [SerializeField, Range(0f, 1f)] private float windFlutter = 0.25f;
+
+        [Header("Cloth Look")]
+        [SerializeField] private Color baseColor = new Color(0.022f, 0.022f, 0.026f, 1f);
+        [SerializeField] private Color sheenColor = new Color(0.62f, 0.64f, 0.68f, 1f);
+        [SerializeField] private Color ambientColor = new Color(0.35f, 0.35f, 0.38f, 1f);
+        [Tooltip("Direction the fake light comes FROM (world space).")]
+        [SerializeField] private Vector3 fakeLightDirection = new Vector3(-0.45f, 0.75f, 0.6f);
+        [SerializeField] private Color fakeLightColor = Color.white;
+        [Tooltip("0 = fake light only, 1 = URP main light.")]
+        [SerializeField, Range(0f, 1f)] private float mainLightInfluence = 0f;
+        [SerializeField, Range(0f, 4f)] private float diffuseStrength = 1.5f;
+        [SerializeField, Range(0f, 2f)] private float specularStrength = 0.42f;
+        [SerializeField, Range(0.05f, 1.5f)] private float roughnessAlongFolds = 0.55f;
+        [SerializeField, Range(0.02f, 1f)] private float roughnessAcrossFolds = 0.16f;
+        [SerializeField, Range(0f, 3f)] private float ridgeHighlight = 0.9f;
+        [SerializeField, Range(0f, 1f)] private float valleyDarkening = 0.35f;
+        [SerializeField, Range(0f, 2f)] private float rimStrength = 0.25f;
+        [SerializeField] private Color voidColor = new Color(0.004f, 0.004f, 0.005f, 1f);
+        [SerializeField, Range(0f, 1f)] private float insideBrightness = 0.12f;
+        [Tooltip("Color every particle group differently to check the structure.")]
+        [SerializeField] private bool debugPartColors;
+
+        [Header("Info (read only)")]
+        [SerializeField, TextArea(3, 30)] private string generationReport;
+
+        Mesh mesh;
+        Material runtimeMaterial;
+        Material runtimeMaterialSource;
+        bool dirty = true;
+        readonly ParticleBuffer buffer = new ParticleBuffer();
+
+        static readonly int PointSizeId = Shader.PropertyToID("_PointSize");
+        static readonly int PointVariationId = Shader.PropertyToID("_PointVariation");
+        static readonly int FlowStretchId = Shader.PropertyToID("_FlowStretch");
+        static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        static readonly int SheenColorId = Shader.PropertyToID("_SheenColor");
+        static readonly int AmbientColorId = Shader.PropertyToID("_AmbientColor");
+        static readonly int LightDirectionId = Shader.PropertyToID("_LightDirection");
+        static readonly int LightColorId = Shader.PropertyToID("_LightColor");
+        static readonly int MainLightInfluenceId = Shader.PropertyToID("_MainLightInfluence");
+        static readonly int DiffuseStrengthId = Shader.PropertyToID("_DiffuseStrength");
+        static readonly int SpecularStrengthId = Shader.PropertyToID("_SpecularStrength");
+        static readonly int AnisoAlongId = Shader.PropertyToID("_AnisoAlong");
+        static readonly int AnisoAcrossId = Shader.PropertyToID("_AnisoAcross");
+        static readonly int RidgeHighlightId = Shader.PropertyToID("_RidgeHighlight");
+        static readonly int ValleyDarkeningId = Shader.PropertyToID("_ValleyDarkening");
+        static readonly int RimStrengthId = Shader.PropertyToID("_RimStrength");
+        static readonly int VoidColorId = Shader.PropertyToID("_VoidColor");
+        static readonly int BackfaceDarknessId = Shader.PropertyToID("_BackfaceDarkness");
+        static readonly int WindStrengthId = Shader.PropertyToID("_WindStrength");
+        static readonly int WindSpeedId = Shader.PropertyToID("_WindSpeed");
+        static readonly int WindFrequencyId = Shader.PropertyToID("_WindFrequency");
+        static readonly int WindDirectionId = Shader.PropertyToID("_WindDirection");
+        static readonly int WindFlutterId = Shader.PropertyToID("_WindFlutter");
+        static readonly int DebugPartsId = Shader.PropertyToID("_DebugParts");
+
+        public int ParticleCount { get { return buffer.Count; } }
+
+        void OnEnable()
+        {
+            dirty = true;
+            Regenerate();
+        }
+
+        void OnValidate()
+        {
+            // Mesh work is not allowed inside OnValidate; defer to Update.
+            if (autoRegenerate) dirty = true;
+        }
+
+        void Update()
+        {
+            if (dirty) Regenerate();
+            ApplyMaterial();
+        }
+
+        void OnDisable()
+        {
+            var filter = GetComponent<MeshFilter>();
+            if (filter != null && filter.sharedMesh == mesh) filter.sharedMesh = null;
+            DestroySafe(mesh);
+            DestroySafe(runtimeMaterial);
+            mesh = null;
+            runtimeMaterial = null;
+            runtimeMaterialSource = null;
+        }
+
+        static void DestroySafe(Object o)
+        {
+            if (o == null) return;
+            if (Application.isPlaying) Destroy(o);
+            else DestroyImmediate(o);
+        }
+
+        [ContextMenu("Regenerate")]
+        public void Regenerate()
+        {
+            dirty = false;
+
+            var generator = new VoidCloakGenerator(shape, density, buildStage, seed, buffer);
+            generator.Generate();
+            BuildMesh();
+            ApplyMaterial();
+            BuildReport();
+        }
+
+        void BuildMesh()
+        {
+            if (mesh == null)
+            {
+                mesh = new Mesh { name = "VoidCloakParticles", hideFlags = HideFlags.DontSave };
+                mesh.indexFormat = IndexFormat.UInt32;
+                mesh.MarkDynamic();
+            }
+            mesh.Clear();
+            mesh.SetVertices(buffer.positions);
+            mesh.SetNormals(buffer.normals);
+            mesh.SetTangents(buffer.tangents);
+            mesh.SetColors(buffer.colors);
+            mesh.SetUVs(0, buffer.uv0);
+            mesh.SetUVs(1, buffer.uv1);
+
+            var indices = new int[buffer.Count];
+            for (int i = 0; i < indices.Length; i++) indices[i] = i;
+            mesh.SetIndices(indices, MeshTopology.Points, 0, false);
+
+            mesh.RecalculateBounds();
+            Bounds b = mesh.bounds;
+            b.Expand(windStrength * 4f + pointSize * 8f + 0.1f);
+            mesh.bounds = b;
+
+            GetComponent<MeshFilter>().sharedMesh = mesh;
+        }
+
+        void EnsureMaterial()
+        {
+            Object source = materialTemplate != null ? (Object)materialTemplate : characterShader;
+            if (runtimeMaterial != null && runtimeMaterialSource == source && source != null) return;
+
+            DestroySafe(runtimeMaterial);
+            runtimeMaterial = null;
+            runtimeMaterialSource = source;
+
+            if (materialTemplate != null)
+            {
+                runtimeMaterial = new Material(materialTemplate);
+            }
+            else if (characterShader != null)
+            {
+                runtimeMaterial = new Material(characterShader);
+            }
+            else
+            {
+                // Last resort only - assign the shader in the Inspector so it is included in builds.
+                Shader fallback = Shader.Find("VoidCloak/ClothPoint");
+                if (fallback == null)
+                {
+                    Debug.LogWarning("[VoidCloak] Assign the VoidCloak/ClothPoint shader to 'Character Shader'.", this);
+                    return;
+                }
+                runtimeMaterial = new Material(fallback);
+            }
+            runtimeMaterial.name = "VoidCloak (Runtime)";
+            runtimeMaterial.hideFlags = HideFlags.DontSave;
+
+            var renderer = GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = runtimeMaterial;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
+        void ApplyMaterial()
+        {
+            EnsureMaterial();
+            if (runtimeMaterial == null) return;
+
+            var renderer = GetComponent<MeshRenderer>();
+            if (renderer.sharedMaterial != runtimeMaterial) renderer.sharedMaterial = runtimeMaterial;
+
+            float scale = shape.height / VoidCloakGenerator.ReferenceHeight;
+            Material m = runtimeMaterial;
+            m.SetFloat(PointSizeId, pointSize);
+            m.SetFloat(PointVariationId, pointVariation);
+            m.SetFloat(FlowStretchId, flowStretch);
+            m.SetColor(BaseColorId, baseColor);
+            m.SetColor(SheenColorId, sheenColor);
+            m.SetColor(AmbientColorId, ambientColor);
+            m.SetVector(LightDirectionId, fakeLightDirection.normalized);
+            m.SetColor(LightColorId, fakeLightColor);
+            m.SetFloat(MainLightInfluenceId, mainLightInfluence);
+            m.SetFloat(DiffuseStrengthId, diffuseStrength);
+            m.SetFloat(SpecularStrengthId, specularStrength);
+            m.SetFloat(AnisoAlongId, roughnessAlongFolds);
+            m.SetFloat(AnisoAcrossId, roughnessAcrossFolds);
+            m.SetFloat(RidgeHighlightId, ridgeHighlight);
+            m.SetFloat(ValleyDarkeningId, valleyDarkening);
+            m.SetFloat(RimStrengthId, rimStrength);
+            m.SetColor(VoidColorId, voidColor);
+            m.SetFloat(BackfaceDarknessId, insideBrightness);
+            m.SetFloat(WindStrengthId, windStrength * scale);
+            m.SetFloat(WindSpeedId, windSpeed);
+            m.SetFloat(WindFrequencyId, windFrequency / Mathf.Max(0.01f, scale));
+            m.SetVector(WindDirectionId, windDirection);
+            m.SetFloat(WindFlutterId, windFlutter);
+            m.SetFloat(DebugPartsId, debugPartColors ? 1f : 0f);
+        }
+
+        void BuildReport()
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("Stage: " + buildStage + "   Particles: " + buffer.Count);
+            for (int i = 0; i < (int)CloakPart.Count; i++)
+            {
+                if (buffer.partCounts[i] > 0) sb.AppendLine(((CloakPart)i) + ": " + buffer.partCounts[i]);
+            }
+            generationReport = sb.ToString();
+        }
+    }
+}
