@@ -100,12 +100,12 @@ namespace EchoKnight
             routeIndex = 0;
             target = RoutePoint(0);
             EchoSystem.WaveEmitted += OnWave;
-            EchoEnemies.Register(this);
+            EchoTargets.Register(this);
         }
 
         void OnDisable()
         {
-            EchoEnemies.Unregister(this);
+            EchoTargets.Unregister(this);
             EchoSystem.WaveEmitted -= OnWave;
             var filter = GetComponent<MeshFilter>();
             if (filter != null && filter.sharedMesh == mesh) filter.sharedMesh = null;
@@ -136,7 +136,7 @@ namespace EchoKnight
 
         void OnWave(EchoWave wave)
         {
-            if (!Application.isPlaying || wave.source == EchoSource.Enemy) return;
+            if (!Application.isPlaying || wave.source == EchoSource.Enemy || wave.source == EchoSource.Resonance) return;
             if (state == State.Dead) return;
             if (wave.source == EchoSource.Bell)
             {

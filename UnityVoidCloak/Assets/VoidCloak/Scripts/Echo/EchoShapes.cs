@@ -144,7 +144,117 @@ namespace EchoKnight
     }
 
     /// <summary>
-    /// Bell shrine (save point):a stone plinth, two wooden posts, a beam with a small roof,
+    /// Puzzle bell: a small bell hanging from a wooden stand on a stone block.
+    /// Local space, origin at the bottom centre, the posts stand left and right (X).
+    /// The bell is a separate mesh hanging from <see cref="BellPivot"/> so it can swing.
+    /// </summary>
+    public static class EchoPuzzleBellShape
+    {
+        public static readonly Vector3 BellPivot = new Vector3(0f, 2.55f, 0f);
+
+        public static void BuildStand(EchoPointBuilder b, List<Bounds> colliders)
+        {
+            b.spacing = 0.07f;
+            b.MasonryBox(new Vector3(0f, 0.15f, 0f), new Vector3(1.8f, 0.3f, 0.9f), 0.3f, true, false, 0.8f);
+            for (int side = -1; side <= 1; side += 2)
+            {
+                Vector3 foot = new Vector3(side * 0.7f, 0.3f, 0f);
+                b.Tube(foot, foot + Vector3.up * 0.9f, foot + Vector3.up * 1.8f, foot + Vector3.up * 2.45f, t => 0.08f, 0.7f);
+            }
+            // cross beam, slightly bowed
+            b.Tube(new Vector3(-0.85f, 2.7f, 0f), new Vector3(-0.3f, 2.76f, 0f), new Vector3(0.3f, 2.76f, 0f), new Vector3(0.85f, 2.7f, 0f), t => 0.09f, 0.75f);
+            colliders.Add(new Bounds(new Vector3(0f, 1.4f, 0f), new Vector3(1.8f, 2.8f, 0.9f)));
+        }
+
+        /// <summary>The bell, hanging down from its pivot (pivot at the local origin).</summary>
+        public static void BuildBell(EchoPointBuilder b)
+        {
+            b.spacing = 0.045f;
+            // a flared bell: narrow shoulder, wide lip
+            b.Tube(new Vector3(0f, -0.08f, 0f), new Vector3(0f, -0.25f, 0f), new Vector3(0f, -0.45f, 0f), new Vector3(0f, -0.62f, 0f),
+                   t => 0.14f + 0.2f * t * t, 1.15f);
+            b.Ellipsoid(new Vector3(0f, -0.1f, 0f), new Vector3(0.15f, 0.08f, 0.15f), Quaternion.identity, 1.1f);   // crown
+            b.Disc(new Vector3(0f, -0.62f, 0f), 0.26f, 0.35f, Vector3.down, 1.2f);                                  // lip
+            b.Ellipsoid(new Vector3(0f, -0.55f, 0f), new Vector3(0.06f, 0.06f, 0.06f), Quaternion.identity, 1f);    // clapper
+        }
+    }
+
+    /// <summary>
+    /// A wooden double door with iron bands that fills an arched opening.
+    /// Each leaf is built in its own space: the hinge at the origin, the leaf running along
+    /// +X (left leaf) or -X (right leaf), bottom at y = 0, thickness along Z.
+    /// </summary>
+    public static class EchoBellDoorShape
+    {
+        public const float Thickness = 0.22f;
+
+        /// <summary>Top of the opening at distance x from its centre line (semicircular arch).</summary>
+        public static float Top(float x, float width, float openingHeight)
+        {
+            float r = width * 0.5f;
+            float spring = Mathf.Max(0.5f, openingHeight - r);
+            return spring + Mathf.Sqrt(Mathf.Max(0f, r * r - x * x));
+        }
+
+        /// <param name="side">-1 = left leaf (hinge at the left edge), +1 = right leaf.</param>
+        public static void BuildLeaf(EchoPointBuilder b, float width, float openingHeight, int side, List<Bounds> colliders)
+        {
+            b.spacing = 0.08f;
+            float leaf = width * 0.5f - 0.03f;
+            float dir = -side;   // left leaf runs towards +X from its hinge, right leaf towards -X
+            const float plank = 0.36f;
+            int planks = Mathf.CeilToInt(leaf / plank);
+            float hMax = Top(0f, width, openingHeight);
+            for (int i = 0; i < planks; i++)
+            {
+                float a0 = i * plank, a1 = Mathf.Min(leaf, a0 + plank - 0.03f);   // small gap between planks
+                float tone = b.Range(0.6f, 0.8f);
+                int nu = Mathf.Max(1, Mathf.CeilToInt((a1 - a0) / b.spacing));
+                int nv = Mathf.CeilToInt(hMax / b.spacing);
+                for (int face = -1; face <= 1; face += 2)
+                {
+                    float z = face * Thickness * 0.5f;
+                    for (int u = 0; u < nu; u++)
+                    {
+                        for (int v = 0; v < nv; v++)
+                        {
+                            float a = a0 + (u + b.Rand()) / nu * (a1 - a0);
+                            float y = (v + b.Rand()) * b.spacing;
+                            // distance from the centre line of the whole door decides the arch top
+                            float x = width * 0.5f - a;
+                            if (y > Top(x, width, openingHeight) - 0.05f) continue;
+                            float grain = 0.85f + 0.15f * Mathf.Sin(y * 9f + i * 2.1f);
+                            b.Add(new Vector3(dir * a, y, z), new Vector3(0f, 0f, face), tone * grain, 0.9f);
+                        }
+                    }
+                }
+            }
+            // iron bands across the leaf, with a hinge knuckle at the hinge side
+            float[] bands = { 0.8f, 2.6f, 4.4f };
+            foreach (float y in bands)
+            {
+                float end = leaf - 0.05f;
+                for (int face = -1; face <= 1; face += 2)
+                {
+                    float z = face * (Thickness * 0.5f + 0.03f);
+                    b.Tube(new Vector3(0.02f * dir, y, z), new Vector3(dir * end * 0.33f, y, z), new Vector3(dir * end * 0.66f, y, z), new Vector3(dir * end, y, z),
+                           t => 0.035f, 1.25f);
+                }
+                b.Ellipsoid(new Vector3(0f, y, 0f), new Vector3(0.07f, 0.12f, 0.16f), Quaternion.identity, 1.2f);
+            }
+            // ring handle near the meeting edge, on both faces
+            for (int face = -1; face <= 1; face += 2)
+            {
+                Vector3 c = new Vector3(dir * (leaf - 0.35f), 2.1f, face * (Thickness * 0.5f + 0.1f));
+                b.Tube(c + new Vector3(0f, 0.15f, 0f), c + new Vector3(dir * 0.16f, 0.05f, 0f), c + new Vector3(dir * 0.16f, -0.18f, 0f), c + new Vector3(0f, -0.22f, 0f),
+                       t => 0.025f, 1.3f);
+            }
+            colliders.Add(new Bounds(new Vector3(dir * leaf * 0.5f, hMax * 0.5f, 0f), new Vector3(leaf, hMax, Thickness + 0.1f)));
+        }
+    }
+
+    /// <summary>
+    /// Bell shrine (save point): a stone plinth, two wooden posts, a beam with a small roof,
     /// and a bell hanging from the beam. The bell is a separate mesh so it can swing.
     /// Local space, origin at the bottom centre, open towards +Z.
     /// </summary>

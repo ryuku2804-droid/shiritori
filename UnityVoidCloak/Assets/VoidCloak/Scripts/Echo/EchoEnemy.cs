@@ -3,32 +3,38 @@ using UnityEngine;
 
 namespace EchoKnight
 {
-    /// <summary>Anything the knight's sword can hit and parry.</summary>
-    public interface IEchoEnemy
+    /// <summary>Anything the knight's sword can strike: enemies, puzzle bells, hollow walls.</summary>
+    public interface IEchoHittable
     {
+        /// <summary>False once it can no longer be hit (dead enemy, broken wall).</summary>
         bool IsAlive { get; }
         Vector3 Position { get; }
         /// <summary>Damage from the knight's sword.</summary>
         void TakeHit(float damage, Vector3 from);
+    }
+
+    /// <summary>An enemy: can be hit, and its blows can be parried.</summary>
+    public interface IEchoEnemy : IEchoHittable
+    {
         /// <summary>Called when the knight parries this enemy's blow.</summary>
         void Stun(float seconds);
     }
 
-    /// <summary>Every enemy in the scene (used by the knight's attacks).</summary>
-    public static class EchoEnemies
+    /// <summary>Everything in the scene the knight's sword can hit.</summary>
+    public static class EchoTargets
     {
-        static readonly List<IEchoEnemy> all = new List<IEchoEnemy>();
+        static readonly List<IEchoHittable> all = new List<IEchoHittable>();
 
-        public static IReadOnlyList<IEchoEnemy> All { get { return all; } }
+        public static IReadOnlyList<IEchoHittable> All { get { return all; } }
 
-        public static void Register(IEchoEnemy enemy)
+        public static void Register(IEchoHittable target)
         {
-            if (!all.Contains(enemy)) all.Add(enemy);
+            if (!all.Contains(target)) all.Add(target);
         }
 
-        public static void Unregister(IEchoEnemy enemy)
+        public static void Unregister(IEchoHittable target)
         {
-            all.Remove(enemy);
+            all.Remove(target);
         }
     }
 }

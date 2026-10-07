@@ -18,6 +18,37 @@ namespace EchoKnight
         public Vector3[] route;
     }
 
+    /// <summary>A wall with an empty room behind it (sound puzzle). Same sizes as a Wall kit piece.</summary>
+    public struct EchoHollowWallPlacement
+    {
+        public string name;
+        public Vector3 position;
+        public float yaw;
+        public Vector3 size;
+        public int seed;
+    }
+
+    public struct EchoPuzzleBellPlacement
+    {
+        public Vector3 position;
+        public float yaw;
+    }
+
+    /// <summary>
+    /// A door that sings a melody; ring the bells in that order to open it. Bell i plays note i.
+    /// sequence holds indexes into bells.
+    /// </summary>
+    public struct EchoBellDoorPlacement
+    {
+        public string name;
+        public Vector3 position;
+        public float yaw;
+        public float width;
+        public float openingHeight;
+        public EchoPuzzleBellPlacement[] bells;
+        public int[] sequence;
+    }
+
     /// <summary>A zone that shows a line of story and / or an instruction while the knight is inside.</summary>
     public struct EchoHintPlacement
     {
@@ -49,6 +80,8 @@ namespace EchoKnight
         public readonly List<EchoShrinePlacement> shrines = new List<EchoShrinePlacement>();
         public readonly List<EchoEnemyPlacement> listeners = new List<EchoEnemyPlacement>();
         public readonly List<EchoArmorPlacement> armors = new List<EchoArmorPlacement>();
+        public readonly List<EchoHollowWallPlacement> hollowWalls = new List<EchoHollowWallPlacement>();
+        public readonly List<EchoBellDoorPlacement> bellDoors = new List<EchoBellDoorPlacement>();
         public readonly List<EchoHintPlacement> hints = new List<EchoHintPlacement>();
         public readonly List<EchoGhostPlacement> ghosts = new List<EchoGhostPlacement>();
         public bool hasGoal;
@@ -102,7 +135,9 @@ namespace EchoKnight
     ///   3 Great hall      - too big to see with footsteps: learn the bell strike; a bell keeper's echo;
     ///                       a Hollow Armor walks between the pillars without a sound wave of its own
     ///   4 Cloister        - first shrine; a Listener wanders: learn to stand still and sneak
-    ///   5 Chapel          - second shrine before it; a Listener guards it: learn to fight; the priest's echo
+    ///                       a bricked-up doorway in its west wall answers a bell strike: break it for a hidden echo
+    ///   5 Chapel          - second shrine before it; a Listener guards it: learn to fight; the priest's echo;
+    ///                       the way out is a singing door - ring three bells in the order it sings
     ///   6 Gate stairs     - reach the great gate: end of the prologue
     /// The path runs roughly north (+Z), from z = 0 to z = 140.
     /// </summary>
@@ -137,7 +172,18 @@ namespace EchoKnight
             L.Floor("Floor Hall", new Vector3(0f, 0f, 53f), 28.4f, 30.4f, 301);
             L.Arch("Hall South", new Vector3(0f, 0f, 38f), 0f, 29.4f, 9f, 5f, 7f, 302);
             L.Wall("Hall East", new Vector3(14.2f, 0f, 53f), 90f, 31.4f, 9f, 303, 1.4f);
-            L.Wall("Hall West", new Vector3(-14.2f, 0f, 53f), 90f, 31.4f, 9f, 304, 1.4f);
+            // the west wall has a bricked-up doorway (z 50.5 .. 55.5) with a hidden room behind it
+            L.Wall("Hall West South", new Vector3(-14.2f, 0f, 43.9f), 90f, 13.2f, 9f, 304, 1.4f);
+            L.Wall("Hall West North", new Vector3(-14.2f, 0f, 62.1f), 90f, 13.2f, 9f, 307, 1.4f);
+            L.Wall("Hall West Lintel", new Vector3(-14.2f, 4.5f, 53f), 90f, 5f, 4.5f, 308, 1.4f);
+            L.hollowWalls.Add(new EchoHollowWallPlacement { name = "Hollow Wall (Hall)", position = new Vector3(-14.2f, 0f, 53f), yaw = 90f, size = new Vector3(5f, 4.5f, 1.4f), seed = 309 });
+            // the hidden room (x -21 .. -15, z 50 .. 56): a little girl's echo
+            L.Floor("Floor Hidden Room", new Vector3(-17.5f, 0f, 53f), 7.4f, 7.4f, 330);
+            L.Wall("Hidden Room West", new Vector3(-21.2f, 0f, 53f), 90f, 7.6f, 5f, 331, 1.2f);
+            L.Wall("Hidden Room North", new Vector3(-17.8f, 0f, 56.6f), 0f, 7.6f, 5f, 332, 1.2f);
+            L.Wall("Hidden Room South", new Vector3(-17.8f, 0f, 49.4f), 0f, 7.6f, 5f, 333, 1.2f);
+            L.ghosts.Add(new EchoGhostPlacement { name = "Echo Young Rine", position = new Vector3(-19.4f, 0f, 53f), yaw = 90f,
+                speaker = "幼いリーネの残響", line = "「兄さん、鐘の音って、どうしてこんなに悲しいの？」" });
             L.Wall("Hall North", new Vector3(-6f, 0f, 68f), 0f, 17f, 9f, 305, 1.4f);
             L.Arch("Hall North Gate", new Vector3(8f, 0f, 68f), 0f, 12f, 9f, 5f, 7f, 306);
             for (int i = 0; i < 3; i++)
@@ -194,6 +240,20 @@ namespace EchoKnight
             L.listeners.Add(new EchoEnemyPlacement { position = new Vector3(14f, 0f, 112f), yaw = 180f, wanderRadius = 3.5f });
             L.Hint("Hint Fight", new Vector3(14f, 3f, 103f), new Vector3(16f, 6f, 5f), null, null,
                    "左クリック：斬る　E：強く斬る　Q：パリィ　―　聴き手が叫んだら、それが攻撃の合図");
+            // the north gate is shut by a singing door: three bells answer it
+            L.bellDoors.Add(new EchoBellDoorPlacement
+            {
+                name = "Bell Door (Chapel)", position = new Vector3(14f, 0f, 124f), yaw = 0f, width = 5f, openingHeight = 6.5f,
+                bells = new[]
+                {
+                    new EchoPuzzleBellPlacement { position = new Vector3(21.6f, 0f, 107f), yaw = -90f },
+                    new EchoPuzzleBellPlacement { position = new Vector3(21.6f, 0f, 117f), yaw = -90f },
+                    new EchoPuzzleBellPlacement { position = new Vector3(6.4f, 0f, 120.5f), yaw = 90f },
+                },
+                sequence = new[] { 1, 2, 0 },
+            });
+            L.Hint("Hint Bell Door", new Vector3(14f, 3f, 120.5f), new Vector3(8f, 6f, 5f), "リーネ", "……扉が歌ってる。鐘の声を、同じ順に返して。",
+                   "扉に近づくと、鐘が順に鳴る　―　音がした方向を覚えて、同じ順番で鐘を鳴らす");
             L.ghosts.Add(new EchoGhostPlacement { name = "Echo Priest", position = new Vector3(9.6f, 0f, 112f), yaw = -90f,
                 speaker = "司祭の残響", line = "「今年、暁鐘に捧げる声は ― リーネ」" });
 

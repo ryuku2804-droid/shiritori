@@ -233,15 +233,15 @@ namespace EchoKnight
             EchoSystem.Emit(swordPoint, heavy ? heavyEchoRadius : lightEchoRadius, heavy ? EchoSource.Strike : EchoSource.Player, heavy ? 1.1f : 0.8f);
             if (heavy) EchoAudio.Play(EchoSound.SwordStrike, swordPoint, 0.7f, 0.85f);   // the blade hits the stones
 
-            for (int i = EchoEnemies.All.Count - 1; i >= 0; i--)
+            for (int i = EchoTargets.All.Count - 1; i >= 0; i--)
             {
-                IEchoEnemy enemy = EchoEnemies.All[i];
-                if (enemy == null || !enemy.IsAlive) continue;
-                Vector3 to = enemy.Position - transform.position;
+                IEchoHittable target = EchoTargets.All[i];
+                if (target == null || !target.IsAlive) continue;
+                Vector3 to = target.Position - transform.position;
                 to.y = 0f;
                 if (to.magnitude > range) continue;
                 if (Vector3.Angle(transform.forward, to) > arc * 0.5f) continue;
-                enemy.TakeHit(damage, transform.position);
+                target.TakeHit(damage, transform.position);
             }
         }
 

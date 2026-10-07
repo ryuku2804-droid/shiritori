@@ -16,6 +16,8 @@ namespace EchoKnight
         Strike = 2,
         /// <summary>A shrine bell (tints what it reveals gold; Listeners flee from it).</summary>
         Bell = 3,
+        /// <summary>Things answering a sound (puzzle bells, hollow walls): gold tint, enemies do not react.</summary>
+        Resonance = 4,
     }
 
     public struct EchoWave

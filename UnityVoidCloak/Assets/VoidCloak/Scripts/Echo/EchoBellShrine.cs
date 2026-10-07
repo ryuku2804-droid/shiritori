@@ -138,7 +138,8 @@ namespace EchoKnight
             if (combat != null) combat.RestoreHealth();
         }
 
-        static bool InteractPressed()
+        /// <summary>F key or gamepad A this frame (also used by the puzzle bells).</summary>
+        internal static bool InteractPressed()
         {
 #if ENABLE_INPUT_SYSTEM
             var kb = UnityEngine.InputSystem.Keyboard.current;

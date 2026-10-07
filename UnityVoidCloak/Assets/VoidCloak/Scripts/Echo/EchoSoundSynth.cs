@@ -24,6 +24,11 @@ namespace EchoKnight
         ArmorWindUp,
         ArmorHit,
         ArmorCollapse,
+        PuzzleBell,
+        PuzzleWrong,
+        DoorOpen,
+        HollowKnock,
+        WallCrumble,
         Count,
     }
 
@@ -83,6 +88,11 @@ namespace EchoKnight
                 case EchoSound.ArmorWindUp: data = ArmorWindUp(rng); break;
                 case EchoSound.ArmorHit: data = ArmorHit(rng); break;
                 case EchoSound.ArmorCollapse: data = ArmorCollapse(rng); break;
+                case EchoSound.PuzzleBell: data = PuzzleBell(rng); break;
+                case EchoSound.PuzzleWrong: data = PuzzleWrong(rng); break;
+                case EchoSound.DoorOpen: data = DoorOpen(rng); break;
+                case EchoSound.HollowKnock: data = HollowKnock(rng); break;
+                case EchoSound.WallCrumble: data = WallCrumble(rng); break;
                 default: data = new float[1]; break;
             }
             Normalize(data, sound == EchoSound.Ambience ? 0.5f : 0.9f, !Loops(sound));
@@ -433,6 +443,113 @@ namespace EchoKnight
             }
             // the helm rolls to a stop
             AddPartials(d, rng, new[] { 410f, 655f }, new[] { 0.1f, 0.07f }, new[] { 2.5f, 3.5f }, Math.Min(2.0f, start + 0.15f));
+            return d;
+        }
+
+        /// <summary>
+        /// A small hand bell (base note A5). The puzzle plays it at different pitches, so the
+        /// partials are kept harmonic enough that the notes are easy to tell apart.
+        /// </summary>
+        static float[] PuzzleBell(Random rng)
+        {
+            float[] d = Buffer(3.2f);
+            const float f = 880f;
+            for (int i = 0; i < 300; i++) d[i] += Noise(rng) * (float)Math.Exp(-i / 40.0) * 0.4f;
+            AddPartials(d, rng,
+                new[] { f * 0.5f, f, f * 1.002f, f * 2f, f * 2.76f, f * 4.07f },
+                new[] { 0.2f, 0.8f, 0.4f, 0.35f, 0.18f, 0.08f },
+                new[] { 1.2f, 1.1f, 1.15f, 2f, 3.2f, 5f });
+            return d;
+        }
+
+        /// <summary>The door refusing a wrong bell: a dull iron clank and a low rattle.</summary>
+        static float[] PuzzleWrong(Random rng)
+        {
+            float[] d = Buffer(0.9f);
+            for (int i = 0; i < 700; i++) d[i] += Noise(rng) * (float)Math.Exp(-i / 120.0) * 0.8f;
+            AddPartials(d, rng, new[] { 118f, 167f, 311f, 452f }, new[] { 0.6f, 0.4f, 0.25f, 0.15f }, new[] { 7f, 9f, 12f, 16f });
+            // the bolt rattling in its bracket
+            for (int k = 1; k < 4; k++)
+            {
+                int s0 = (int)((0.09f * k + (float)rng.NextDouble() * 0.02f) * SampleRate);
+                for (int i = 0; i < 200 && s0 + i < d.Length; i++) d[s0 + i] += Noise(rng) * (float)Math.Exp(-i / 30.0) * 0.35f / k;
+            }
+            return d;
+        }
+
+        /// <summary>A heavy wooden door swinging open: creaking hinges over a low rumble.</summary>
+        static float[] DoorOpen(Random rng)
+        {
+            const float length = 3.0f;
+            float[] d = Buffer(length);
+            float lp = 0f, lpR = 0f, lpSub = 0f;
+            float a = Alpha(2200f), aR = Alpha(140f), aSub = Alpha(40f);
+            double phase = 0.0;
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = (float)i / SampleRate;
+                float u = t / length;
+                float n = Noise(rng);
+                lp += a * (n - lp);
+                lpR += aR * (n - lpR);
+                lpSub += aSub * (n - lpSub);
+                float rumble = lpR - lpSub;   // 40-140 Hz: felt, not a sub-sonic hum
+                // creak: a slowly wandering pitch, driven in stick-slip pulses
+                double f = 260.0 + 90.0 * Math.Sin(t * 2.3) + 40.0 * Math.Sin(t * 7.1);
+                phase += 2.0 * Math.PI * f / SampleRate;
+                float pulses = 0.5f + 0.5f * Sin(2.0 * Math.PI * 23.0 * t);
+                float creak = (Sin(phase) * 0.5f + Sin(phase * 2.0) * 0.3f + Sin(phase * 3.0) * 0.15f) * pulses * pulses + lp * 0.15f;
+                float env = Math.Min(1f, t / 0.15f) * (float)Math.Pow(1.0 - u, 0.7);
+                d[i] = creak * env * 0.6f + rumble * 6f * env;
+            }
+            // the leaves hitting their stops at the end
+            AddPartials(d, rng, new[] { 95f, 143f }, new[] { 0.35f, 0.2f }, new[] { 10f, 13f }, length - 0.55f);
+            return d;
+        }
+
+        /// <summary>A hollow wall answering a sound: a deep boom with a cavity ringing behind it.</summary>
+        static float[] HollowKnock(Random rng)
+        {
+            float[] d = Buffer(2.0f);
+            float lp = 0f;
+            float a = Alpha(400f);
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = (float)i / SampleRate;
+                lp += a * (Noise(rng) - lp);
+                d[i] = lp * (float)Math.Exp(-t * 30f) * 2f;
+            }
+            // the empty room behind the stones resonates (low, slow, a little beating)
+            AddPartials(d, rng, new[] { 104f, 105.5f, 157f, 236f }, new[] { 0.7f, 0.5f, 0.35f, 0.15f }, new[] { 2.4f, 2.6f, 3.5f, 5f });
+            return d;
+        }
+
+        /// <summary>A wall breaking: a crack, then stones tumbling and settling.</summary>
+        static float[] WallCrumble(Random rng)
+        {
+            float[] d = Buffer(3.2f);
+            float lp = 0f;
+            float a = Alpha(900f);
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = (float)i / SampleRate;
+                lp += a * (Noise(rng) - lp);
+                d[i] = Sin(2.0 * Math.PI * (60.0 - 12.0 * t) * t) * (float)Math.Exp(-t * 4f) * 0.8f + lp * (float)Math.Exp(-t * 1.3f) * 1.6f;
+            }
+            for (int i = 0; i < 800; i++) d[i] += Noise(rng) * (float)Math.Exp(-i / 150.0) * 1.2f;   // the crack
+            float start = 0.1f;
+            for (int k = 0; k < 18 && start < 2.8f; k++)
+            {
+                start += 0.03f + (float)rng.NextDouble() * 0.17f;
+                int s0 = (int)(start * SampleRate);
+                float level = 0.9f * (float)Math.Exp(-start * 0.9f);
+                float f = 160f + (float)rng.NextDouble() * 500f;
+                for (int i = 0; i < SampleRate / 10 && s0 + i < d.Length; i++)
+                {
+                    float t = (float)i / SampleRate;
+                    d[s0 + i] += (Sin(2.0 * Math.PI * f * t) * 0.5f + Noise(rng) * 0.6f) * (float)Math.Exp(-t * 45f) * level;
+                }
+            }
             return d;
         }
 

@@ -15,6 +15,7 @@ namespace UnityEngine
         public Vector2(float x, float y) { this.x = x; this.y = y; }
         public static Vector2 zero => new Vector2(0, 0);
         public float sqrMagnitude => x * x + y * y;
+        public float magnitude => (float)Math.Sqrt(sqrMagnitude);
         public void Normalize() { float m = (float)Math.Sqrt(sqrMagnitude); if (m > 1e-5f) { x /= m; y /= m; } }
         public static Vector2 operator *(Vector2 a, float s) => new Vector2(a.x * s, a.y * s);
     }

@@ -60,6 +60,22 @@ namespace EchoKnightEditor
                 go.AddComponent<EchoKitPiece>().Configure(placement.spec, placement.gold ? gold : stone);
             }
 
+            // ---------------- sound puzzles
+            foreach (EchoHollowWallPlacement wall in layout.hollowWalls)
+            {
+                Place(wall.name, stage, wall.position, wall.yaw).AddComponent<EchoHollowWall>().Setup(stone, wall.size, wall.seed);
+            }
+            foreach (EchoBellDoorPlacement door in layout.bellDoors)
+            {
+                var bells = new EchoPuzzleBell[door.bells.Length];
+                for (int i = 0; i < bells.Length; i++)
+                {
+                    bells[i] = Place(door.name + " - Bell " + (i + 1), stage, door.bells[i].position, door.bells[i].yaw).AddComponent<EchoPuzzleBell>();
+                    bells[i].Setup(gold, i);
+                }
+                Place(door.name, stage, door.position, door.yaw).AddComponent<EchoBellDoor>().Setup(stone, door.width, door.openingHeight, bells, door.sequence);
+            }
+
             // ---------------- bell shrines (save points)
             foreach (EchoShrinePlacement shrine in layout.shrines)
             {

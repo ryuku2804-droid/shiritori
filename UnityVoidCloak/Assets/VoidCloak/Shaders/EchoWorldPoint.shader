@@ -55,7 +55,7 @@ Shader "EchoKnight/WorldPoint"
 
             // set every frame by EchoSystem.cs
             float4 _EchoWaves[ECHO_MAX_WAVES];       // xyz origin, w start time
-            float4 _EchoWaveParams[ECHO_MAX_WAVES];  // x radius, y speed, z source (0 player, 1 enemy, 2 strike, 3 bell), w strength
+            float4 _EchoWaveParams[ECHO_MAX_WAVES];  // x radius, y speed, z source (0 player, 1 enemy, 2 strike, 3 bell, 4 resonance), w strength
             float _EchoWaveCount;
             float _EchoTime;
             float _EchoBand;
@@ -140,7 +140,7 @@ Shader "EchoKnight/WorldPoint"
                         reveal = r;
                         front = band * fade * q.w;
                         enemy = abs(q.z - 1.0) < 0.5 ? 1.0 : 0.0;
-                        bell = abs(q.z - 3.0) < 0.5 ? 1.0 : 0.0;
+                        bell = q.z > 2.5 ? 1.0 : 0.0;   // shrine bells (3) and resonance (4) are both gold
                         toSound = -d / max(dist, 1e-3);
                     }
                 }

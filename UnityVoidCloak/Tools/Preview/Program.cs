@@ -177,6 +177,39 @@ static class Program
                 Write(w, b, a.position, a.yaw, 1f);
                 total += b.Count;
             }
+            // sound puzzles. The hollow wall and the door leaves are left out of the colliders,
+            // so the walkability check sees them solved (broken / open).
+            foreach (var hw in L.hollowWalls)
+            {
+                var b = new EchoKnight.EchoPointBuilder(hw.seed);
+                var spec = new EchoKnight.EchoKitSpec { kind = EchoKnight.EchoKitKind.Wall, size = hw.size, pointSpacing = 0.15f, seed = hw.seed };
+                EchoKnight.EchoKitGenerator.Build(spec, b, new System.Collections.Generic.List<UnityEngine.Bounds>());
+                Write(w, b, hw.position, hw.yaw, 0f);
+                total += b.Count;
+            }
+            foreach (var door in L.bellDoors)
+            {
+                var dq = UnityEngine.Quaternion.Euler(0f, door.yaw, 0f);
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    var b = new EchoKnight.EchoPointBuilder(side < 0 ? 71 : 72);
+                    EchoKnight.EchoBellDoorShape.BuildLeaf(b, door.width, door.openingHeight, side, new System.Collections.Generic.List<UnityEngine.Bounds>());
+                    Write(w, b, door.position + dq * new UnityEngine.Vector3(side * door.width * 0.5f, 0f, 0f), door.yaw, 0f);
+                    total += b.Count;
+                }
+                foreach (var bp in door.bells)
+                {
+                    var stand = new EchoKnight.EchoPointBuilder(61);
+                    var cols = new System.Collections.Generic.List<UnityEngine.Bounds>();
+                    EchoKnight.EchoPuzzleBellShape.BuildStand(stand, cols);
+                    Write(w, stand, bp.position, bp.yaw, 2f);
+                    foreach (var c in cols) Box(c, bp.position, bp.yaw);
+                    var bell = new EchoKnight.EchoPointBuilder(62);
+                    EchoKnight.EchoPuzzleBellShape.BuildBell(bell);
+                    Write(w, bell, bp.position + UnityEngine.Quaternion.Euler(0f, bp.yaw, 0f) * EchoKnight.EchoPuzzleBellShape.BellPivot, bp.yaw, 2f);
+                    total += stand.Count + bell.Count;
+                }
+            }
         }
         File.WriteAllText(prefix + "_boxes.txt", boxes.ToString());
         var meta = new System.Text.StringBuilder();
@@ -186,6 +219,8 @@ static class Program
         foreach (var g in L.ghosts) meta.AppendLine(string.Format(inv, "ghost {0} {1} {2}", g.position.x, g.position.y, g.position.z));
         foreach (var s in L.shrines) meta.AppendLine(string.Format(inv, "shrine {0} {1} {2}", s.position.x, s.position.y, s.position.z));
         foreach (var e in L.listeners) meta.AppendLine(string.Format(inv, "listener {0} {1} {2} {3}", e.position.x, e.position.y, e.position.z, e.wanderRadius));
+        foreach (var door in L.bellDoors)
+            foreach (var bp in door.bells) meta.AppendLine(string.Format(inv, "bell {0} {1} {2}", bp.position.x, bp.position.y, bp.position.z));
         foreach (var a in L.armors)
             foreach (var r in a.route) meta.AppendLine(string.Format(inv, "armor {0} {1} {2}", r.x, r.y, r.z));
         File.WriteAllText(prefix + "_meta.txt", meta.ToString());

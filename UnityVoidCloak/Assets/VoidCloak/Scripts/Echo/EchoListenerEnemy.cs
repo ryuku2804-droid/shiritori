@@ -108,13 +108,13 @@ namespace EchoKnight
             state = State.Wander;
             EchoSystem.WaveEmitted += OnWave;
             if (!all.Contains(this)) all.Add(this);
-            EchoEnemies.Register(this);
+            EchoTargets.Register(this);
         }
 
         void OnDisable()
         {
             all.Remove(this);
-            EchoEnemies.Unregister(this);
+            EchoTargets.Unregister(this);
             EchoSystem.WaveEmitted -= OnWave;
             var filter = GetComponent<MeshFilter>();
             if (filter != null && filter.sharedMesh == mesh) filter.sharedMesh = null;
@@ -138,7 +138,7 @@ namespace EchoKnight
 
         void OnWave(EchoWave wave)
         {
-            if (!Application.isPlaying || wave.source == EchoSource.Enemy) return;
+            if (!Application.isPlaying || wave.source == EchoSource.Enemy || wave.source == EchoSource.Resonance) return;
             if (wave.source == EchoSource.Bell)
             {
                 HearBell(wave);
