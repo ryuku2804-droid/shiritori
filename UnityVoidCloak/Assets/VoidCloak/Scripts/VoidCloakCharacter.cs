@@ -95,6 +95,8 @@ namespace VoidCloak
         Vector3 motionLag;
         Vector4 gait;   // x = step phase (radians), y = step push, z = body bob, w = billow (running)
         Vector4 floorMotion = new Vector4(0.85f, 0.3f, 0f, 0f);   // x = floor cloth follow, y = floor cloth lift
+        Vector4 swingPivot;      // xyz = pivot of the sword arm (object space)
+        Vector4 swingAxisAngle;  // xyz = rotation axis (object space), w = angle in radians
 
         static readonly int PointSizeId = Shader.PropertyToID("_PointSize");
         static readonly int PointVariationId = Shader.PropertyToID("_PointVariation");
@@ -130,6 +132,8 @@ namespace VoidCloak
         static readonly int MotionLagId = Shader.PropertyToID("_MotionLag");
         static readonly int GaitId = Shader.PropertyToID("_Gait");
         static readonly int FloorMotionId = Shader.PropertyToID("_FloorMotion");
+        static readonly int SwingPivotId = Shader.PropertyToID("_SwingPivot");
+        static readonly int SwingAxisAngleId = Shader.PropertyToID("_SwingAxisAngle");
 
         public int ParticleCount { get { return buffer.Count; } }
 
@@ -148,6 +152,35 @@ namespace VoidCloak
         /// <param name="billow">0 = calm, 1 = full billowing (waves running down the cloak while running).</param>
         /// <param name="floorFollow">0..1, how much the cloth lying on the floor is dragged along.</param>
         /// <param name="floorLift">How high the floor cloth lifts while running.</param>
+        /// <summary>Shoulder of the sword arm in object space (the swing pivot).</summary>
+        public Vector3 SwordShoulder
+        {
+            get { return VoidCloakGenerator.RightShoulderInside * (shape.height / VoidCloakGenerator.ReferenceHeight); }
+        }
+
+        /// <summary>Direction from the shoulder to the sword tip in the resting pose (object space).</summary>
+        public Vector3 SwordRestDirection
+        {
+            get
+            {
+                Vector3 tip, dir;
+                VoidCloakGenerator.SwordRestPose(sword, out tip, out dir);
+                Vector3 d = tip - VoidCloakGenerator.RightShoulderInside;
+                return d.sqrMagnitude > 1e-6f ? d.normalized : Vector3.down;
+            }
+        }
+
+        /// <summary>
+        /// Rotates the sword and the sword sleeve around <paramref name="pivotObjectSpace"/>
+        /// (used by EchoCombat for attacks and parries). Angle 0 = resting pose.
+        /// </summary>
+        public void SetSwing(Vector3 pivotObjectSpace, Vector3 axisObjectSpace, float angleRadians)
+        {
+            Vector3 axis = axisObjectSpace.sqrMagnitude > 1e-8f ? axisObjectSpace.normalized : Vector3.up;
+            swingPivot = new Vector4(pivotObjectSpace.x, pivotObjectSpace.y, pivotObjectSpace.z, 0f);
+            swingAxisAngle = new Vector4(axis.x, axis.y, axis.z, angleRadians);
+        }
+
         public void SetMotion(Vector3 lagObjectSpace, float stepPhase, float stepPush, float bob, float billow = 0f,
                               float floorFollow = 0.85f, float floorLift = 0.3f)
         {
@@ -314,6 +347,8 @@ namespace VoidCloak
             m.SetVector(MotionLagId, motionLag);
             m.SetVector(GaitId, gait);
             m.SetVector(FloorMotionId, floorMotion);
+            m.SetVector(SwingPivotId, swingPivot);
+            m.SetVector(SwingAxisAngleId, swingAxisAngle);
         }
 
         void BuildReport()

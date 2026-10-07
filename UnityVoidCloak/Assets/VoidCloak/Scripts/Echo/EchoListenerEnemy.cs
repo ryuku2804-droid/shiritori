@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -9,19 +10,30 @@ namespace EchoKnight
     /// - Wander: shuffles around its home.
     /// - Investigate: walks to where it heard a sound.
     /// - Chase: a loud or close sound makes it rush there.
+    /// - Attack: when it is close it shrieks (a red echo - the warning), then lashes out.
+    ///   Parry (Q / LB) right before the blow to stun it.
     /// It never sees the knight - it only knows where the last sound came from. Standing
     /// still is the way to lose it. Its own footsteps send out small red echoes.
-    /// When it reaches the knight, the knight is sent back to the start (combat comes later).
     /// </summary>
     [ExecuteAlways]
     [DisallowMultipleComponent]
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public class EchoListenerEnemy : MonoBehaviour
     {
-        enum State { Wander, Investigate, Chase }
+        enum State { Wander, Investigate, Chase, WindUp, Recover, Stunned, Dead }
+
+        static readonly List<EchoListenerEnemy> all = new List<EchoListenerEnemy>();
+
+        /// <summary>Every Listener in the scene (used by the knight's attacks).</summary>
+        public static IReadOnlyList<EchoListenerEnemy> All { get { return all; } }
 
         [SerializeField] private Material material = null;
         [SerializeField] private Transform player = null;
+
+        [Header("Health")]
+        [SerializeField, Min(0.1f)] private float maxHealth = 4f;
+        [Tooltip("Seconds before a defeated Listener rises again (0 = never).")]
+        [SerializeField, Min(0f)] private float respawnTime = 0f;
 
         [Header("Hearing")]
         [Tooltip("1 = hears a sound as far as its wave reaches. Lower = harder of hearing.")]
@@ -37,7 +49,13 @@ namespace EchoKnight
         [SerializeField, Min(0f)] private float investigateSpeed = 2.8f;
         [SerializeField, Min(0f)] private float chaseSpeed = 5.2f;
         [SerializeField, Min(1f)] private float turnSpeed = 220f;
-        [SerializeField, Min(0.1f)] private float catchDistance = 2.6f;
+
+        [Header("Attack")]
+        [SerializeField, Min(0.1f)] private float attackRange = 3.6f;
+        [Tooltip("Warning time between the shriek and the blow (seconds).")]
+        [SerializeField, Min(0.05f)] private float windUpTime = 0.75f;
+        [SerializeField, Min(0f)] private float recoverTime = 0.9f;
+        [SerializeField, Min(0)] private int attackDamage = 1;
 
         [Header("Footsteps")]
         [SerializeField, Min(0.1f)] private float stepLength = 1.3f;
@@ -50,6 +68,11 @@ namespace EchoKnight
         float lastHeardTime = -100f;
         float waitUntil;
         float stepDistance;
+        float health;
+        float stateUntil;
+        Vector3 knockback;
+
+        public bool IsAlive { get { return state != State.Dead; } }
 
         /// <summary>Used by the stage builder.</summary>
         public void Setup(Material newMaterial, Transform newPlayer)
@@ -64,11 +87,15 @@ namespace EchoKnight
             BuildBody();
             home = transform.position;
             target = home;
+            health = maxHealth;
+            state = State.Wander;
             EchoSystem.WaveEmitted += OnWave;
+            if (!all.Contains(this)) all.Add(this);
         }
 
         void OnDisable()
         {
+            all.Remove(this);
             EchoSystem.WaveEmitted -= OnWave;
             var filter = GetComponent<MeshFilter>();
             if (filter != null && filter.sharedMesh == mesh) filter.sharedMesh = null;
@@ -88,9 +115,12 @@ namespace EchoKnight
             r.receiveShadows = false;
         }
 
+        // ------------------------------------------------------------------ hearing
+
         void OnWave(EchoWave wave)
         {
             if (!Application.isPlaying || wave.source == EchoSource.Enemy) return;
+            if (state == State.Dead || state == State.Stunned || state == State.WindUp || state == State.Recover) return;
             Vector3 d = wave.origin - transform.position;
             d.y = 0f;
             float distance = d.magnitude;
@@ -103,10 +133,81 @@ namespace EchoKnight
             waitUntil = 0f;
         }
 
+        // ------------------------------------------------------------------ being hit
+
+        /// <summary>Damage from the knight's sword.</summary>
+        public void TakeHit(float damage, Vector3 from)
+        {
+            if (state == State.Dead) return;
+            if (state == State.Stunned) damage *= 2f;   // punish a parried enemy
+            health -= damage;
+
+            Vector3 away = transform.position - from;
+            away.y = 0f;
+            knockback = away.sqrMagnitude > 1e-4f ? away.normalized * (2.5f + damage) : Vector3.zero;
+
+            // the hit itself is loud: the knight sees what it struck
+            EchoSystem.Emit(transform.position + Vector3.up * 1.5f, 10f + damage * 4f, EchoSource.Enemy, 1.3f);
+
+            if (health <= 0f)
+            {
+                Die();
+                return;
+            }
+            // it now knows exactly where the knight is
+            target = new Vector3(from.x, transform.position.y, from.z);
+            lastHeardTime = Time.time;
+            if (state != State.Stunned)
+            {
+                state = State.Recover;
+                stateUntil = Time.time + 0.35f;   // short flinch
+            }
+        }
+
+        /// <summary>Called when the knight parries this Listener's blow.</summary>
+        public void Stun(float seconds)
+        {
+            if (state == State.Dead) return;
+            state = State.Stunned;
+            stateUntil = Time.time + seconds;
+        }
+
+        void Die()
+        {
+            state = State.Dead;
+            EchoSystem.Emit(transform.position + Vector3.up * 1.5f, 24f, EchoSource.Enemy, 1.5f);
+            GetComponent<MeshRenderer>().enabled = false;
+            stateUntil = respawnTime > 0f ? Time.time + respawnTime : float.MaxValue;
+        }
+
+        // ------------------------------------------------------------------ behaviour
+
         void Update()
         {
             if (!Application.isPlaying) return;
             float dt = Time.deltaTime;
+
+            // knockback slides it back a little after a hit
+            if (knockback.sqrMagnitude > 1e-4f)
+            {
+                transform.position += knockback * dt;
+                knockback = Vector3.MoveTowards(knockback, Vector3.zero, 12f * dt);
+            }
+
+            switch (state)
+            {
+                case State.Dead:
+                    if (Time.time >= stateUntil) Revive();
+                    return;
+                case State.Stunned:
+                case State.Recover:
+                    if (Time.time >= stateUntil) state = State.Chase;
+                    return;
+                case State.WindUp:
+                    FacePlayer(dt);
+                    if (Time.time >= stateUntil) LandBlow();
+                    return;
+            }
 
             if (state != State.Wander && Time.time - lastHeardTime > giveUpTime)
             {
@@ -114,6 +215,20 @@ namespace EchoKnight
                 PickWanderTarget();
             }
 
+            // close enough to the knight: shriek, then strike
+            if (state == State.Chase && player != null && FlatDistance(player.position) < attackRange)
+            {
+                state = State.WindUp;
+                stateUntil = Time.time + windUpTime;
+                EchoSystem.Emit(transform.position + Vector3.up * 3f, 14f, EchoSource.Enemy, 1.2f);
+                return;
+            }
+
+            Move(dt);
+        }
+
+        void Move(float dt)
+        {
             float speed = state == State.Chase ? chaseSpeed : state == State.Investigate ? investigateSpeed : wanderSpeed;
             Vector3 to = target - transform.position;
             to.y = 0f;
@@ -127,33 +242,63 @@ namespace EchoKnight
                     if (waitUntil <= 0f) waitUntil = Time.time + Random.Range(1f, 3f);
                     if (Time.time > waitUntil) { PickWanderTarget(); waitUntil = 0f; }
                 }
+                return;
+            }
+
+            Vector3 dir = Steer(to / dist);
+            Quaternion look = Quaternion.LookRotation(dir, Vector3.up);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, look, turnSpeed * dt);
+            Vector3 step = transform.forward * (speed * dt);
+            transform.position += step;
+            Footsteps(step.magnitude);
+        }
+
+        void LandBlow()
+        {
+            state = State.Recover;
+            stateUntil = Time.time + recoverTime;
+            if (player == null) return;
+
+            Vector3 to = player.position - transform.position;
+            to.y = 0f;
+            bool inReach = to.magnitude < attackRange + 0.8f && Vector3.Angle(transform.forward, to) < 70f;
+            if (!inReach) return;
+
+            var combat = player.GetComponent<EchoCombat>();
+            if (combat != null)
+            {
+                combat.ReceiveBlow(attackDamage, this);
             }
             else
             {
-                Vector3 dir = Steer(to / dist);
-                Quaternion look = Quaternion.LookRotation(dir, Vector3.up);
-                transform.rotation = Quaternion.RotateTowards(transform.rotation, look, turnSpeed * dt);
-                Vector3 step = transform.forward * (speed * dt);
-                transform.position += step;
-                Footsteps(step.magnitude);
-            }
-
-            if (player != null)
-            {
-                Vector3 toPlayer = player.position - transform.position;
-                toPlayer.y = 0f;
-                if (toPlayer.magnitude < catchDistance) Caught();
+                var echoPlayer = player.GetComponent<EchoPlayer>();
+                if (echoPlayer != null) echoPlayer.Respawn();
             }
         }
 
-        void Caught()
+        void FacePlayer(float dt)
         {
-            var echoPlayer = player.GetComponent<EchoPlayer>();
-            if (echoPlayer != null) echoPlayer.Respawn();
-            EchoSystem.Emit(transform.position + Vector3.up * 0.2f, 20f, EchoSource.Enemy, 1.2f);
+            if (player == null) return;
+            Vector3 to = player.position - transform.position;
+            to.y = 0f;
+            if (to.sqrMagnitude < 1e-4f) return;
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(to, Vector3.up), turnSpeed * 0.5f * dt);
+        }
+
+        void Revive()
+        {
             transform.position = home;
+            health = maxHealth;
             state = State.Wander;
+            GetComponent<MeshRenderer>().enabled = true;
             PickWanderTarget();
+        }
+
+        float FlatDistance(Vector3 p)
+        {
+            Vector3 d = p - transform.position;
+            d.y = 0f;
+            return d.magnitude;
         }
 
         void Footsteps(float moved)

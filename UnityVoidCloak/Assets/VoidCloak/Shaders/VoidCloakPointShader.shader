@@ -72,6 +72,8 @@ Shader "VoidCloak/ClothPoint"
         _MotionLag ("Motion Lag (object)", Vector) = (0, 0, 0, 0)
         _Gait ("Gait (phase, push, bob, billow)", Vector) = (0, 0, 0, 0)
         _FloorMotion ("Floor Cloth (follow, lift)", Vector) = (0.85, 0.3, 0, 0)
+        _SwingPivot ("Sword Swing Pivot (object)", Vector) = (0, 0, 0, 0)
+        _SwingAxisAngle ("Sword Swing Axis, Angle", Vector) = (0, 1, 0, 0)
 
         [Header(Debug)]
         [Toggle] _DebugParts ("Show Part Colors", Float) = 0
@@ -142,6 +144,8 @@ Shader "VoidCloak/ClothPoint"
                 float4 _MotionLag;
                 float4 _Gait;
                 float4 _FloorMotion;
+                float4 _SwingPivot;
+                float4 _SwingAxisAngle;
             CBUFFER_END
 
             struct Attributes
@@ -238,18 +242,43 @@ Shader "VoidCloak/ClothPoint"
                 return offset;
             }
 
+            // ---------------------------------------------------------- sword swing
+            // Rotates a vector around a unit axis (Rodrigues).
+            float3 RotateAxis(float3 v, float3 axis, float angle)
+            {
+                float s = sin(angle), c = cos(angle);
+                return v * c + cross(axis, v) * s + axis * dot(axis, v) * (1.0 - c);
+            }
+
+            // The sword (steel / leather) and the sword sleeve (parts 30, 31) swing as one rigid arm.
+            float IsSwordArm(Attributes input)
+            {
+                float partId = floor(input.color.r * 32.0);
+                return (input.uv2.x > 0.5 || partId > 29.5) ? 1.0 : 0.0;
+            }
+
             V2G Vert(Attributes input)
             {
                 V2G o;
                 float rnd = input.color.a;
-                float3 posOS = input.positionOS.xyz + WindOffset(input.positionOS.xyz, input.uv0.y, rnd)
-                             + MotionOffset(input.positionOS.xyz, input.uv0.y, input.uv2.y);
+                float3 restOS = input.positionOS.xyz;
+                float3 normalOS = input.normalOS;
+                float3 flowOS = input.tangentOS.xyz;
+                if (abs(_SwingAxisAngle.w) > 1e-4 && IsSwordArm(input) > 0.5)
+                {
+                    float3 axis = normalize(_SwingAxisAngle.xyz);
+                    restOS = _SwingPivot.xyz + RotateAxis(restOS - _SwingPivot.xyz, axis, _SwingAxisAngle.w);
+                    normalOS = RotateAxis(normalOS, axis, _SwingAxisAngle.w);
+                    flowOS = RotateAxis(flowOS, axis, _SwingAxisAngle.w);
+                }
+                float3 posOS = restOS + WindOffset(restOS, input.uv0.y, rnd)
+                             + MotionOffset(restOS, input.uv0.y, input.uv2.y);
                 // cloth on the floor never sinks below it
                 if (input.uv2.y > 0.01) posOS.y = max(posOS.y, 0.003);
                 o.positionWS = TransformObjectToWorld(posOS);
                 o.positionCS = TransformWorldToHClip(o.positionWS);
-                o.normalWS = TransformObjectToWorldNormal(input.normalOS);
-                o.flowWS = float4(TransformObjectToWorldDir(input.tangentOS.xyz), input.tangentOS.w);
+                o.normalWS = TransformObjectToWorldNormal(normalOS);
+                o.flowWS = float4(TransformObjectToWorldDir(flowOS), input.tangentOS.w);
                 o.data = input.color;
                 o.extra = float4(input.uv0.x, input.uv0.y, input.uv1.x, input.uv1.y);
                 o.material = input.uv2.x;

@@ -10,12 +10,11 @@ namespace VoidCloak
     public sealed partial class VoidCloakGenerator
     {
         // Sleeve roots sit inside the cloak, just behind the front opening, under the shoulder cape.
-        static readonly Vector3 RightShoulderInside = new Vector3(0.3f, 2.85f, 0.0f);
+        public static readonly Vector3 RightShoulderInside = new Vector3(0.3f, 2.85f, 0.0f);
 
-        void GenerateSword()
+        /// <summary>Where the sword tip rests and which way the blade points, for a pose (reference scale).</summary>
+        public static void SwordRestPose(VoidCloakSword sword, out Vector3 tip, out Vector3 direction)
         {
-            SwordFrame frame;
-            Vector3 tip, direction;
             switch (sword.pose)
             {
                 case SwordPose.PlantedFront:
@@ -31,7 +30,13 @@ namespace VoidCloak
                     direction = new Vector3(0.25f, -1f, 0.45f);
                     break;
             }
-            frame = SwordFrame.FromTip(tip, direction, sword.bladeLength, Vector3.forward);
+        }
+
+        void GenerateSword()
+        {
+            Vector3 tip, direction;
+            SwordRestPose(sword, out tip, out direction);
+            SwordFrame frame = SwordFrame.FromTip(tip, direction, sword.bladeLength, Vector3.forward);
 
             GenerateSwordBlade(frame);
             GenerateSwordHilt(frame);

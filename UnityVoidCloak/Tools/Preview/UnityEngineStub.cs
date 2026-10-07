@@ -60,6 +60,7 @@ namespace UnityEngine
         public static float Dot(Vector3 a, Vector3 b) => a.x * b.x + a.y * b.y + a.z * b.z;
         public static Vector3 Cross(Vector3 a, Vector3 b) => new Vector3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
         public static float Distance(Vector3 a, Vector3 b) => (a - b).magnitude;
+        public static float Angle(Vector3 a, Vector3 b) { float d = a.magnitude * b.magnitude; return d < 1e-8f ? 0f : (float)(Math.Acos(Math.Max(-1f, Math.Min(1f, Dot(a, b) / d))) * 180.0 / Math.PI); }
         public static Vector3 Lerp(Vector3 a, Vector3 b, float t) { t = Mathf.Clamp01(t); return a + (b - a) * t; }
         public static Vector3 Scale(Vector3 a, Vector3 b) => new Vector3(a.x * b.x, a.y * b.y, a.z * b.z);
         public static Vector3 MoveTowards(Vector3 a, Vector3 b, float d) { Vector3 v = b - a; float m = v.magnitude; return m <= d || m == 0f ? b : a + v / m * d; }
@@ -88,6 +89,32 @@ namespace UnityEngine
         }
         public static Quaternion LookRotation(Vector3 f, Vector3 up) => Euler(0f, Mathf.Atan2(f.x, f.z) * 180f / Mathf.PI, 0f);
         public static Quaternion RotateTowards(Quaternion a, Quaternion b, float d) => b;
+        public static Quaternion FromToRotation(Vector3 a, Vector3 b)
+        {
+            a = a.normalized; b = b.normalized;
+            float d = Vector3.Dot(a, b);
+            if (d < -0.9999f) { Vector3 ax = Vector3.Cross(Vector3.right, a); if (ax.sqrMagnitude < 1e-6f) ax = Vector3.Cross(Vector3.up, a); ax = ax.normalized; return new Quaternion(ax.x, ax.y, ax.z, 0f); }
+            Vector3 c = Vector3.Cross(a, b);
+            var q = new Quaternion(c.x, c.y, c.z, 1f + d);
+            float m = Mathf.Sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+            return new Quaternion(q.x / m, q.y / m, q.z / m, q.w / m);
+        }
+        public static Quaternion Slerp(Quaternion a, Quaternion b, float t)
+        {
+            t = Mathf.Clamp01(t);
+            float dot = a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+            if (dot < 0f) { b = new Quaternion(-b.x, -b.y, -b.z, -b.w); dot = -dot; }
+            if (dot > 0.9995f) { var l = new Quaternion(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t, a.w + (b.w - a.w) * t); float n = Mathf.Sqrt(l.x * l.x + l.y * l.y + l.z * l.z + l.w * l.w); return new Quaternion(l.x / n, l.y / n, l.z / n, l.w / n); }
+            float th = (float)Math.Acos(dot), s0 = Mathf.Sin((1f - t) * th) / Mathf.Sin(th), s1 = Mathf.Sin(t * th) / Mathf.Sin(th);
+            return new Quaternion(a.x * s0 + b.x * s1, a.y * s0 + b.y * s1, a.z * s0 + b.z * s1, a.w * s0 + b.w * s1);
+        }
+        public void ToAngleAxis(out float angle, out Vector3 axis)
+        {
+            float w = Mathf.Clamp(this.w, -1f, 1f);
+            angle = 2f * (float)Math.Acos(w) * 180f / Mathf.PI;
+            float s = Mathf.Sqrt(1f - w * w);
+            axis = s < 1e-5f ? Vector3.up : new Vector3(x / s, y / s, z / s);
+        }
     }
 
     public struct Bounds
@@ -101,6 +128,7 @@ namespace UnityEngine
     {
         public const float PI = (float)Math.PI;
         public const float Infinity = float.PositiveInfinity;
+        public const float Deg2Rad = PI / 180f;
         public static float Sin(float f) => (float)Math.Sin(f);
         public static float Cos(float f) => (float)Math.Cos(f);
         public static float Atan2(float y, float x) => (float)Math.Atan2(y, x);

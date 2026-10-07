@@ -63,6 +63,12 @@ namespace VoidCloak
         public event System.Action<float> Stepped;
 
         public float WalkSpeed { get { return walkSpeed; } }
+
+        /// <summary>Slows the character down (e.g. 0.3 while attacking). 1 = normal.</summary>
+        public float SpeedMultiplier { get; set; } = 1f;
+
+        /// <summary>When false, WASD does not turn the character (it keeps facing its attack direction).</summary>
+        public bool AllowTurning { get; set; } = true;
         public float RunSpeed { get { return runSpeed; } }
         /// <summary>Current horizontal speed in units per second.</summary>
         public float CurrentSpeed { get { return new Vector3(velocity.x, 0f, velocity.z).magnitude; } }
@@ -93,11 +99,11 @@ namespace VoidCloak
 
             // --- speed ---------------------------------------------------------------
             float targetSpeed = wish.sqrMagnitude > 0f ? (run ? runSpeed : walkSpeed) : 0f;
-            Vector3 targetVelocity = wish * targetSpeed;
+            Vector3 targetVelocity = wish * (targetSpeed * SpeedMultiplier);
             velocity = Vector3.MoveTowards(velocity, targetVelocity, acceleration * dt);
 
             // --- turning (face the walking direction) ---------------------------------
-            if (wish.sqrMagnitude > 1e-4f)
+            if (AllowTurning && wish.sqrMagnitude > 1e-4f)
             {
                 Quaternion look = Quaternion.LookRotation(wish, Vector3.up);
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, look, turnSpeed * dt);

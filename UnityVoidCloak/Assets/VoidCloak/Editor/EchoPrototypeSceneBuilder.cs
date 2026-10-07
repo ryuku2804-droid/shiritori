@@ -64,6 +64,7 @@ namespace EchoKnightEditor
             so.ApplyModifiedPropertiesWithoutUndo();
             player.AddComponent<VoidCloakMover>();
             player.AddComponent<EchoPlayer>();
+            player.AddComponent<EchoCombat>();
 
             // ---------------- camera (pure black background)
             var camGo = new GameObject("Main Camera");
