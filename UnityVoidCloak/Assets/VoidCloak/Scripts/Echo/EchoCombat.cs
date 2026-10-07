@@ -262,6 +262,12 @@ namespace EchoKnight
             return false;
         }
 
+        /// <summary>Full health again (bell shrines).</summary>
+        public void RestoreHealth()
+        {
+            health = maxHealth;
+        }
+
         void Die()
         {
             health = maxHealth;

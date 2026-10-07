@@ -75,35 +75,7 @@ namespace EchoKnight
             r.shadowCastingMode = ShadowCastingMode.Off;
             r.receiveShadows = false;
 
-            if (generateColliders) SyncColliders(boxes);
-        }
-
-        /// <summary>Creates / updates box colliders only when they actually changed.</summary>
-        void SyncColliders(List<Bounds> boxes)
-        {
-            Transform holder = transform.Find("_Colliders");
-            if (holder == null)
-            {
-                var go = new GameObject("_Colliders");
-                holder = go.transform;
-                holder.SetParent(transform, false);
-            }
-
-            BoxCollider[] existing = holder.GetComponents<BoxCollider>();
-            bool same = existing.Length == boxes.Count;
-            for (int i = 0; same && i < boxes.Count; i++)
-            {
-                same = (existing[i].center - boxes[i].center).sqrMagnitude < 1e-6f && (existing[i].size - boxes[i].size).sqrMagnitude < 1e-6f;
-            }
-            if (same) return;
-
-            foreach (BoxCollider c in existing) EchoMeshUtil.DestroySafe(c);
-            foreach (Bounds box in boxes)
-            {
-                BoxCollider c = holder.gameObject.AddComponent<BoxCollider>();
-                c.center = box.center;
-                c.size = box.size;
-            }
+            if (generateColliders) EchoMeshUtil.SyncBoxColliders(transform, boxes);
         }
     }
 }

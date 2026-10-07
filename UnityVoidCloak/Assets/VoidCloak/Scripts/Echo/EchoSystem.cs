@@ -14,6 +14,8 @@ namespace EchoKnight
         Enemy = 1,
         /// <summary>The knight striking the ground with the sword (big wave).</summary>
         Strike = 2,
+        /// <summary>A shrine bell (tints what it reveals gold; Listeners flee from it).</summary>
+        Bell = 3,
     }
 
     public struct EchoWave
@@ -187,6 +189,37 @@ namespace EchoKnight
             bounds.Expand(1f);
             mesh.bounds = bounds;
             return mesh;
+        }
+
+        /// <summary>
+        /// Keeps box colliders on a child called "_Colliders" in sync with <paramref name="boxes"/>
+        /// (local space). Only touches them when something actually changed.
+        /// </summary>
+        public static void SyncBoxColliders(Transform owner, List<Bounds> boxes)
+        {
+            Transform holder = owner.Find("_Colliders");
+            if (holder == null)
+            {
+                var go = new GameObject("_Colliders");
+                holder = go.transform;
+                holder.SetParent(owner, false);
+            }
+
+            BoxCollider[] existing = holder.GetComponents<BoxCollider>();
+            bool same = existing.Length == boxes.Count;
+            for (int i = 0; same && i < boxes.Count; i++)
+            {
+                same = (existing[i].center - boxes[i].center).sqrMagnitude < 1e-6f && (existing[i].size - boxes[i].size).sqrMagnitude < 1e-6f;
+            }
+            if (same) return;
+
+            foreach (BoxCollider c in existing) DestroySafe(c);
+            foreach (Bounds box in boxes)
+            {
+                BoxCollider c = holder.gameObject.AddComponent<BoxCollider>();
+                c.center = box.center;
+                c.size = box.size;
+            }
         }
 
         public static void DestroySafe(UnityEngine.Object o)

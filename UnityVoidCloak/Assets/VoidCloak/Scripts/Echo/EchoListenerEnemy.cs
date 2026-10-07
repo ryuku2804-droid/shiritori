@@ -14,13 +14,14 @@ namespace EchoKnight
     ///   Parry (Q / LB) right before the blow to stun it.
     /// It never sees the knight - it only knows where the last sound came from. Standing
     /// still is the way to lose it. Its own footsteps send out small red echoes.
+    /// The sound of a shrine bell makes it flee.
     /// </summary>
     [ExecuteAlways]
     [DisallowMultipleComponent]
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public class EchoListenerEnemy : MonoBehaviour
     {
-        enum State { Wander, Investigate, Chase, WindUp, Recover, Stunned, Dead }
+        enum State { Wander, Investigate, Chase, WindUp, Recover, Stunned, Flee, Dead }
 
         static readonly List<EchoListenerEnemy> all = new List<EchoListenerEnemy>();
 
@@ -42,6 +43,8 @@ namespace EchoKnight
         [SerializeField, Min(0f)] private float chaseDistance = 16f;
         [Tooltip("Seconds without new sounds before it gives up and wanders again.")]
         [SerializeField, Min(0f)] private float giveUpTime = 4f;
+        [Tooltip("How long it runs from the sound of a shrine bell (seconds).")]
+        [SerializeField, Min(0f)] private float fleeTime = 5f;
 
         [Header("Movement")]
         [SerializeField, Min(0f)] private float wanderRadius = 9f;
@@ -125,6 +128,12 @@ namespace EchoKnight
         void OnWave(EchoWave wave)
         {
             if (!Application.isPlaying || wave.source == EchoSource.Enemy) return;
+            if (wave.source == EchoSource.Bell)
+            {
+                HearBell(wave);
+                return;
+            }
+            if (state == State.Flee) return;
             if (state == State.Dead || state == State.Stunned || state == State.WindUp || state == State.Recover) return;
             Vector3 d = wave.origin - transform.position;
             d.y = 0f;
@@ -135,6 +144,20 @@ namespace EchoKnight
             lastHeardTime = Time.time;
             bool loud = wave.source == EchoSource.Strike || distance < chaseDistance;
             state = loud ? State.Chase : (state == State.Chase ? State.Chase : State.Investigate);
+            waitUntil = 0f;
+        }
+
+        /// <summary>A shrine bell: it cannot stand the sound and runs away from it.</summary>
+        void HearBell(EchoWave wave)
+        {
+            if (state == State.Dead) return;
+            Vector3 away = transform.position - wave.origin;
+            away.y = 0f;
+            if (away.magnitude > wave.radius) return;
+            if (away.sqrMagnitude < 1e-4f) away = -transform.forward;
+            target = transform.position + away.normalized * 14f;
+            state = State.Flee;
+            stateUntil = Time.time + fleeTime;
             waitUntil = 0f;
         }
 
@@ -212,6 +235,14 @@ namespace EchoKnight
                     FacePlayer(dt);
                     if (Time.time >= stateUntil) LandBlow();
                     return;
+                case State.Flee:
+                    if (Time.time >= stateUntil)
+                    {
+                        state = State.Wander;
+                        PickWanderTarget();
+                    }
+                    else Move(dt);
+                    return;
             }
 
             if (state != State.Wander && Time.time - lastHeardTime > giveUpTime)
@@ -234,7 +265,7 @@ namespace EchoKnight
 
         void Move(float dt)
         {
-            float speed = state == State.Chase ? chaseSpeed : state == State.Investigate ? investigateSpeed : wanderSpeed;
+            float speed = state == State.Chase || state == State.Flee ? chaseSpeed : state == State.Investigate ? investigateSpeed : wanderSpeed;
             Vector3 to = target - transform.position;
             to.y = 0f;
             float dist = to.magnitude;
@@ -338,7 +369,8 @@ namespace EchoKnight
             RaycastHit hit;
             Vector3 origin = transform.position + Vector3.up * 1.5f;
             if (!Physics.SphereCast(origin, 0.8f, dir, out hit, 2.2f, ~0, QueryTriggerInteraction.Ignore)) return false;
-            return hit.collider.GetComponentInParent<EchoKitPiece>() != null;
+            // anything solid except the knight blocks the way
+            return hit.collider.GetComponentInParent<EchoPlayer>() == null;
         }
     }
 }

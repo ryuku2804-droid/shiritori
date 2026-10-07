@@ -18,10 +18,12 @@ LISTENER = np.array([4.0, 0.0, 10.0])
 SPEED, BAND, HOLD = 26.0, 1.4, 1.5
 STONE = np.array([0.9, 0.93, 1.0])
 ENEMY = np.array([1.0, 0.16, 0.12])
+GOLD = np.array([1.0, 0.78, 0.3])
+BELLWAVE = np.array([1.0, 0.8, 0.38])
 
 
 def reveal(P, waves, t):
-    rev = np.zeros(len(P)); front = np.zeros(len(P)); enemy = np.zeros(len(P))
+    rev = np.zeros(len(P)); front = np.zeros(len(P)); enemy = np.zeros(len(P)); bell = np.zeros(len(P))
     to_sound = np.tile([0.0, 1.0, 0.0], (len(P), 1))
     for (origin, start, radius, source, strength) in waves:
         age = t - start
@@ -39,16 +41,18 @@ def reveal(P, waves, t):
         rev[better] = r[better]
         front[better] = (band * fade * strength)[better]
         enemy[better] = 1.0 if source == 1 else 0.0
+        bell[better] = 1.0 if source == 3 else 0.0
         to_sound[better] = (-d / np.maximum(dist, 1e-3)[:, None])[better]
-    return rev, front, enemy, to_sound
+    return rev, front, enemy, bell, to_sound
 
 
 def shade_world(S, waves, t):
     P, N = S[:, 0:3], S[:, 3:6]
     bright, rnd, cav, typ = S[:, 6], S[:, 7], S[:, 8], S[:, 9]
-    rev, front, enemy, to_sound = reveal(P, waves, t)
-    base = np.where(typ[:, None] > 0.5, ENEMY[None], STONE[None])
+    rev, front, enemy, bell, to_sound = reveal(P, waves, t)
+    base = np.where(typ[:, None] > 1.5, GOLD[None], np.where(typ[:, None] > 0.5, ENEMY[None], STONE[None]))
     base = base * (1 - enemy[:, None] * 0.85) + ENEMY[None] * enemy[:, None] * 0.85
+    base = base * (1 - bell[:, None] * 0.6) + BELLWAVE[None] * bell[:, None] * 0.6
     facing = np.clip(np.sum(N * to_sound, 1), 0, 1)
     light = 0.25 + 0.75 * facing
     col = base * (bright * cav * light * 1.0)[:, None] + base * (front * 0.9 * 0.5)[:, None] + (front * 0.9 * 0.25)[:, None]
@@ -112,6 +116,8 @@ def main():
         waves.append((feet, 0.0, 70.0, 2, 1.05))
     elif kind == 'walk':
         waves.append((feet, 0.0, 18.0, 0, 0.75))
+    elif kind == 'bell':
+        waves.append((np.array([-5.0, 3.6, -15.0]), 0.0, 45.0, 3, 1.2))
     elif kind == 'all':
         waves.append((feet, 0.0, 9999.0, 0, 1.0))
     waves.append((LISTENER + np.array([0, 0.2, 0]), t - 0.25, 7.0, 1, 0.9))   # the Listener's footstep

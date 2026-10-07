@@ -19,6 +19,7 @@ Shader "EchoKnight/WorldPoint"
     {
         _EchoColor ("Echo Color (white = stone, red = enemy, gold = item)", Color) = (0.9, 0.93, 1, 1)
         _EnemyWaveColor ("Color Of Enemy Sounds", Color) = (1, 0.14, 0.1, 1)
+        _BellWaveColor ("Color Of Shrine Bells", Color) = (1, 0.8, 0.38, 1)
         _Brightness ("Brightness", Range(0, 4)) = 1.0
         _SideLight ("Light On Faces Turned Away", Range(0, 1)) = 0.25
         _FrontBoost ("Wavefront Brightness", Range(0, 4)) = 0.9
@@ -54,7 +55,7 @@ Shader "EchoKnight/WorldPoint"
 
             // set every frame by EchoSystem.cs
             float4 _EchoWaves[ECHO_MAX_WAVES];       // xyz origin, w start time
-            float4 _EchoWaveParams[ECHO_MAX_WAVES];  // x radius, y speed, z source (0 player, 1 enemy, 2 strike), w strength
+            float4 _EchoWaveParams[ECHO_MAX_WAVES];  // x radius, y speed, z source (0 player, 1 enemy, 2 strike, 3 bell), w strength
             float _EchoWaveCount;
             float _EchoTime;
             float _EchoBand;
@@ -64,6 +65,7 @@ Shader "EchoKnight/WorldPoint"
             CBUFFER_START(UnityPerMaterial)
                 float4 _EchoColor;
                 float4 _EnemyWaveColor;
+                float4 _BellWaveColor;
                 float _Brightness;
                 float _SideLight;
                 float _FrontBoost;
@@ -100,12 +102,14 @@ Shader "EchoKnight/WorldPoint"
             //   reveal : 0 hidden .. 1 fully lit
             //   front  : 1 while the wavefront is passing
             //   enemy  : 1 if the strongest wave was made by an enemy
+            //   bell   : 1 if the strongest wave was a shrine bell
             //   toSound: direction from the point towards the sound
-            void EchoReveal(float3 p, out float reveal, out float front, out float enemy, out float3 toSound)
+            void EchoReveal(float3 p, out float reveal, out float front, out float enemy, out float bell, out float3 toSound)
             {
                 reveal = 0.0;
                 front = 0.0;
                 enemy = 0.0;
+                bell = 0.0;
                 toSound = float3(0.0, 1.0, 0.0);
                 int count = (int)_EchoWaveCount;
 
@@ -136,6 +140,7 @@ Shader "EchoKnight/WorldPoint"
                         reveal = r;
                         front = band * fade * q.w;
                         enemy = abs(q.z - 1.0) < 0.5 ? 1.0 : 0.0;
+                        bell = abs(q.z - 3.0) < 0.5 ? 1.0 : 0.0;
                         toSound = -d / max(dist, 1e-3);
                     }
                 }
@@ -147,9 +152,9 @@ Shader "EchoKnight/WorldPoint"
                 float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
                 float3 normalWS = normalize(TransformObjectToWorldNormal(input.normalOS));
 
-                float reveal, front, enemy;
+                float reveal, front, enemy, bell;
                 float3 toSound;
-                EchoReveal(positionWS, reveal, front, enemy, toSound);
+                EchoReveal(positionWS, reveal, front, enemy, bell, toSound);
 
                 // the wavefront shakes the points a little, like dust on a drum
                 positionWS += normalWS * (front * _Ripple * (input.color.g - 0.3));
@@ -158,6 +163,7 @@ Shader "EchoKnight/WorldPoint"
                 float facing = saturate(dot(normalWS, toSound));
                 float light = _SideLight + (1.0 - _SideLight) * facing;
                 float3 baseColor = lerp(_EchoColor.rgb, _EnemyWaveColor.rgb, enemy * 0.85);
+                baseColor = lerp(baseColor, _BellWaveColor.rgb, bell * 0.6);   // shrine bells wash the world gold
                 float3 color = baseColor * input.color.r * input.color.b * light * _Brightness;
                 color += baseColor * front * _FrontBoost * 0.5 + front * _FrontBoost * 0.25;   // hot white-ish front
 

@@ -42,8 +42,19 @@ namespace EchoKnight
             get { return strikeCooldown > 0f ? Mathf.Clamp01((strikeReadyTime - Time.time) / strikeCooldown) : 0f; }
         }
 
+        /// <summary>The knight in the scene (used by shrines).</summary>
+        public static EchoPlayer Current { get; private set; }
+
+        /// <summary>Where the knight comes back after falling (set by bell shrines).</summary>
+        public void SetCheckpoint(Vector3 position, Quaternion rotation)
+        {
+            spawnPosition = position + Vector3.up * 0.05f;
+            spawnRotation = rotation;
+        }
+
         void Awake()
         {
+            Current = this;
             mover = GetComponent<VoidCloakMover>();
             controller = GetComponent<CharacterController>();
             spawnPosition = transform.position;
@@ -53,12 +64,14 @@ namespace EchoKnight
 
         void OnEnable()
         {
+            Current = this;
             if (mover == null) mover = GetComponent<VoidCloakMover>();
             mover.Stepped += OnStep;
         }
 
         void OnDisable()
         {
+            if (Current == this) Current = null;
             if (mover != null) mover.Stepped -= OnStep;
         }
 

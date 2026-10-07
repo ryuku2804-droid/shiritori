@@ -34,7 +34,7 @@ namespace EchoKnightEditor
 
             Material stone = GetOrCreateMaterial("EchoStone", worldShader, new Color(0.9f, 0.93f, 1f, 1f));
             Material enemy = GetOrCreateMaterial("EchoEnemy", worldShader, new Color(1f, 0.16f, 0.12f, 1f));
-            GetOrCreateMaterial("EchoGold", worldShader, new Color(1f, 0.78f, 0.3f, 1f)); // for items later
+            Material gold = GetOrCreateMaterial("EchoGold", worldShader, new Color(1f, 0.78f, 0.3f, 1f));
 
             new GameObject("EchoSystem").AddComponent<EchoSystem>();
 
@@ -47,6 +47,16 @@ namespace EchoKnightEditor
                 go.transform.localPosition = placement.position;
                 go.transform.localRotation = Quaternion.Euler(0f, placement.yaw, 0f);
                 go.AddComponent<EchoKitPiece>().Configure(placement.spec, stone);
+            }
+
+            // ---------------- bell shrines (save points)
+            foreach (EchoShrinePlacement shrine in EchoPrototypeLayout.Shrines())
+            {
+                var go = new GameObject(shrine.name);
+                go.transform.SetParent(stage, false);
+                go.transform.localPosition = shrine.position;
+                go.transform.localRotation = Quaternion.Euler(0f, shrine.yaw, 0f);
+                go.AddComponent<EchoBellShrine>().Setup(gold);
             }
 
             // ---------------- knight

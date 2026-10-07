@@ -59,6 +59,86 @@ namespace EchoKnight
         }
     }
 
+    /// <summary>
+    /// Bell shrine (save point): a stone plinth, two wooden posts, a beam with a small roof,
+    /// and a bell hanging from the beam. The bell is a separate mesh so it can swing.
+    /// Local space, origin at the bottom centre, open towards +Z.
+    /// </summary>
+    public static class EchoBellShrineShape
+    {
+        /// <summary>Where the bell hangs from (local).</summary>
+        public static readonly Vector3 BellPivot = new Vector3(0f, 3.6f, 0f);
+
+        public static void BuildFrame(EchoPointBuilder b, List<Bounds> colliders)
+        {
+            b.spacing = 0.07f;
+            b.MasonryBox(new Vector3(0f, 0.2f, 0f), new Vector3(2.6f, 0.4f, 2.0f), 0.4f, true, false, 0.8f);
+            for (int side = -1; side <= 1; side += 2)
+            {
+                Box(b, new Vector3(side * 1.0f, 2.1f, 0f), new Vector3(0.28f, 3.4f, 0.28f), 0.7f);
+                colliders.Add(new Bounds(new Vector3(side * 1.0f, 2.1f, 0f), new Vector3(0.3f, 3.4f, 0.3f)));
+            }
+            Box(b, new Vector3(0f, 3.75f, 0f), new Vector3(2.7f, 0.3f, 0.36f), 0.75f);
+            // small pitched roof over the beam
+            for (int side = -1; side <= 1; side += 2)
+            {
+                Vector3 eave = new Vector3(-1.5f, 3.95f, side * 0.9f);
+                Vector3 up = new Vector3(0f, 0.55f, -side * 0.9f);
+                float len = up.magnitude;
+                Vector3 normal = new Vector3(0f, 0.9f, side * 0.55f).normalized;
+                b.Rect(eave, Vector3.right, up / len, 3.0f, len, normal, 0.6f, 1f, (a, v) => (v % 0.28f) < 0.03f);
+            }
+            colliders.Add(new Bounds(new Vector3(0f, 0.2f, 0f), new Vector3(2.6f, 0.4f, 2.0f)));
+        }
+
+        /// <summary>The bell, hanging down from its pivot (local origin = pivot).</summary>
+        public static void BuildBell(EchoPointBuilder b)
+        {
+            b.spacing = 0.045f;
+            const float top = -0.15f, height = 1.0f;
+            int rows = Mathf.CeilToInt(height / b.spacing);
+            for (int j = 0; j < rows; j++)
+            {
+                float t = (j + b.Rand()) / rows;                       // 0 = shoulder, 1 = lip
+                float r = 0.18f + 0.32f * Mathf.Pow(t, 1.8f) + 0.06f * Mathf.Clamp01((t - 0.85f) / 0.15f);
+                float y = top - t * height;
+                int around = Mathf.Max(8, Mathf.CeilToInt(2f * Mathf.PI * r / b.spacing));
+                float slope = 0.32f * 1.8f * Mathf.Pow(Mathf.Max(t, 1e-3f), 0.8f) / height;
+                bool lipBand = t > 0.86f && t < 0.93f;
+                for (int i = 0; i < around; i++)
+                {
+                    float ang = (i + b.Rand()) / around * 2f * Mathf.PI;
+                    Vector3 radial = new Vector3(Mathf.Sin(ang), 0f, Mathf.Cos(ang));
+                    Vector3 n = (radial + Vector3.up * slope).normalized;
+                    b.Add(radial * r + Vector3.up * y, n, lipBand ? 1.15f : 0.95f);
+                    if (t > 0.55f) b.Add(radial * (r - 0.05f) + Vector3.up * y, -n, 0.35f, 0.6f);   // dark inside
+                }
+            }
+            b.Ellipsoid(new Vector3(0f, -0.1f, 0f), new Vector3(0.15f, 0.1f, 0.15f), Quaternion.identity, 0.9f);   // crown
+            b.Tube(new Vector3(0f, -0.2f, 0f), new Vector3(0f, -0.45f, 0f), new Vector3(0f, -0.75f, 0f), new Vector3(0f, -0.98f, 0f), t => 0.025f, 0.7f);
+            b.Ellipsoid(new Vector3(0f, -1.05f, 0f), new Vector3(0.11f, 0.13f, 0.11f), Quaternion.identity, 0.8f);  // clapper
+        }
+
+        static void Box(EchoPointBuilder b, Vector3 center, Vector3 size, float bright)
+        {
+            Vector3 h = size * 0.5f, o = center - h;
+            b.Rect(o + new Vector3(0f, 0f, size.z), Vector3.right, Vector3.up, size.x, size.y, Vector3.forward, bright);
+            b.Rect(o, Vector3.right, Vector3.up, size.x, size.y, Vector3.back, bright);
+            b.Rect(o, Vector3.forward, Vector3.up, size.z, size.y, Vector3.left, bright);
+            b.Rect(o + new Vector3(size.x, 0f, 0f), Vector3.forward, Vector3.up, size.z, size.y, Vector3.right, bright);
+            b.Rect(o + new Vector3(0f, size.y, 0f), Vector3.right, Vector3.forward, size.x, size.z, Vector3.up, bright);
+            b.Rect(o, Vector3.right, Vector3.forward, size.x, size.z, Vector3.down, bright * 0.6f);
+        }
+    }
+
+    /// <summary>A bell shrine in the prototype stage.</summary>
+    public struct EchoShrinePlacement
+    {
+        public string name;
+        public Vector3 position;
+        public float yaw;
+    }
+
     /// <summary>One piece in the prototype stage.</summary>
     public struct EchoPiecePlacement
     {
@@ -124,6 +204,16 @@ namespace EchoKnight
             // a short broken wall in the courtyard to hide behind
             Add(list, "Low Wall", new Vector3(6f, 0f, 2f), 20f, new EchoKitSpec { kind = EchoKitKind.Wall, size = new Vector3(7f, 2.6f, 1.0f), seed = 80, pointSpacing = 0.12f });
             return list;
+        }
+
+        /// <summary>Bell shrines (save points): one near the start, one on top of the platform.</summary>
+        public static List<EchoShrinePlacement> Shrines()
+        {
+            return new List<EchoShrinePlacement>
+            {
+                new EchoShrinePlacement { name = "Bell Shrine (Start)", position = new Vector3(-5f, 0f, -15f), yaw = 35f },
+                new EchoShrinePlacement { name = "Bell Shrine (Platform)", position = new Vector3(-20f, 2.4f, 23.5f), yaw = 180f },
+            };
         }
 
         static EchoKitSpec With(EchoKitSpec spec, int seed)

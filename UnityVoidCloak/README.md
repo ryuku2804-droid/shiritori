@@ -33,6 +33,7 @@
 | `Assets/VoidCloak/Scripts/Echo/EchoPointBuilder.cs` | 石積み・敷石・円柱・屋根などの点の作り方 |
 | `Assets/VoidCloak/Scripts/Echo/EchoShapes.cs` | 聴き手の体と、プロトタイプステージの配置 |
 | `Assets/VoidCloak/Scripts/Echo/EchoListenerEnemy.cs` | 聴き手（音だけで追ってくる敵） |
+| `Assets/VoidCloak/Scripts/Echo/EchoBellShrine.cs` | 鐘の祠（セーブ地点・回復・聴き手を追い払う） |
 | `Assets/VoidCloak/Shaders/EchoWorldPoint.shader` | 波が通った所だけ見える世界用シェーダー |
 | `Assets/VoidCloak/Editor/EchoPrototypeSceneBuilder.cs` | メニューからプロトタイプのシーンを作る |
 | `Assets/VoidCloak/Scripts/VoidCloakSettings.cs` | 形状パラメータ、Particle数、`CloakPart`、`BuildStage` |
@@ -159,6 +160,7 @@ Inspectorの **Sword** で設定します（`enabled` で表示/非表示）。�
 | 左クリック / ゲームパッドX | 弱攻撃（右上から左下への斬り。速い） |
 | E / ゲームパッドRB | 強攻撃（振りかぶって振り下ろす。遅いが2.5倍のダメージ、とても大きな音） |
 | Q / ゲームパッドLB | パリィ（敵の攻撃の直前に押すと弾く） |
+| F / ゲームパッドA | 鐘の祠で鐘を鳴らす（セーブ） |
 | 右ドラッグ / 右スティック | カメラを回す |
 | ホイール | ズーム |
 
@@ -170,6 +172,19 @@ Inspectorの **Sword** で設定します（`enabled` で表示/非表示）。�
 - 足音の波は一歩ごとには出ない。歩くと約1.8秒に1回、走ると約0.9秒に1回（EchoPlayer の Walk / Run Echo Interval）。
 - 聴き手の足音の波は、徘徊中は約3.5秒、調べに来るときは約2.2秒、追いかけるときは約1.1秒に1回。間隔は少しずつばらつく（EchoListenerEnemy の Wander / Investigate / Chase Echo Interval）。
 - 音は壁を通り抜ける（壁の向こうの敵も波で見える）。
+
+### 鐘の祠（セーブ地点、`EchoBellShrine`）
+
+![shrine](Docs/preview_shrine.png)
+
+（鐘を鳴らした瞬間と、その少し後。世界が金色に照らされる）
+
+- 小さな鐘つきの祠。波が当たると**金色**に見える。プロトタイプにはスタート近くと、台座の上の2か所にある。
+- 近くで **F（ゲームパッドA）** を押すと鐘が揺れて鳴り、金色の大きな波が広がる。
+  - 体力が全回復する。
+  - 倒れたとき、この祠の前から再開する。
+  - 鐘の音を聞いた聴き手は逃げていく（暁鐘の音がしじまを押し返していた、という設定から）。
+- 祠のそばにいるときだけ、画面の下に操作の案内が出る。
 
 ### 戦闘（`EchoCombat`）
 

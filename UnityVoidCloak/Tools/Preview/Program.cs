@@ -52,6 +52,18 @@ static class Program
                 Console.WriteLine($"  {placement.name,-14} {b.Count,8}");
                 total += b.Count;
             }
+            foreach (var shrine in EchoKnight.EchoPrototypeLayout.Shrines())
+            {
+                var frame = new EchoKnight.EchoPointBuilder(91);
+                EchoKnight.EchoBellShrineShape.BuildFrame(frame, new System.Collections.Generic.List<UnityEngine.Bounds>());
+                Write(w, frame, shrine.position, shrine.yaw, 2f);
+                var bell = new EchoKnight.EchoPointBuilder(92);
+                EchoKnight.EchoBellShrineShape.BuildBell(bell);
+                var q = UnityEngine.Quaternion.Euler(0f, shrine.yaw, 0f);
+                Write(w, bell, shrine.position + q * EchoKnight.EchoBellShrineShape.BellPivot, shrine.yaw, 2f);
+                Console.WriteLine($"  {shrine.name,-24} {frame.Count + bell.Count,8}");
+                total += frame.Count + bell.Count;
+            }
             var enemy = new EchoKnight.EchoPointBuilder(7);
             EchoKnight.EchoListenerBody.Build(enemy);
             Write(w, enemy, EchoKnight.EchoPrototypeLayout.ListenerSpawn, 180f, 1f);
