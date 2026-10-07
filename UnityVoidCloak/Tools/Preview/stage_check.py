@@ -96,7 +96,7 @@ for l in meta[2:]:
     if kind == 'hint':
         a, b = px(v[0] - v[3] / 2, v[2] + v[5] / 2), px(v[0] + v[3] / 2, v[2] - v[5] / 2); d.rectangle((a, b), outline=(80, 160, 255))
     else:
-        X_, Y_ = px(v[0], v[2]); col = {'ghost': (255, 220, 120), 'shrine': (255, 200, 60), 'listener': (255, 60, 50)}[kind]
+        X_, Y_ = px(v[0], v[2]); col = {'ghost': (255, 220, 120), 'shrine': (255, 200, 60), 'listener': (255, 60, 50), 'armor': (255, 120, 90)}[kind]
         d.ellipse((X_ - 6, Y_ - 6, X_ + 6, Y_ + 6), outline=col, width=2)
         if kind == 'listener':
             rr = v[3] * sc; d.ellipse((X_ - rr, Y_ - rr, X_ + rr, Y_ + rr), outline=(120, 40, 40))

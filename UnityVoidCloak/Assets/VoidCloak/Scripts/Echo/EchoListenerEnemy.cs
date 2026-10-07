@@ -19,7 +19,7 @@ namespace EchoKnight
     [ExecuteAlways]
     [DisallowMultipleComponent]
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
-    public class EchoListenerEnemy : MonoBehaviour
+    public class EchoListenerEnemy : MonoBehaviour, IEchoEnemy
     {
         enum State { Wander, Investigate, Chase, WindUp, Recover, Stunned, Flee, Dead }
 
@@ -82,6 +82,7 @@ namespace EchoKnight
         Vector3 knockback;
 
         public bool IsAlive { get { return state != State.Dead; } }
+        public Vector3 Position { get { return transform.position; } }
 
         /// <summary>Used by the stage builder.</summary>
         public void Setup(Material newMaterial, Transform newPlayer)
@@ -107,11 +108,13 @@ namespace EchoKnight
             state = State.Wander;
             EchoSystem.WaveEmitted += OnWave;
             if (!all.Contains(this)) all.Add(this);
+            EchoEnemies.Register(this);
         }
 
         void OnDisable()
         {
             all.Remove(this);
+            EchoEnemies.Unregister(this);
             EchoSystem.WaveEmitted -= OnWave;
             var filter = GetComponent<MeshFilter>();
             if (filter != null && filter.sharedMesh == mesh) filter.sharedMesh = null;

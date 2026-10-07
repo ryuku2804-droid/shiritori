@@ -118,6 +118,11 @@ namespace EchoKnightEditor
             {
                 Place("Listener " + n++, enemies, e.position, e.yaw).AddComponent<EchoListenerEnemy>().Setup(enemy, player.transform, e.wanderRadius);
             }
+            n = 1;
+            foreach (EchoArmorPlacement a in layout.armors)
+            {
+                Place("Hollow Armor " + n++, enemies, a.position, a.yaw).AddComponent<EchoHollowArmorEnemy>().Setup(enemy, player.transform, a.route);
+            }
 
             RenderSettings.skybox = null;
             RenderSettings.ambientLight = Color.black;

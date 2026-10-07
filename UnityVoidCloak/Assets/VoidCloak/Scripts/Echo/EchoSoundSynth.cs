@@ -20,6 +20,10 @@ namespace EchoKnight
         ListenerDeath,
         ListenerYelp,
         Ambience,
+        ArmorStep,
+        ArmorWindUp,
+        ArmorHit,
+        ArmorCollapse,
         Count,
     }
 
@@ -39,6 +43,7 @@ namespace EchoKnight
                 case EchoSound.Step:
                 case EchoSound.RunStep:
                 case EchoSound.ListenerStep:
+                case EchoSound.ArmorStep:
                     return 4;
                 case EchoSound.Hit:
                 case EchoSound.SwingLight:
@@ -74,6 +79,10 @@ namespace EchoKnight
                 case EchoSound.ListenerDeath: data = ListenerDeath(rng); break;
                 case EchoSound.ListenerYelp: data = Shriek(rng, 0.35f, 1.5f); break;
                 case EchoSound.Ambience: data = Ambience(rng); break;
+                case EchoSound.ArmorStep: data = ArmorStep(rng); break;
+                case EchoSound.ArmorWindUp: data = ArmorWindUp(rng); break;
+                case EchoSound.ArmorHit: data = ArmorHit(rng); break;
+                case EchoSound.ArmorCollapse: data = ArmorCollapse(rng); break;
                 default: data = new float[1]; break;
             }
             Normalize(data, sound == EchoSound.Ambience ? 0.5f : 0.9f, !Loops(sound));
@@ -333,6 +342,97 @@ namespace EchoKnight
                 float env = (float)(Math.Min(1.0, t / 0.05) * Math.Pow(1.0 - u, 1.4));
                 d[i] = (Sin(phase) * 0.7f + Sin(phase * 1.5) * 0.25f + lp * 0.8f) * env;
             }
+            return d;
+        }
+
+        /// <summary>An empty suit of armour taking a step: a heavy thud, a hollow boom from inside, plates clinking.</summary>
+        static float[] ArmorStep(Random rng)
+        {
+            float[] d = Buffer(0.7f);
+            float j = 0.95f + (float)rng.NextDouble() * 0.1f;
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = (float)i / SampleRate;
+                d[i] += Sin(2.0 * Math.PI * 62.0 * j * t) * (float)Math.Exp(-t * 26f) * 0.55f;
+            }
+            // the hollow shell rings low
+            AddPartials(d, rng, new[] { 190f * j, 233f * j }, new[] { 0.3f, 0.18f }, new[] { 9f, 11f });
+            // plates knocking together, slightly after the foot lands
+            for (int k = 0; k < 3; k++)
+            {
+                float start = 0.02f + k * 0.045f + (float)rng.NextDouble() * 0.02f;
+                int s0 = (int)(start * SampleRate);
+                for (int i = 0; i < 120 && s0 + i < d.Length; i++) d[s0 + i] += Noise(rng) * (float)Math.Exp(-i / 25.0) * 0.4f;
+                float f = (1400f + (float)rng.NextDouble() * 900f) * j;
+                AddPartials(d, rng, new[] { f, f * 1.47f, f * 2.13f }, new[] { 0.3f, 0.2f, 0.12f }, new[] { 18f, 24f, 32f }, start);
+            }
+            return d;
+        }
+
+        /// <summary>The great sword being raised: metal grinding on metal, rising in pitch - the only warning.</summary>
+        static float[] ArmorWindUp(Random rng)
+        {
+            const float length = 0.95f;
+            float[] d = Buffer(length);
+            float lp1 = 0f, lp2 = 0f;
+            double phase = 0.0;
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = (float)i / SampleRate;
+                float u = t / length;
+                float centre = 500f + 2200f * u * u;
+                float n = Noise(rng);
+                lp1 += Alpha(centre * 1.4f) * (n - lp1);
+                lp2 += Alpha(centre * 0.7f) * (n - lp2);
+                float grind = (lp1 - lp2) * (0.6f + 0.4f * Sin(2.0 * Math.PI * 41.0 * t));
+                // a squealing partial that climbs with the blade
+                phase += 2.0 * Math.PI * (700.0 + 900.0 * u) / SampleRate;
+                float squeal = Sin(phase) * 0.12f * u;
+                float env = Math.Min(1f, t / 0.08f) * (0.4f + 0.6f * u) * Math.Min(1f, (length - t) / 0.04f);
+                d[i] = (grind * 2.2f + squeal) * env;
+            }
+            return d;
+        }
+
+        /// <summary>The knight's blade on plate: a dull clang that rings inside the empty shell.</summary>
+        static float[] ArmorHit(Random rng)
+        {
+            float[] d = Buffer(1.4f);
+            for (int i = 0; i < 500; i++) d[i] += Noise(rng) * (float)Math.Exp(-i / 70.0) * 1.1f;
+            AddPartials(d, rng,
+                new[] { 212f, 640f, 1013f, 1732f, 2611f },
+                new[] { 0.45f, 0.5f, 0.4f, 0.25f, 0.15f },
+                new[] { 4f, 5.5f, 7f, 10f, 14f });
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = (float)i / SampleRate;
+                d[i] += Sin(2.0 * Math.PI * 80.0 * t) * (float)Math.Exp(-t * 22f) * 0.6f;
+            }
+            return d;
+        }
+
+        /// <summary>The armour falling apart: pieces clattering on the stones one after another.</summary>
+        static float[] ArmorCollapse(Random rng)
+        {
+            float[] d = Buffer(2.6f);
+            float start = 0f;
+            for (int k = 0; k < 9; k++)
+            {
+                start += 0.06f + (float)rng.NextDouble() * 0.2f * (1f + k * 0.15f);
+                if (start > 2.0f) break;
+                float level = 1f - k * 0.08f;
+                int s0 = (int)(start * SampleRate);
+                for (int i = 0; i < 300 && s0 + i < d.Length; i++) d[s0 + i] += Noise(rng) * (float)Math.Exp(-i / 50.0) * 0.7f * level;
+                float f = 380f + (float)rng.NextDouble() * 1400f;
+                AddPartials(d, rng, new[] { f, f * 1.58f, f * 2.37f }, new[] { 0.3f * level, 0.2f * level, 0.12f * level }, new[] { 7f, 10f, 14f }, start);
+                for (int i = s0; i < d.Length && i < s0 + SampleRate / 4; i++)
+                {
+                    float t = (float)(i - s0) / SampleRate;
+                    d[i] += Sin(2.0 * Math.PI * 70.0 * t) * (float)Math.Exp(-t * 24f) * 0.5f * level;
+                }
+            }
+            // the helm rolls to a stop
+            AddPartials(d, rng, new[] { 410f, 655f }, new[] { 0.1f, 0.07f }, new[] { 2.5f, 3.5f }, Math.Min(2.0f, start + 0.15f));
             return d;
         }
 

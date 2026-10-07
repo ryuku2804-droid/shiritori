@@ -144,6 +144,7 @@ namespace UnityEngine
         public static int Min(int a, int b) => Math.Min(a, b);
         public static int Max(int a, int b) => Math.Max(a, b);
         public static float Clamp(float v, float a, float b) => v < a ? a : (v > b ? b : v);
+        public static int Clamp(int v, int a, int b) => v < a ? a : (v > b ? b : v);
         public static float Clamp01(float v) => Clamp(v, 0f, 1f);
         public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
         public static float LerpAngle(float a, float b, float t) => Lerp(a, b, t);

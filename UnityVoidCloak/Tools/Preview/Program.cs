@@ -9,6 +9,7 @@ static class Program
 {
     static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "armor") return DumpArmor(args.Length > 1 ? args[1] : "armor.bin");
         if (args.Length > 0 && args[0] == "stage") return DumpStage(args.Length > 1 ? args[1] : "stage.bin");
         if (args.Length > 0 && args[0] == "prologue") return DumpLayout(EchoKnight.EchoPrologueLayout.Build(), args.Length > 1 ? args[1] : "prologue");
         if (args.Length > 0 && args[0] == "sounds") return DumpSounds(args.Length > 1 ? args[1] : "sounds");
@@ -73,6 +74,16 @@ static class Program
             total += enemy.Count;
         }
         Console.WriteLine($"stage points: {total} ({sw.ElapsedMilliseconds} ms)");
+        return 0;
+    }
+
+    // The Hollow Armor alone at the origin (same record as DumpStage, type 1).
+    static int DumpArmor(string outPath)
+    {
+        var b = new EchoKnight.EchoPointBuilder(11);
+        EchoKnight.EchoHollowArmorBody.Build(b);
+        using (var w = new BinaryWriter(File.Create(outPath))) Write(w, b, UnityEngine.Vector3.zero, 0f, 1f);
+        Console.WriteLine($"Hollow Armor: {b.Count} points");
         return 0;
     }
 
@@ -159,6 +170,13 @@ static class Program
                 Write(w, b, e.position, e.yaw, 1f);
                 total += b.Count;
             }
+            foreach (var a in L.armors)
+            {
+                var b = new EchoKnight.EchoPointBuilder(11);
+                EchoKnight.EchoHollowArmorBody.Build(b);
+                Write(w, b, a.position, a.yaw, 1f);
+                total += b.Count;
+            }
         }
         File.WriteAllText(prefix + "_boxes.txt", boxes.ToString());
         var meta = new System.Text.StringBuilder();
@@ -168,6 +186,8 @@ static class Program
         foreach (var g in L.ghosts) meta.AppendLine(string.Format(inv, "ghost {0} {1} {2}", g.position.x, g.position.y, g.position.z));
         foreach (var s in L.shrines) meta.AppendLine(string.Format(inv, "shrine {0} {1} {2}", s.position.x, s.position.y, s.position.z));
         foreach (var e in L.listeners) meta.AppendLine(string.Format(inv, "listener {0} {1} {2} {3}", e.position.x, e.position.y, e.position.z, e.wanderRadius));
+        foreach (var a in L.armors)
+            foreach (var r in a.route) meta.AppendLine(string.Format(inv, "armor {0} {1} {2}", r.x, r.y, r.z));
         File.WriteAllText(prefix + "_meta.txt", meta.ToString());
         Console.WriteLine($"{L.name}: {total} points, {boxes.ToString().Split('\n').Length - 1} colliders");
         return 0;

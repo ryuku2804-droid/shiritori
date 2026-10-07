@@ -60,7 +60,91 @@ namespace EchoKnight
     }
 
     /// <summary>
-    /// Bell shrine (save point): a stone plinth, two wooden posts, a beam with a small roof,
+    /// 「抜け殻の鎧」body: a tall suit of plate armour with nothing inside. The gorget is an
+    /// open ring (you can see it is empty), the great helm sits a little crooked, and both
+    /// gauntlets hold a great sword point-down in front. Local space, feet at y = 0, facing +Z,
+    /// about 4.4 units tall (taller than the knight).
+    /// </summary>
+    public static class EchoHollowArmorBody
+    {
+        public static void Build(EchoPointBuilder b)
+        {
+            b.spacing = 0.075f;
+
+            for (int side = -1; side <= 1; side += 2)
+            {
+                float x = side * 0.36f;
+                // sabaton
+                b.Ellipsoid(new Vector3(x, 0.13f, 0.12f), new Vector3(0.2f, 0.13f, 0.4f), Quaternion.identity, 0.9f);
+                // greave up to the knee, cuisse up to the hip
+                b.Tube(new Vector3(x, 0.22f, 0f), new Vector3(x, 0.6f, 0.02f), new Vector3(x, 1.0f, 0.06f), new Vector3(x, 1.3f, 0.08f),
+                       t => Mathf.Lerp(0.17f, 0.2f, t), 0.85f);
+                b.Ellipsoid(new Vector3(x, 1.35f, 0.17f), new Vector3(0.19f, 0.17f, 0.16f), Quaternion.identity, 1.05f);   // knee cop
+                b.Tube(new Vector3(x, 1.4f, 0.06f), new Vector3(x * 0.95f, 1.7f, 0.04f), new Vector3(x * 0.9f, 1.95f, 0.02f), new Vector3(x * 0.85f, 2.15f, 0f),
+                       t => Mathf.Lerp(0.2f, 0.25f, t), 0.85f);
+            }
+
+            // faulds and tassets: a stepped skirt of plates
+            b.Tube(new Vector3(0f, 1.7f, 0.02f), new Vector3(0f, 1.9f, 0.02f), new Vector3(0f, 2.1f, 0.02f), new Vector3(0f, 2.35f, 0.02f),
+                   t => Mathf.Lerp(0.66f, 0.52f, t), 0.9f, 10, 0.04f);
+            // breastplate with a centre ridge, backplate
+            b.Ellipsoid(new Vector3(0f, 2.85f, 0.04f), new Vector3(0.62f, 0.6f, 0.42f), Quaternion.identity, 0.95f);
+            b.Tube(new Vector3(0f, 2.4f, 0.42f), new Vector3(0f, 2.7f, 0.47f), new Vector3(0f, 3.0f, 0.46f), new Vector3(0f, 3.3f, 0.36f),
+                   t => 0.03f, 1.15f);
+            // gorget: an open ring. Nothing inside.
+            b.Disc(new Vector3(0f, 3.45f, 0f), 0.2f, 0.36f, Vector3.up, 1f);
+            b.Tube(new Vector3(0f, 3.3f, 0f), new Vector3(0f, 3.35f, 0f), new Vector3(0f, 3.4f, 0f), new Vector3(0f, 3.45f, 0f),
+                   t => 0.36f, 0.9f);
+
+            // great helm, sitting a little crooked above the empty collar
+            Quaternion tilt = Quaternion.Euler(8f, 0f, -9f);
+            Vector3 helm = new Vector3(0.04f, 3.62f, 0.02f);
+            b.Tube(helm, helm + tilt * new Vector3(0f, 0.15f, 0f), helm + tilt * new Vector3(0f, 0.32f, 0f), helm + tilt * new Vector3(0f, 0.48f, 0f),
+                   t => 0.3f, 0.9f);
+            b.Ellipsoid(helm + tilt * new Vector3(0f, 0.5f, 0f), new Vector3(0.3f, 0.2f, 0.3f), tilt, 0.95f);
+            // the eye slit: a dark band, brighter rims above and below
+            for (int k = -1; k <= 1; k += 2)
+            {
+                Vector3 c = helm + tilt * new Vector3(0f, 0.3f + k * 0.045f, 0f);
+                b.Tube(c + tilt * new Vector3(-0.22f, 0f, 0.22f), c + tilt * new Vector3(-0.08f, 0f, 0.31f), c + tilt * new Vector3(0.08f, 0f, 0.31f), c + tilt * new Vector3(0.22f, 0f, 0.22f),
+                       t => 0.018f, 1.25f);
+            }
+
+            for (int side = -1; side <= 1; side += 2)
+            {
+                // pauldron: layered plates over the shoulder
+                Quaternion p = Quaternion.Euler(0f, 0f, side * -22f);
+                b.Ellipsoid(new Vector3(side * 0.8f, 3.25f, 0f), new Vector3(0.36f, 0.24f, 0.4f), p, 1f);
+                b.Ellipsoid(new Vector3(side * 0.9f, 3.05f, 0f), new Vector3(0.3f, 0.18f, 0.34f), p, 0.9f);
+            }
+
+            // great sword held point-down in front, both hands on the grip
+            Vector3 hilt = new Vector3(0.12f, 2.2f, 0.85f);
+            Vector3 point = new Vector3(0.3f, 0.04f, 1.55f);
+            Vector3 blade = (point - hilt).normalized;
+            Vector3 guard = hilt + blade * 0.15f;
+            Quaternion along = Quaternion.FromToRotation(Vector3.up, blade);
+            float bladeLength = Vector3.Distance(guard, point);
+            b.Ellipsoid(guard + blade * (bladeLength * 0.5f), new Vector3(0.1f, bladeLength * 0.5f, 0.022f), along, 1.2f);
+            Vector3 across = Vector3.Cross(blade, Vector3.forward).normalized;
+            b.Tube(guard - across * 0.42f, guard - across * 0.15f, guard + across * 0.15f, guard + across * 0.42f, t => 0.045f, 1.1f);
+            b.Ellipsoid(hilt - blade * 0.42f, new Vector3(0.07f, 0.07f, 0.07f), Quaternion.identity, 1.1f);   // pommel
+
+            for (int side = -1; side <= 1; side += 2)
+            {
+                Vector3 shoulder = new Vector3(side * 0.78f, 3.0f, 0f);
+                Vector3 elbow = new Vector3(side * 0.82f, 2.3f, 0.3f);
+                Vector3 hand = hilt - blade * (side < 0 ? 0.08f : 0.28f) + new Vector3(side * 0.1f, 0f, 0f);
+                b.Tube(shoulder, shoulder + new Vector3(0f, -0.25f, 0.05f), elbow + new Vector3(0f, 0.2f, -0.05f), elbow, t => Mathf.Lerp(0.17f, 0.15f, t), 0.85f);
+                b.Ellipsoid(elbow, new Vector3(0.16f, 0.16f, 0.16f), Quaternion.identity, 1.05f);   // couter
+                b.Tube(elbow, elbow + (hand - elbow) * 0.33f, elbow + (hand - elbow) * 0.66f, hand, t => Mathf.Lerp(0.15f, 0.13f, t), 0.85f);
+                b.Ellipsoid(hand, new Vector3(0.14f, 0.12f, 0.15f), Quaternion.identity, 0.95f);    // gauntlet
+            }
+        }
+    }
+
+    /// <summary>
+    /// Bell shrine (save point):a stone plinth, two wooden posts, a beam with a small roof,
     /// and a bell hanging from the beam. The bell is a separate mesh so it can swing.
     /// Local space, origin at the bottom centre, open towards +Z.
     /// </summary>

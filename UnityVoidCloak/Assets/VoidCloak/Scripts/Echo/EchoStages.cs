@@ -10,6 +10,14 @@ namespace EchoKnight
         public float wanderRadius;
     }
 
+    /// <summary>A Hollow Armor and the route it walks back and forth (world space).</summary>
+    public struct EchoArmorPlacement
+    {
+        public Vector3 position;
+        public float yaw;
+        public Vector3[] route;
+    }
+
     /// <summary>A zone that shows a line of story and / or an instruction while the knight is inside.</summary>
     public struct EchoHintPlacement
     {
@@ -40,6 +48,7 @@ namespace EchoKnight
         public readonly List<EchoPiecePlacement> pieces = new List<EchoPiecePlacement>();
         public readonly List<EchoShrinePlacement> shrines = new List<EchoShrinePlacement>();
         public readonly List<EchoEnemyPlacement> listeners = new List<EchoEnemyPlacement>();
+        public readonly List<EchoArmorPlacement> armors = new List<EchoArmorPlacement>();
         public readonly List<EchoHintPlacement> hints = new List<EchoHintPlacement>();
         public readonly List<EchoGhostPlacement> ghosts = new List<EchoGhostPlacement>();
         public bool hasGoal;
@@ -90,7 +99,8 @@ namespace EchoKnight
     ///
     ///   1 Ruined belfry   - wake up among the shards of the great bell (walk)
     ///   2 Corridor        - rubble, learn to run
-    ///   3 Great hall      - too big to see with footsteps: learn the bell strike; a bell keeper's echo
+    ///   3 Great hall      - too big to see with footsteps: learn the bell strike; a bell keeper's echo;
+    ///                       a Hollow Armor walks between the pillars without a sound wave of its own
     ///   4 Cloister        - first shrine; a Listener wanders: learn to stand still and sneak
     ///   5 Chapel          - second shrine before it; a Listener guards it: learn to fight; the priest's echo
     ///   6 Gate stairs     - reach the great gate: end of the prologue
@@ -139,6 +149,14 @@ namespace EchoKnight
                    "Space：鐘打ち　―　剣で床を打ち、大きな波を出す。少し待つと、また使える");
             L.ghosts.Add(new EchoGhostPlacement { name = "Echo Bell Keeper", position = new Vector3(-9.5f, 0f, 63f), yaw = 135f,
                 speaker = "鐘守りの残響", line = "「鐘が……割れる……！　アルドレン、どこだ……！」" });
+            // the Hollow Armor walks a loop between the pillar rows; the side aisles stay out of its reach
+            L.armors.Add(new EchoArmorPlacement
+            {
+                position = new Vector3(-3.5f, 0f, 47f), yaw = 0f,
+                route = new[] { new Vector3(-3.5f, 0f, 47f), new Vector3(-3.5f, 0f, 60f), new Vector3(3.5f, 0f, 60f), new Vector3(3.5f, 0f, 47f) },
+            });
+            L.Hint("Hint Armor", new Vector3(0f, 4f, 47.5f), new Vector3(28f, 8f, 4f), "リーネ", "……鎧が歩いてる。中には、誰もいないのに。",
+                   "抜け殻の鎧は波を出さない　―　金属のきしむ音を聞いて、自分の波で姿を確かめる");
             L.shrines.Add(new EchoShrinePlacement { name = "Bell Shrine (Hall)", position = new Vector3(11.8f, 0f, 62.5f), yaw = 180f });
 
             // ---------------- 4 cloister (x 2 .. 26, z 68 .. 100)
