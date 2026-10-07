@@ -8,16 +8,29 @@ using VoidCloak;
 namespace EchoKnightEditor
 {
     /// <summary>
-    /// Menu: Tools > Echo Knight > Create Prototype Stage
-    /// Creates a new scene with the dark stage, the knight (WASD, echoes, bell strike),
-    /// the follow camera and one Listener enemy. Save the scene afterwards (Ctrl+S).
+    /// Menus:
+    ///   Tools > Echo Knight > Create Prologue Stage   (序章「崩れた鐘楼」)
+    ///   Tools > Echo Knight > Create Prototype Stage  (the test courtyard)
+    /// Each creates a new scene with the dark stage, the knight, the follow camera, enemies,
+    /// shrines, hints and memory echoes. Save the scene afterwards (Ctrl+S).
     /// </summary>
     public static class EchoPrototypeSceneBuilder
     {
         const string MaterialFolder = "Assets/EchoKnightGenerated";
 
+        [MenuItem("Tools/Echo Knight/Create Prologue Stage")]
+        public static void CreatePrologueStage()
+        {
+            BuildScene(EchoPrologueLayout.Build(), "序章「崩れた鐘楼」のステージを作りました。");
+        }
+
         [MenuItem("Tools/Echo Knight/Create Prototype Stage")]
         public static void CreatePrototypeStage()
+        {
+            BuildScene(EchoPrototypeStage.Build(), "プロトタイプのステージを作りました。");
+        }
+
+        static void BuildScene(EchoStageLayout layout, string doneMessage)
         {
             Shader cloakShader = Shader.Find("VoidCloak/ClothPoint");
             Shader worldShader = Shader.Find("EchoKnight/WorldPoint");
@@ -40,29 +53,38 @@ namespace EchoKnightEditor
             new GameObject("EchoAudio").AddComponent<EchoAudio>();
 
             // ---------------- stage
-            var stage = new GameObject("Stage").transform;
-            foreach (EchoPiecePlacement placement in EchoPrototypeLayout.Pieces())
+            var stage = new GameObject("Stage - " + layout.name).transform;
+            foreach (EchoPiecePlacement placement in layout.pieces)
             {
-                var go = new GameObject(placement.name);
-                go.transform.SetParent(stage, false);
-                go.transform.localPosition = placement.position;
-                go.transform.localRotation = Quaternion.Euler(0f, placement.yaw, 0f);
-                go.AddComponent<EchoKitPiece>().Configure(placement.spec, stone);
+                GameObject go = Place(placement.name, stage, placement.position, placement.yaw);
+                go.AddComponent<EchoKitPiece>().Configure(placement.spec, placement.gold ? gold : stone);
             }
 
             // ---------------- bell shrines (save points)
-            foreach (EchoShrinePlacement shrine in EchoPrototypeLayout.Shrines())
+            foreach (EchoShrinePlacement shrine in layout.shrines)
             {
-                var go = new GameObject(shrine.name);
-                go.transform.SetParent(stage, false);
-                go.transform.localPosition = shrine.position;
-                go.transform.localRotation = Quaternion.Euler(0f, shrine.yaw, 0f);
-                go.AddComponent<EchoBellShrine>().Setup(gold);
+                Place(shrine.name, stage, shrine.position, shrine.yaw).AddComponent<EchoBellShrine>().Setup(gold);
+            }
+
+            // ---------------- memory echoes, hints, goal
+            var events = new GameObject("Story").transform;
+            foreach (EchoGhostPlacement ghost in layout.ghosts)
+            {
+                Place(ghost.name, events, ghost.position, ghost.yaw).AddComponent<EchoMemoryGhost>().Setup(gold, ghost.speaker, ghost.line);
+            }
+            foreach (EchoHintPlacement hint in layout.hints)
+            {
+                Place(hint.name, events, hint.center, 0f).AddComponent<EchoHintZone>().Setup(hint.size, hint.speaker, hint.line, hint.instruction);
+            }
+            if (layout.hasGoal)
+            {
+                Place("Goal", events, layout.goalCenter, 0f).AddComponent<EchoStageGoal>().Setup(layout.goalSize, layout.goalTitle, layout.goalSubtitle);
             }
 
             // ---------------- knight
             var player = new GameObject("Knight");
-            player.transform.position = EchoPrototypeLayout.PlayerSpawn;
+            player.transform.position = layout.playerSpawn;
+            player.transform.rotation = Quaternion.Euler(0f, layout.playerYaw, 0f);
             var controller = player.AddComponent<CharacterController>();
             controller.height = 4.2f;
             controller.radius = 0.8f;
@@ -86,22 +108,32 @@ namespace EchoKnightEditor
             cam.nearClipPlane = 0.1f;
             cam.farClipPlane = 300f;
             camGo.AddComponent<AudioListener>();
-            camGo.transform.position = EchoPrototypeLayout.PlayerSpawn + new Vector3(0f, 5f, -11f);
+            camGo.transform.position = layout.playerSpawn + Quaternion.Euler(0f, layout.playerYaw, 0f) * new Vector3(0f, 5f, -11f);
             camGo.AddComponent<VoidCloakFollowCamera>().Target = player.transform;
 
-            // ---------------- enemy
-            var listener = new GameObject("Listener");
-            listener.transform.position = EchoPrototypeLayout.ListenerSpawn;
-            listener.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
-            listener.AddComponent<EchoListenerEnemy>().Setup(enemy, player.transform);
+            // ---------------- enemies
+            int n = 1;
+            var enemies = new GameObject("Enemies").transform;
+            foreach (EchoEnemyPlacement e in layout.listeners)
+            {
+                Place("Listener " + n++, enemies, e.position, e.yaw).AddComponent<EchoListenerEnemy>().Setup(enemy, player.transform, e.wanderRadius);
+            }
 
             RenderSettings.skybox = null;
             RenderSettings.ambientLight = Color.black;
 
             EditorSceneManager.MarkSceneDirty(scene);
             Selection.activeGameObject = player;
-            EditorUtility.DisplayDialog("Echo Knight",
-                "プロトタイプのステージを作りました。\nCtrl+S でシーンを保存してから Play を押してください。", "OK");
+            EditorUtility.DisplayDialog("Echo Knight", doneMessage + "\nCtrl+S でシーンを保存してから Play を押してください。", "OK");
+        }
+
+        static GameObject Place(string name, Transform parent, Vector3 position, float yaw)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = position;
+            go.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+            return go;
         }
 
         static Material GetOrCreateMaterial(string name, Shader shader, Color color)

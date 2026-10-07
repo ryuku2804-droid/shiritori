@@ -31,6 +31,7 @@ namespace UnityEngine
     {
         public float r, g, b, a;
         public Color(float r, float g, float b, float a) { this.r = r; this.g = g; this.b = b; this.a = a; }
+        public Color(float r, float g, float b) : this(r, g, b, 1f) { }
         public static Color white => new Color(1, 1, 1, 1);
         public static Color black => new Color(0, 0, 0, 1);
     }
@@ -122,6 +123,7 @@ namespace UnityEngine
         public Vector3 center, size;
         public Bounds(Vector3 center, Vector3 size) { this.center = center; this.size = size; }
         public void Expand(float a) { size = size + Vector3.one * a; }
+        public bool Contains(Vector3 p) { Vector3 h = size * 0.5f; return Math.Abs(p.x - center.x) <= h.x && Math.Abs(p.y - center.y) <= h.y && Math.Abs(p.z - center.z) <= h.z; }
     }
 
     public static class Mathf
@@ -145,6 +147,8 @@ namespace UnityEngine
         public static float Clamp01(float v) => Clamp(v, 0f, 1f);
         public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
         public static float LerpAngle(float a, float b, float t) => Lerp(a, b, t);
+        public static float DeltaAngle(float a, float b) { float d = (b - a) % 360f; if (d > 180f) d -= 360f; if (d < -180f) d += 360f; return d; }
+        public const float Rad2Deg = 180f / PI;
         public static float MoveTowards(float a, float b, float d) => Math.Abs(b - a) <= d ? b : a + Math.Sign(b - a) * d;
         public static float Floor(float f) => (float)Math.Floor(f);
         public static int FloorToInt(float f) => (int)Math.Floor(f);

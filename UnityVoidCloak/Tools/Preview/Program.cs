@@ -10,6 +10,7 @@ static class Program
     static int Main(string[] args)
     {
         if (args.Length > 0 && args[0] == "stage") return DumpStage(args.Length > 1 ? args[1] : "stage.bin");
+        if (args.Length > 0 && args[0] == "prologue") return DumpLayout(EchoKnight.EchoPrologueLayout.Build(), args.Length > 1 ? args[1] : "prologue");
         if (args.Length > 0 && args[0] == "sounds") return DumpSounds(args.Length > 1 ? args[1] : "sounds");
         string outPath = args.Length > 0 ? args[0] : "cloak.bin";
         int stage = args.Length > 1 ? int.Parse(args[1]) : (int)BuildStage.Complete;
@@ -105,6 +106,70 @@ static class Program
             }
             Console.WriteLine($"  {sound,-16} {data.Length / (float)EchoKnight.EchoSoundSynth.SampleRate,5:0.00} s");
         }
+        return 0;
+    }
+
+    // Dumps a whole stage layout: <prefix>.bin (points, same record as DumpStage, type 0 stone / 1 enemy / 2 gold),
+    // <prefix>_boxes.txt (colliders: cx cy cz sx sy sz yaw) and <prefix>_meta.txt (spawn, goal, hints, ghosts, shrines, listeners).
+    static int DumpLayout(EchoKnight.EchoStageLayout L, string prefix)
+    {
+        int total = 0;
+        var boxes = new System.Text.StringBuilder();
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        void Box(UnityEngine.Bounds b, UnityEngine.Vector3 pos, float yaw)
+        {
+            var q = UnityEngine.Quaternion.Euler(0f, yaw, 0f);
+            var c = q * b.center + pos;
+            boxes.AppendLine(string.Format(inv, "{0} {1} {2} {3} {4} {5} {6}", c.x, c.y, c.z, b.size.x, b.size.y, b.size.z, yaw));
+        }
+        using (var w = new BinaryWriter(File.Create(prefix + ".bin")))
+        {
+            foreach (var p in L.pieces)
+            {
+                var b = new EchoKnight.EchoPointBuilder(p.spec.seed);
+                var cols = new System.Collections.Generic.List<UnityEngine.Bounds>();
+                EchoKnight.EchoKitGenerator.Build(p.spec, b, cols);
+                Write(w, b, p.position, p.yaw, p.gold ? 2f : 0f);
+                foreach (var c in cols) Box(c, p.position, p.yaw);
+                total += b.Count;
+            }
+            foreach (var sh in L.shrines)
+            {
+                var f = new EchoKnight.EchoPointBuilder(91);
+                var cols = new System.Collections.Generic.List<UnityEngine.Bounds>();
+                EchoKnight.EchoBellShrineShape.BuildFrame(f, cols);
+                Write(w, f, sh.position, sh.yaw, 2f);
+                var bell = new EchoKnight.EchoPointBuilder(92);
+                EchoKnight.EchoBellShrineShape.BuildBell(bell);
+                Write(w, bell, sh.position + UnityEngine.Quaternion.Euler(0f, sh.yaw, 0f) * EchoKnight.EchoBellShrineShape.BellPivot, sh.yaw, 2f);
+                foreach (var c in cols) Box(c, sh.position, sh.yaw);
+                total += f.Count + bell.Count;
+            }
+            foreach (var g in L.ghosts)
+            {
+                var b = new EchoKnight.EchoPointBuilder(31);
+                EchoKnight.EchoGhostBody.Build(b);
+                Write(w, b, g.position, g.yaw, 2f);
+                total += b.Count;
+            }
+            foreach (var e in L.listeners)
+            {
+                var b = new EchoKnight.EchoPointBuilder(7);
+                EchoKnight.EchoListenerBody.Build(b);
+                Write(w, b, e.position, e.yaw, 1f);
+                total += b.Count;
+            }
+        }
+        File.WriteAllText(prefix + "_boxes.txt", boxes.ToString());
+        var meta = new System.Text.StringBuilder();
+        meta.AppendLine(string.Format(inv, "spawn {0} {1} {2}", L.playerSpawn.x, L.playerSpawn.y, L.playerSpawn.z));
+        meta.AppendLine(string.Format(inv, "goal {0} {1} {2} {3} {4} {5}", L.goalCenter.x, L.goalCenter.y, L.goalCenter.z, L.goalSize.x, L.goalSize.y, L.goalSize.z));
+        foreach (var h in L.hints) meta.AppendLine(string.Format(inv, "hint {0} {1} {2} {3} {4} {5}", h.center.x, h.center.y, h.center.z, h.size.x, h.size.y, h.size.z));
+        foreach (var g in L.ghosts) meta.AppendLine(string.Format(inv, "ghost {0} {1} {2}", g.position.x, g.position.y, g.position.z));
+        foreach (var s in L.shrines) meta.AppendLine(string.Format(inv, "shrine {0} {1} {2}", s.position.x, s.position.y, s.position.z));
+        foreach (var e in L.listeners) meta.AppendLine(string.Format(inv, "listener {0} {1} {2} {3}", e.position.x, e.position.y, e.position.z, e.wanderRadius));
+        File.WriteAllText(prefix + "_meta.txt", meta.ToString());
+        Console.WriteLine($"{L.name}: {total} points, {boxes.ToString().Split('\n').Length - 1} colliders");
         return 0;
     }
 }

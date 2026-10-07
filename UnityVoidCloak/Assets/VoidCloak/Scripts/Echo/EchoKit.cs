@@ -25,6 +25,10 @@ namespace EchoKnight
         Crate,
         /// <summary>Wooden barrel. size.x = diameter, size.y = height.</summary>
         Barrel,
+        /// <summary>Pile of fallen masonry blocks. size = footprint x, max height, footprint z.</summary>
+        Rubble,
+        /// <summary>A shard of the great bell lying on the floor. size.x = bell diameter, size.y = bell height.</summary>
+        BellFragment,
     }
 
     /// <summary>Everything needed to build one piece. Lengths in world units (the knight is ~4.2 tall).</summary>
@@ -55,6 +59,8 @@ namespace EchoKnight
         [Header("Tower")]
         public float roofHeight = 7f;
         public bool door = true;
+        [Tooltip("Broken tower: jagged top, no roof, hollow inside (you can walk in).")]
+        public bool ruined;
 
         public EchoKitSpec Clone()
         {
@@ -82,6 +88,8 @@ namespace EchoKnight
                 case EchoKitKind.Platform: Platform(spec, b, colliders); break;
                 case EchoKitKind.Crate: Crate(spec, b, colliders); break;
                 case EchoKitKind.Barrel: Barrel(spec, b, colliders); break;
+                case EchoKitKind.Rubble: Rubble(spec, b, colliders); break;
+                case EchoKitKind.BellFragment: BellFragment(spec, b, colliders); break;
             }
         }
 
@@ -298,6 +306,11 @@ namespace EchoKnight
                 }
                 return false;
             };
+            if (s.ruined)
+            {
+                RuinedTower(s, b, colliders, r, h, doorW, holes);
+                return;
+            }
             b.MasonryCylinder(Vector3.zero, r, h, s.stoneHeight, s.stoneHeight * 1.4f, s.stoneHeight * 2.8f, holes);
             // projecting ring under the roof and the roof itself
             b.MasonryCylinder(new Vector3(0f, h, 0f), r + 0.35f, 0.6f, 0.6f, 1.2f, 2.2f, null, 0.9f);
@@ -309,6 +322,75 @@ namespace EchoKnight
                 b.Disc(new Vector3(0f, 0.02f, 0f), 0f, r - 0.1f, Vector3.up, 0.25f);
             }
             colliders.Add(new Bounds(new Vector3(0f, h * 0.5f, 0f), new Vector3(r * 1.8f, h, r * 1.8f)));
+        }
+
+        /// <summary>
+        /// Broken tower you can stand inside: the wall top is jagged, there is no roof, the inner
+        /// face of the wall is built too, and the collision is a ring of boxes with a gap at the door.
+        /// </summary>
+        static void RuinedTower(EchoKitSpec s, EchoPointBuilder b, List<Bounds> colliders, float r, float h, float doorW,
+                                Func<float, float, bool> holes)
+        {
+            float circumference = 2f * Mathf.PI * r;
+            const float thickness = 1.2f;
+            int seed = s.seed;
+            Func<float, float> broken = a =>
+            {
+                // jagged top: big collapses plus small teeth
+                float u = a / circumference * 2f * Mathf.PI;
+                float big = 0.5f + 0.3f * Mathf.Sin(u * 1.0f + seed) + 0.2f * Mathf.Sin(u * 2.7f + seed * 0.37f);
+                float teeth = 0.08f * Mathf.Sin(u * 23f + seed) + 0.05f * Mathf.Sin(u * 41f);
+                return h * Mathf.Clamp(0.35f + 0.6f * big + teeth, 0.25f, 1f);
+            };
+            Func<float, float, bool> wallHoles = (a, y) => y > broken(a) || holes(a, y);
+            b.MasonryCylinder(Vector3.zero, r, h, s.stoneHeight, s.stoneHeight * 1.4f, s.stoneHeight * 2.8f, wallHoles);
+            // inner face (normals pointing inwards)
+            int before = b.Count;
+            b.MasonryCylinder(Vector3.zero, r - thickness, h, s.stoneHeight, s.stoneHeight * 1.4f, s.stoneHeight * 2.8f,
+                              (a, y) => wallHoles(a * r / (r - thickness), y), 0.75f);
+            for (int i = before; i < b.Count; i++)
+            {
+                Vector3 n = b.normals[i];
+                b.normals[i] = new Vector3(-n.x, n.y, -n.z);
+            }
+            // broken wall top: rough stones along the break
+            int nTop = Mathf.CeilToInt(circumference / b.spacing);
+            for (int i = 0; i < nTop * 3; i++)
+            {
+                float a = b.Rand() * circumference;
+                if (holes(a, 0.5f)) continue;
+                float ang = a / r;
+                float rr = Mathf.Lerp(r - thickness, r, b.Rand());
+                Vector3 radial = new Vector3(Mathf.Sin(ang), 0f, Mathf.Cos(ang));
+                b.Add(radial * rr + Vector3.up * (broken(a) + b.Range(-0.1f, 0.15f)), Vector3.up + radial * b.Range(-0.4f, 0.4f), b.Range(0.6f, 1f));
+            }
+            // fallen stones scattered on the inside
+            for (int k = 0; k < 9; k++)
+            {
+                float ang = b.Rand() * 2f * Mathf.PI;
+                if (Mathf.Abs(Mathf.DeltaAngle(ang * Mathf.Rad2Deg, 0f)) < 35f) continue;   // keep the doorway clear
+                float rr = b.Range(r * 0.45f, r - thickness - 0.6f);
+                Vector3 p = new Vector3(Mathf.Sin(ang) * rr, 0f, Mathf.Cos(ang) * rr);
+                float sz = b.Range(0.5f, 1.1f);
+                b.MasonryBox(p + Vector3.up * (sz * 0.35f), new Vector3(sz * 1.4f, sz * 0.7f, sz), sz * 0.7f, true, false, 0.75f);
+            }
+
+            // collision: a ring of boxes, leaving the doorway open
+            const int segments = 24;
+            for (int k = 0; k < segments; k++)
+            {
+                float a0 = circumference * k / segments, a1 = circumference * (k + 1) / segments;
+                float mid = (a0 + a1) * 0.5f;
+                float da = Mathf.Min(mid, circumference - mid);
+                if (s.door && da < doorW * 0.5f + 0.3f) continue;
+                float ang = mid / r;
+                float rc = r - thickness * 0.5f;
+                var c = new Vector3(Mathf.Sin(ang) * rc, h * 0.5f, Mathf.Cos(ang) * rc);
+                float len = (a1 - a0) * 1.08f;
+                // boxes are axis aligned, so use a square that covers the segment
+                float side = Mathf.Max(len, thickness) * 0.75f;
+                colliders.Add(new Bounds(c, new Vector3(side, h, side)));
+            }
         }
 
         // ---------------------------------------------------------------- stairs / platform
@@ -407,6 +489,53 @@ namespace EchoKnight
             }
             b.Disc(new Vector3(0f, h, 0f), 0f, r * 0.95f, Vector3.up, 0.5f);
             colliders.Add(new Bounds(new Vector3(0f, h * 0.5f, 0f), new Vector3(r * 2.2f, h, r * 2.2f)));
+        }
+
+        static void Rubble(EchoKitSpec s, EchoPointBuilder b, List<Bounds> colliders)
+        {
+            // stacked broken blocks, bigger at the bottom
+            float hx = s.size.x * 0.5f, hz = s.size.z * 0.5f;
+            int blocks = Mathf.Max(3, Mathf.RoundToInt(s.size.x * s.size.z * 0.9f));
+            for (int k = 0; k < blocks; k++)
+            {
+                float layer = b.Rand();
+                float sz = Mathf.Lerp(1.2f, 0.45f, layer) * b.Range(0.7f, 1.2f);
+                float shrink = 1f - layer * 0.7f;
+                Vector3 p = new Vector3(b.Range(-hx, hx) * shrink, layer * s.size.y * 0.75f, b.Range(-hz, hz) * shrink);
+                b.MasonryBox(p + Vector3.up * (sz * 0.3f), new Vector3(sz * b.Range(0.9f, 1.6f), sz * 0.6f, sz), sz * 0.6f, true, false, b.Range(0.6f, 0.9f));
+            }
+            colliders.Add(new Bounds(new Vector3(0f, s.size.y * 0.35f, 0f), new Vector3(s.size.x * 0.85f, s.size.y * 0.7f, s.size.z * 0.85f)));
+        }
+
+        /// <summary>A curved shard of a huge bronze bell, lying on its side with a jagged edge.</summary>
+        static void BellFragment(EchoKitSpec s, EchoPointBuilder b, List<Bounds> colliders)
+        {
+            float R = s.size.x * 0.5f, H = s.size.y;
+            const float arc = 1.7f;                 // radians of the bell's circumference
+            int rows = Mathf.CeilToInt(H / b.spacing);
+            for (int j = 0; j < rows; j++)
+            {
+                float t = (j + b.Rand()) / rows;
+                float r = R * (0.45f + 0.55f * Mathf.Pow(t, 1.6f)) + R * 0.08f * Mathf.Clamp01((t - 0.85f) / 0.15f);
+                int around = Mathf.Max(4, Mathf.CeilToInt(arc * r / b.spacing));
+                for (int i = 0; i < around; i++)
+                {
+                    float u = (i + b.Rand()) / around;
+                    // jagged broken edges along the sides and the top
+                    float edge = 0.08f * Mathf.Sin(t * 37f + s.seed) + 0.06f * Mathf.Sin(t * 71f);
+                    if (u < 0.05f + edge || u > 0.95f - edge * 0.7f) continue;
+                    if (t < 0.12f + 0.1f * Mathf.Sin(u * 19f + s.seed)) continue;
+                    // the shard rests on the floor like a cradle: its outer (convex) side down,
+                    // the bell's axis along local X, the inside of the bell facing up
+                    float delta = (u - 0.5f) * arc;
+                    Vector3 radial = new Vector3(0f, -Mathf.Cos(delta), Mathf.Sin(delta));
+                    Vector3 p = new Vector3((t - 0.5f) * H, r + 0.12f, 0f) + radial * r;
+                    float lip = t > 0.88f ? 1.15f : 1f;
+                    b.Add(p, -radial, 0.95f * lip);                              // inside, facing up
+                    b.Add(p + radial * 0.12f, radial, 0.55f * lip, 0.7f);         // outside, facing the floor
+                }
+            }
+            colliders.Add(new Bounds(new Vector3(0f, R * 0.3f, 0f), new Vector3(H, R * 0.6f, R * 1.4f)));
         }
     }
 }

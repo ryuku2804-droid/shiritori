@@ -62,6 +62,14 @@ def shade_world(S, waves, t):
     return P[keep], col[keep], size[keep]
 
 
+def rotate_cloak(c, yaw):
+    c = c.copy(); a = np.radians(yaw); ca, sa = np.cos(a), np.sin(a)
+    for k in (0, 3, 6):
+        x, z = c[:, k].copy(), c[:, k + 2].copy()
+        c[:, k] = x * ca + z * sa; c[:, k + 2] = -x * sa + z * ca
+    return c
+
+
 def splat(img, zbuf_list, P, col, size, cam, fwd, right, up, f, W, H):
     rel = P - cam
     z = rel @ fwd
@@ -81,6 +89,7 @@ def splat(img, zbuf_list, P, col, size, cam, fwd, right, up, f, W, H):
 
 
 def render(stage, cloak, waves, t, W=960, H=600, pitch=12.0, dist=11.0, yaw=0.0, focus_h=2.4):
+    cloak = None if cloak is None else rotate_cloak(cloak, yaw)
     focus = SPAWN + np.array([0, focus_h, 0])
     p, y = np.radians(pitch), np.radians(yaw)
     fwd = np.array([np.sin(y) * np.cos(p), -np.sin(p), np.cos(y) * np.cos(p)])
@@ -108,6 +117,10 @@ def main():
     stage = np.fromfile(sys.argv[1], dtype=np.float32).reshape(-1, 10).astype(np.float64)
     cloak = np.fromfile(sys.argv[2], dtype=np.float32).reshape(-1, 20).astype(np.float64) if sys.argv[2] != '-' else None
     out = sys.argv[3]
+    global SPAWN
+    if '--spawn' in sys.argv:
+        SPAWN = np.array([float(v) for v in sys.argv[sys.argv.index('--spawn') + 1].split(',')])
+    yaw = float(sys.argv[sys.argv.index('--yaw') + 1]) if '--yaw' in sys.argv else 0.0
     t = float(sys.argv[sys.argv.index('--t') + 1]) if '--t' in sys.argv else 1.0
     kind = sys.argv[sys.argv.index('--waves') + 1] if '--waves' in sys.argv else 'strike'
     feet = SPAWN + np.array([0, 0.2, 0])
@@ -120,8 +133,9 @@ def main():
         waves.append((np.array([-5.0, 3.6, -15.0]), 0.0, 45.0, 3, 1.2))
     elif kind == 'all':
         waves.append((feet, 0.0, 9999.0, 0, 1.0))
-    waves.append((LISTENER + np.array([0, 0.2, 0]), t - 0.25, 7.0, 1, 0.9))   # the Listener's footstep
-    Image.fromarray(render(stage, cloak, waves, t)).save(out)
+    if '--spawn' not in sys.argv:
+        waves.append((LISTENER + np.array([0, 0.2, 0]), t - 0.25, 7.0, 1, 0.9))   # the Listener's footstep
+    Image.fromarray(render(stage, cloak, waves, t, yaw=yaw)).save(out)
 
 
 if __name__ == '__main__':

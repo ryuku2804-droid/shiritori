@@ -146,6 +146,8 @@ namespace EchoKnight
         public Vector3 position;
         public float yaw;
         public EchoKitSpec spec;
+        /// <summary>Draw with the gold material (story objects such as the great bell).</summary>
+        public bool gold;
     }
 
     /// <summary>

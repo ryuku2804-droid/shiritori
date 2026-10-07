@@ -91,6 +91,13 @@ namespace EchoKnight
             BuildBody();
         }
 
+        /// <summary>Used by the stage builder.</summary>
+        public void Setup(Material newMaterial, Transform newPlayer, float newWanderRadius)
+        {
+            wanderRadius = newWanderRadius;
+            Setup(newMaterial, newPlayer);
+        }
+
         void OnEnable()
         {
             BuildBody();

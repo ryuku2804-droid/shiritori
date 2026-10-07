@@ -34,6 +34,8 @@
 | `Assets/VoidCloak/Scripts/Echo/EchoShapes.cs` | 聴き手の体と、プロトタイプステージの配置 |
 | `Assets/VoidCloak/Scripts/Echo/EchoListenerEnemy.cs` | 聴き手（音だけで追ってくる敵） |
 | `Assets/VoidCloak/Scripts/Echo/EchoBellShrine.cs` | 鐘の祠（セーブ地点・回復・聴き手を追い払う） |
+| `Assets/VoidCloak/Scripts/Echo/EchoStages.cs` | ステージの配置データ（序章・プロトタイプ）と残響の人影の形 |
+| `Assets/VoidCloak/Scripts/Echo/EchoStageEvents.cs` | ヒント・残響・ゴール・画面の文字 |
 | `Assets/VoidCloak/Scripts/Echo/EchoAudio.cs` | 3D音響で効果音を鳴らす（残響・環境音つき） |
 | `Assets/VoidCloak/Scripts/Echo/EchoSoundSynth.cs` | 効果音をプログラムで作る |
 | `Assets/VoidCloak/Shaders/EchoWorldPoint.shader` | 波が通った所だけ見える世界用シェーダー |
@@ -141,6 +143,31 @@ Inspectorの **Sword** で設定します（`enabled` で表示/非表示）。�
 （左：地面の布が動かない以前の状態、中・右：地面の布も一緒になびく）
 
 - 注意：`LoweredRight` の持ち方では、歩くと剣先が地面を滑ります。
+
+## 序章「崩れた鐘楼」
+
+![map](Docs/prologue_map.png)
+
+（真上から見た序章のマップ。青い線は、騎士がスタートからゴールまで歩けることを当たり判定で確かめた経路。赤は聴き手と徘徊範囲、金は祠・残響・鐘の破片、青い枠はヒントが出る場所、黄色い枠はゴール）
+
+![views](Docs/prologue_views.png)
+
+メニュー **Tools > Echo Knight > Create Prologue Stage** でシーンを作り、Ctrl+S で保存して Play。
+
+| # | 場所 | 覚えること | 物語 |
+|---|---|---|---|
+| 1 | 崩れた鐘楼（上が崩れた円塔。暁鐘の破片が転がる） | 歩く | リーネ「……兄さん。聞こえる？」 |
+| 2 | 細い回廊（瓦礫が道をふさぐ） | 走る | |
+| 3 | 大広間（柱が並ぶ広い空間） | 鐘打ち | 鐘守りの残響 |
+| 4 | 回廊の中庭（低い壁、祠） | 聴き手から隠れる | リーネ「……何かいる」 |
+| 5 | 礼拝堂（祭壇、手前に祠） | 戦う・パリィ | 司祭の残響（物語の伏線） |
+| 6 | 大門への階段 | ゴール | 「序章　崩れた鐘楼　―　完」 |
+
+- **ヒント**（`EchoHintZone`）：その場所にいる間だけ、画面下に操作の説明やリーネの言葉が出る。
+- **残響**（`EchoMemoryGhost`）：誰かの最後の瞬間が、ひざまずく金色の人影として残っている。近づくと小さく鳴って姿を見せ、最後の言葉が出る。
+- **ゴール**（`EchoStageGoal`）：大門に着くと金色の大きな波が広がり、章の題名が出る。
+- 新しい部品：崩れた塔（`Tower` の `ruined`。中に入れる）、瓦礫（`Rubble`）、暁鐘の破片（`BellFragment`、金色）。
+- 配置は `EchoStages.cs` の `EchoPrologueLayout` にまとまっている。
 
 ## 残響の騎士 プロトタイプ（暗闇＋音の波）
 

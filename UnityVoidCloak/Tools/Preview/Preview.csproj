@@ -20,5 +20,6 @@
     <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoKit.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoShapes.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoSoundSynth.cs" />
+    <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoStages.cs" />
   </ItemGroup>
 </Project>
