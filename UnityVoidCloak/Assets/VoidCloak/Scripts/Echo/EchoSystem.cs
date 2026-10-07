@@ -48,7 +48,7 @@ namespace EchoKnight
         [Tooltip("Thickness of the bright wavefront.")]
         [SerializeField, Range(0.2f, 6f)] private float frontWidth = 1.4f;
         [Tooltip("How long things stay visible after the wavefront passed (seconds).")]
-        [SerializeField, Range(0.1f, 6f)] private float holdTime = 1.5f;
+        [SerializeField, Range(0.1f, 6f)] private float holdTime = 1.0f;
 
         [Header("Editing")]
         [Tooltip("Show the stage dimly in the editor so it can be built and arranged.")]

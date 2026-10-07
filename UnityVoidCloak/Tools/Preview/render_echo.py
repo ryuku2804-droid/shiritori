@@ -15,7 +15,7 @@ import render_preview as rp  # noqa: E402
 
 SPAWN = np.array([0.0, 0.05, -18.0])
 LISTENER = np.array([4.0, 0.0, 10.0])
-SPEED, BAND, HOLD = 26.0, 1.4, 1.5
+SPEED, BAND, HOLD = 26.0, 1.4, 1.0
 STONE = np.array([0.9, 0.93, 1.0])
 ENEMY = np.array([1.0, 0.16, 0.12])
 GOLD = np.array([1.0, 0.78, 0.3])
@@ -126,9 +126,9 @@ def main():
     feet = SPAWN + np.array([0, 0.2, 0])
     waves = []
     if kind == 'strike':
-        waves.append((feet, 0.0, 70.0, 2, 1.05))
+        waves.append((feet, 0.0, 50.0, 2, 1.05))
     elif kind == 'walk':
-        waves.append((feet, 0.0, 18.0, 0, 0.75))
+        waves.append((feet, 0.0, 11.0, 0, 0.75))
     elif kind == 'bell':
         waves.append((np.array([-5.0, 3.6, -15.0]), 0.0, 45.0, 3, 1.2))
     elif kind == 'all':

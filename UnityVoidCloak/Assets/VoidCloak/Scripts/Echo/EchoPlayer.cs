@@ -14,20 +14,20 @@ namespace EchoKnight
     public class EchoPlayer : MonoBehaviour
     {
         [Header("Footsteps")]
-        [SerializeField, Min(0f)] private float walkEchoRadius = 18f;
-        [SerializeField, Min(0f)] private float runEchoRadius = 32f;
+        [SerializeField, Min(0f)] private float walkEchoRadius = 11f;
+        [SerializeField, Min(0f)] private float runEchoRadius = 22f;
         [SerializeField, Range(0f, 2f)] private float walkEchoStrength = 0.75f;
         [SerializeField, Range(0f, 2f)] private float runEchoStrength = 1f;
         [Tooltip("Minimum seconds between footstep echoes while walking. Higher = darker, harder.")]
-        [SerializeField, Min(0f)] private float walkEchoInterval = 1.8f;
+        [SerializeField, Min(0f)] private float walkEchoInterval = 3.0f;
         [Tooltip("Minimum seconds between footstep echoes while running.")]
-        [SerializeField, Min(0f)] private float runEchoInterval = 0.9f;
+        [SerializeField, Min(0f)] private float runEchoInterval = 1.6f;
 
         [Header("Bell Strike (Space / gamepad Y)")]
-        [SerializeField, Min(0f)] private float strikeEchoRadius = 70f;
+        [SerializeField, Min(0f)] private float strikeEchoRadius = 50f;
         [SerializeField, Range(0f, 3f)] private float strikeStrength = 1.05f;
         [Tooltip("Seconds before the strike can be used again.")]
-        [SerializeField, Min(0f)] private float strikeCooldown = 4f;
+        [SerializeField, Min(0f)] private float strikeCooldown = 8f;
 
         VoidCloakMover mover;
         CharacterController controller;

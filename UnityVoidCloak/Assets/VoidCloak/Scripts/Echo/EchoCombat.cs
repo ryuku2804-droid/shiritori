@@ -32,13 +32,13 @@ namespace EchoKnight
         [SerializeField, Min(0f)] private float lightDamage = 1f;
         [SerializeField, Min(0f)] private float lightRange = 4.8f;
         [SerializeField, Range(10f, 360f)] private float lightArc = 120f;
-        [SerializeField, Min(0f)] private float lightEchoRadius = 13f;
+        [SerializeField, Min(0f)] private float lightEchoRadius = 9f;
 
         [Header("Heavy Attack (E / RB)")]
         [SerializeField, Min(0f)] private float heavyDamage = 2.5f;
         [SerializeField, Min(0f)] private float heavyRange = 5.6f;
         [SerializeField, Range(10f, 360f)] private float heavyArc = 70f;
-        [SerializeField, Min(0f)] private float heavyEchoRadius = 30f;
+        [SerializeField, Min(0f)] private float heavyEchoRadius = 22f;
 
         [Header("Parry (Q / LB)")]
         [Tooltip("How long after pressing parry an enemy blow is deflected (seconds).")]
