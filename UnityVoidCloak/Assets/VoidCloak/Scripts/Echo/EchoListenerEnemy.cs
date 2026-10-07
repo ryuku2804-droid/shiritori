@@ -76,6 +76,7 @@ namespace EchoKnight
         float lastHeardTime = -100f;
         float waitUntil;
         float nextStepEchoTime;
+        float nextStepSoundTime;
         float health;
         float stateUntil;
         Vector3 knockback;
@@ -156,6 +157,7 @@ namespace EchoKnight
             if (away.magnitude > wave.radius) return;
             if (away.sqrMagnitude < 1e-4f) away = -transform.forward;
             target = transform.position + away.normalized * 14f;
+            if (state != State.Flee) EchoAudio.Play(EchoSound.ListenerYelp, transform.position + Vector3.up * 3f, 0.8f, 1f, Random.Range(0.2f, 0.5f));
             state = State.Flee;
             stateUntil = Time.time + fleeTime;
             waitUntil = 0f;
@@ -176,6 +178,7 @@ namespace EchoKnight
 
             // the hit itself is loud: the knight sees what it struck
             EchoSystem.Emit(transform.position + Vector3.up * 1.5f, 10f + damage * 4f, EchoSource.Enemy, 1.3f);
+            EchoAudio.Play(EchoSound.Hit, transform.position + Vector3.up * 1.8f, 0.9f);
 
             if (health <= 0f)
             {
@@ -204,6 +207,7 @@ namespace EchoKnight
         {
             state = State.Dead;
             EchoSystem.Emit(transform.position + Vector3.up * 1.5f, 24f, EchoSource.Enemy, 1.5f);
+            EchoAudio.Play(EchoSound.ListenerDeath, transform.position + Vector3.up * 3f, 1f, 1f, 0.15f);
             GetComponent<MeshRenderer>().enabled = false;
             stateUntil = respawnTime > 0f ? Time.time + respawnTime : float.MaxValue;
         }
@@ -257,6 +261,7 @@ namespace EchoKnight
                 state = State.WindUp;
                 stateUntil = Time.time + windUpTime;
                 EchoSystem.Emit(transform.position + Vector3.up * 3f, 14f, EchoSource.Enemy, 1.2f);
+                EchoAudio.Play(EchoSound.ListenerShriek, transform.position + Vector3.up * 3f, 1f);
                 return;
             }
 
@@ -339,7 +344,16 @@ namespace EchoKnight
 
         void Footsteps(float moved)
         {
-            if (moved <= 0f || Time.time < nextStepEchoTime) return;
+            if (moved <= 0f) return;
+            // the shuffling is always audible (3D sound tells where it is)...
+            if (Time.time >= nextStepSoundTime)
+            {
+                float soundInterval = state == State.Chase ? 0.38f : state == State.Investigate ? 0.65f : 0.9f;
+                nextStepSoundTime = Time.time + soundInterval * Random.Range(0.85f, 1.15f);
+                EchoAudio.Play(EchoSound.ListenerStep, transform.position + Vector3.up * 0.3f, state == State.Chase ? 0.85f : 0.55f);
+            }
+            // ...but it only shows up as an echo now and then
+            if (Time.time < nextStepEchoTime) return;
             float interval = state == State.Chase ? chaseEchoInterval : state == State.Investigate ? investigateEchoInterval : wanderEchoInterval;
             nextStepEchoTime = Time.time + interval * Random.Range(0.8f, 1.25f);   // uneven, so it is not a steady beat
             float loudness = state == State.Chase ? 1.5f : 1f;

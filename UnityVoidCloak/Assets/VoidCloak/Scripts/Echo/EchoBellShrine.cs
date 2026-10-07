@@ -127,6 +127,7 @@ namespace EchoKnight
             activated = true;
             ActiveShrine = this;
             EchoSystem.Emit(transform.TransformPoint(EchoBellShrineShape.BellPivot), ringEchoRadius, EchoSource.Bell, ringEchoStrength);
+            EchoAudio.Play(EchoSound.ShrineBell, transform.TransformPoint(EchoBellShrineShape.BellPivot), 1f);
 
             EchoPlayer player = EchoPlayer.Current;
             if (player == null) return;

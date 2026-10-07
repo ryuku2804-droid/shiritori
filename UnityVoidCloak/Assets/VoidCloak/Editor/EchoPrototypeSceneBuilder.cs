@@ -37,6 +37,7 @@ namespace EchoKnightEditor
             Material gold = GetOrCreateMaterial("EchoGold", worldShader, new Color(1f, 0.78f, 0.3f, 1f));
 
             new GameObject("EchoSystem").AddComponent<EchoSystem>();
+            new GameObject("EchoAudio").AddComponent<EchoAudio>();
 
             // ---------------- stage
             var stage = new GameObject("Stage").transform;

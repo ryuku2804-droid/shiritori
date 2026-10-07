@@ -34,6 +34,8 @@
 | `Assets/VoidCloak/Scripts/Echo/EchoShapes.cs` | 聴き手の体と、プロトタイプステージの配置 |
 | `Assets/VoidCloak/Scripts/Echo/EchoListenerEnemy.cs` | 聴き手（音だけで追ってくる敵） |
 | `Assets/VoidCloak/Scripts/Echo/EchoBellShrine.cs` | 鐘の祠（セーブ地点・回復・聴き手を追い払う） |
+| `Assets/VoidCloak/Scripts/Echo/EchoAudio.cs` | 3D音響で効果音を鳴らす（残響・環境音つき） |
+| `Assets/VoidCloak/Scripts/Echo/EchoSoundSynth.cs` | 効果音をプログラムで作る |
 | `Assets/VoidCloak/Shaders/EchoWorldPoint.shader` | 波が通った所だけ見える世界用シェーダー |
 | `Assets/VoidCloak/Editor/EchoPrototypeSceneBuilder.cs` | メニューからプロトタイプのシーンを作る |
 | `Assets/VoidCloak/Scripts/VoidCloakSettings.cs` | 形状パラメータ、Particle数、`CloakPart`、`BuildStage` |
@@ -185,6 +187,14 @@ Inspectorの **Sword** で設定します（`enabled` で表示/非表示）。�
   - 倒れたとき、この祠の前から再開する。
   - 鐘の音を聞いた聴き手は逃げていく（暁鐘の音がしじまを押し返していた、という設定から）。
 - 祠のそばにいるときだけ、画面の下に操作の案内が出る。
+
+### 音（`EchoAudio` / `EchoSoundSynth`）
+
+- 効果音は**すべてプログラムで作っている**（音声ファイル不要）。起動時に一度だけ作られる。
+- 3D音響で鳴るので、音の方向と距離がわかる（ヘッドホン推奨）。カメラの AudioListener に石の回廊の残響（Reverb）がかかる。
+- 鳴る音：騎士の足音（毎歩。波は間隔をあけて出る）、走る足音、鐘打ち、剣の振り（弱・強）、斬撃が当たる音、パリィ、被弾、倒れる音、祠の鐘、聴き手の足を引きずる音・攻撃前の叫び・倒れる声・逃げる声、暗闇の風（環境音）。
+- 音量・残響の種類・聞こえる距離は、シーンの **EchoAudio** で調整できる。
+- `Tools/Preview` で `dotnet run -c Release -- sounds 出力フォルダ` を実行すると、全部の音をWAVに書き出して聞ける。
 
 ### 戦闘（`EchoCombat`）
 

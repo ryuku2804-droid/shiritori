@@ -133,6 +133,10 @@ namespace EchoKnight
             hitDone = false;
             queued = Action.None;
             if (a == Action.Parry) parryPressedTime = Time.time;
+            Vector3 blade = transform.position + transform.forward * 1.5f + Vector3.up * 2.5f;
+            if (a == Action.Light) EchoAudio.Play(EchoSound.SwingLight, blade, 0.7f, 1f, LightTiming[0] * 0.6f);
+            else if (a == Action.Heavy) EchoAudio.Play(EchoSound.SwingHeavy, blade, 0.9f, 1f, HeavyTiming[0] * 0.75f);
+            else EchoAudio.Play(EchoSound.SwingLight, blade, 0.35f, 1.3f);
             mover.SpeedMultiplier = a == Action.Parry ? 0.5f : attackMoveSpeed;
             mover.AllowTurning = false;
         }
@@ -227,6 +231,7 @@ namespace EchoKnight
             // the swing itself is a sound
             Vector3 swordPoint = transform.position + transform.forward * 2f + Vector3.up * 0.3f;
             EchoSystem.Emit(swordPoint, heavy ? heavyEchoRadius : lightEchoRadius, heavy ? EchoSource.Strike : EchoSource.Player, heavy ? 1.1f : 0.8f);
+            if (heavy) EchoAudio.Play(EchoSound.SwordStrike, swordPoint, 0.7f, 0.85f);   // the blade hits the stones
 
             foreach (EchoListenerEnemy enemy in EchoListenerEnemy.All)
             {
@@ -250,12 +255,14 @@ namespace EchoKnight
             {
                 // a parry rings like a bell
                 EchoSystem.Emit(transform.position + transform.forward * 1.5f + Vector3.up * 2f, parryEchoRadius, EchoSource.Strike, 1.2f);
+                EchoAudio.Play(EchoSound.Parry, transform.position + transform.forward * 1.5f + Vector3.up * 2f, 1f);
                 if (attacker != null) attacker.Stun(enemyStunTime);
                 return true;
             }
             if (Time.time < invulnerableUntil) return false;
 
             health -= damage;
+            EchoAudio.Play(EchoSound.Hurt, transform.position + Vector3.up * 2f, 0.9f);
             invulnerableUntil = Time.time + hurtInvulnerability;
             hurtFlash = 1f;
             if (health <= 0) Die();
@@ -270,6 +277,7 @@ namespace EchoKnight
 
         void Die()
         {
+            EchoAudio.Play(EchoSound.Death, transform.position + Vector3.up * 1.5f, 1f);
             health = maxHealth;
             action = Action.None;
             queued = Action.None;

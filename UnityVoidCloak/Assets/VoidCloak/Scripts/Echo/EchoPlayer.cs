@@ -55,6 +55,7 @@ namespace EchoKnight
         void Awake()
         {
             Current = this;
+            EchoAudio.Ensure();
             mover = GetComponent<VoidCloakMover>();
             controller = GetComponent<CharacterController>();
             spawnPosition = transform.position;
@@ -84,7 +85,9 @@ namespace EchoKnight
         void OnStep(float speed)
         {
             bool running = speed > mover.WalkSpeed * 1.15f;
-            // not every footstep is heard: only one echo per interval
+            // every step is heard...
+            EchoAudio.Play(running ? EchoSound.RunStep : EchoSound.Step, Feet(), running ? 0.85f : 0.55f);
+            // ...but only one echo per interval is "seen"
             if (Time.time - lastStepEchoTime < (running ? runEchoInterval : walkEchoInterval)) return;
             lastStepEchoTime = Time.time;
             EchoSystem.Emit(Feet(), running ? runEchoRadius : walkEchoRadius, EchoSource.Player,
@@ -97,6 +100,7 @@ namespace EchoKnight
             {
                 strikeReadyTime = Time.time + strikeCooldown;
                 EchoSystem.Emit(Feet(), strikeEchoRadius, EchoSource.Strike, strikeStrength);
+                EchoAudio.Play(EchoSound.SwordStrike, Feet() + transform.forward * 1.5f, 1f);
             }
         }
 

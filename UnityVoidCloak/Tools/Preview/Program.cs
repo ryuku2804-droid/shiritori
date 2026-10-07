@@ -10,6 +10,7 @@ static class Program
     static int Main(string[] args)
     {
         if (args.Length > 0 && args[0] == "stage") return DumpStage(args.Length > 1 ? args[1] : "stage.bin");
+        if (args.Length > 0 && args[0] == "sounds") return DumpSounds(args.Length > 1 ? args[1] : "sounds");
         string outPath = args.Length > 0 ? args[0] : "cloak.bin";
         int stage = args.Length > 1 ? int.Parse(args[1]) : (int)BuildStage.Complete;
         int seed = args.Length > 2 ? int.Parse(args[2]) : 1337;
@@ -82,5 +83,28 @@ static class Program
             var p = q * b.positions[i] + pos; var n = q * b.normals[i]; var c = b.colors[i];
             foreach (var f in new[] { p.x, p.y, p.z, n.x, n.y, n.z, c.r, c.g, c.b, type }) w.Write(f);
         }
+    }
+
+    // Renders every procedural sound effect to a 16-bit WAV file so it can be listened to outside Unity.
+    static int DumpSounds(string dir)
+    {
+        Directory.CreateDirectory(dir);
+        for (int s = 0; s < (int)EchoKnight.EchoSound.Count; s++)
+        {
+            var sound = (EchoKnight.EchoSound)s;
+            float[] data = EchoKnight.EchoSoundSynth.Generate(sound, 0);
+            string path = Path.Combine(dir, sound + ".wav");
+            using (var w = new BinaryWriter(File.Create(path)))
+            {
+                int rate = EchoKnight.EchoSoundSynth.SampleRate, bytes = data.Length * 2;
+                w.Write(System.Text.Encoding.ASCII.GetBytes("RIFF")); w.Write(36 + bytes);
+                w.Write(System.Text.Encoding.ASCII.GetBytes("WAVEfmt ")); w.Write(16); w.Write((short)1); w.Write((short)1);
+                w.Write(rate); w.Write(rate * 2); w.Write((short)2); w.Write((short)16);
+                w.Write(System.Text.Encoding.ASCII.GetBytes("data")); w.Write(bytes);
+                foreach (float f in data) w.Write((short)Math.Max(-32767, Math.Min(32767, (int)(f * 32767f))));
+            }
+            Console.WriteLine($"  {sound,-16} {data.Length / (float)EchoKnight.EchoSoundSynth.SampleRate,5:0.00} s");
+        }
+        return 0;
     }
 }
