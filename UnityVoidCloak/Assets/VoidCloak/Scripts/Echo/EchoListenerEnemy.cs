@@ -58,7 +58,12 @@ namespace EchoKnight
         [SerializeField, Min(0)] private int attackDamage = 1;
 
         [Header("Footsteps")]
-        [SerializeField, Min(0.1f)] private float stepLength = 1.3f;
+        [Tooltip("Seconds between footstep echoes while wandering (a little random).")]
+        [SerializeField, Min(0.1f)] private float wanderEchoInterval = 3.5f;
+        [Tooltip("Seconds between footstep echoes while investigating a sound.")]
+        [SerializeField, Min(0.1f)] private float investigateEchoInterval = 2.2f;
+        [Tooltip("Seconds between footstep echoes while chasing.")]
+        [SerializeField, Min(0.1f)] private float chaseEchoInterval = 1.1f;
         [SerializeField, Min(0f)] private float footstepEchoRadius = 7f;
 
         Mesh mesh;
@@ -67,7 +72,7 @@ namespace EchoKnight
         Vector3 target;
         float lastHeardTime = -100f;
         float waitUntil;
-        float stepDistance;
+        float nextStepEchoTime;
         float health;
         float stateUntil;
         Vector3 knockback;
@@ -303,9 +308,9 @@ namespace EchoKnight
 
         void Footsteps(float moved)
         {
-            stepDistance += moved;
-            if (stepDistance < stepLength) return;
-            stepDistance = 0f;
+            if (moved <= 0f || Time.time < nextStepEchoTime) return;
+            float interval = state == State.Chase ? chaseEchoInterval : state == State.Investigate ? investigateEchoInterval : wanderEchoInterval;
+            nextStepEchoTime = Time.time + interval * Random.Range(0.8f, 1.25f);   // uneven, so it is not a steady beat
             float loudness = state == State.Chase ? 1.5f : 1f;
             EchoSystem.Emit(transform.position + Vector3.up * 0.2f, footstepEchoRadius * loudness, EchoSource.Enemy, 0.9f);
         }

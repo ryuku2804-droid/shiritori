@@ -18,6 +18,10 @@ namespace EchoKnight
         [SerializeField, Min(0f)] private float runEchoRadius = 32f;
         [SerializeField, Range(0f, 2f)] private float walkEchoStrength = 0.75f;
         [SerializeField, Range(0f, 2f)] private float runEchoStrength = 1f;
+        [Tooltip("Minimum seconds between footstep echoes while walking. Higher = darker, harder.")]
+        [SerializeField, Min(0f)] private float walkEchoInterval = 1.8f;
+        [Tooltip("Minimum seconds between footstep echoes while running.")]
+        [SerializeField, Min(0f)] private float runEchoInterval = 0.9f;
 
         [Header("Bell Strike (Space / gamepad Y)")]
         [SerializeField, Min(0f)] private float strikeEchoRadius = 70f;
@@ -30,6 +34,7 @@ namespace EchoKnight
         Vector3 spawnPosition;
         Quaternion spawnRotation;
         float strikeReadyTime;
+        float lastStepEchoTime = -100f;
 
         /// <summary>0 = strike ready, 1 = just used.</summary>
         public float StrikeCooldown01
@@ -66,6 +71,9 @@ namespace EchoKnight
         void OnStep(float speed)
         {
             bool running = speed > mover.WalkSpeed * 1.15f;
+            // not every footstep is heard: only one echo per interval
+            if (Time.time - lastStepEchoTime < (running ? runEchoInterval : walkEchoInterval)) return;
+            lastStepEchoTime = Time.time;
             EchoSystem.Emit(Feet(), running ? runEchoRadius : walkEchoRadius, EchoSource.Player,
                             running ? runEchoStrength : walkEchoStrength);
         }

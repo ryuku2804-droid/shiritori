@@ -167,6 +167,8 @@ Inspectorの **Sword** で設定します（`enabled` で表示/非表示）。�
 - 地形は白、敵は赤。敵が出した音の波は、照らしたものを赤く染める。
 - 建物は数式の部品キット（`EchoKitPiece`）：Floor（敷石）、Wall（石積み、狭間つき可）、ArchWall（アーチの門）、Pillar（柱）、Tower（扉・矢狭間・円錐屋根の塔）、Stairs（階段）、Platform（台座）、Crate（木箱）、Barrel（樽）。Inspectorで大きさを変えると作り直され、当たり判定（BoxCollider）も自動で付く。
 - 聴き手（`EchoListenerEnemy`）は目が見えず、音だけで追ってくる。遠い音は調べに来て、近い音や鐘打ちには走ってくる。音が4秒しなければ諦めて徘徊に戻る。立ち止まっていれば見つからない。捕まるとスタート地点に戻される（戦闘は次の段階で追加）。
+- 足音の波は一歩ごとには出ない。歩くと約1.8秒に1回、走ると約0.9秒に1回（EchoPlayer の Walk / Run Echo Interval）。
+- 聴き手の足音の波は、徘徊中は約3.5秒、調べに来るときは約2.2秒、追いかけるときは約1.1秒に1回。間隔は少しずつばらつく（EchoListenerEnemy の Wander / Investigate / Chase Echo Interval）。
 - 音は壁を通り抜ける（壁の向こうの敵も波で見える）。
 
 ### 戦闘（`EchoCombat`）
