@@ -18,8 +18,10 @@
     <Compile Include="../../Assets/VoidCloak/Scripts/VoidCloakSword.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoPointBuilder.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoKit.cs" />
+    <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoKitTown.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoShapes.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoSoundSynth.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoStages.cs" />
+    <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoChapter1.cs" />
   </ItemGroup>
 </Project>

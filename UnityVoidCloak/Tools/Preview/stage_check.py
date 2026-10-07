@@ -24,7 +24,7 @@ def footprint(b):
 
 foot = [footprint(b) for b in boxes]
 bottoms = boxes[:, 1] - boxes[:, 4] / 2; tops = boxes[:, 1] + boxes[:, 4] / 2
-levels = sorted(set(np.round(t, 2) for t in tops if -0.05 <= t <= 4.0))
+levels = sorted(set(np.round(t, 2) for t in tops if -10.0 <= t <= 4.0))
 
 # disc offsets for the capsule radius
 r = int(np.ceil(RADIUS / RES)); offs = [(i, j) for i in range(-r, r + 1) for j in range(-r, r + 1) if (i * RES) ** 2 + (j * RES) ** 2 <= RADIUS ** 2]
@@ -66,6 +66,17 @@ gc = cell(goal[:3]); gi0, gi1 = int(goal[3] / 2 / RES), int(goal[5] / 2 / RES)
 goal_cells = [k for k in seen if abs(k[0][0] - gc[0]) <= gi0 and abs(k[0][1] - gc[1]) <= gi1 and abs(k[1] - (goal[1] - 2)) < 1.0]
 print(f"levels: {levels}")
 print(f"reachable cells: {reach.sum()}  goal reached: {bool(goal_cells)}")
+
+# leaks: a reachable spot next to a spot with nothing to stand on and nothing blocking -> the knight could walk off the edge
+leaks = []
+for ((i, j), L) in seen:
+    for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+        ni, nj = i + di, j + dj
+        if not (0 <= ni < nx and 0 <= nj < nz): leaks.append((i, j)); continue
+        if any(support[l][ni, nj] for l in levels if l <= L + STEP + 1e-3): continue
+        if blocked[L][ni, nj]: continue
+        leaks.append((i, j))
+print(f"edge leaks: {len(leaks)}" + ("" if not leaks else "  e.g. " + ", ".join(f"({gx[i]:.1f}, {gz[j]:.1f})" for i, j in leaks[:8])))
 
 # path back from the goal
 path = []

@@ -10,6 +10,7 @@ namespace EchoKnightEditor
     /// <summary>
     /// Menus:
     ///   Tools > Echo Knight > Create Prologue Stage   (序章「崩れた鐘楼」)
+    ///   Tools > Echo Knight > Create Chapter 1 Stage  (第一章「灰の城下町」)
     ///   Tools > Echo Knight > Create Prototype Stage  (the test courtyard)
     /// Each creates a new scene with the dark stage, the knight, the follow camera, enemies,
     /// shrines, hints and memory echoes. Save the scene afterwards (Ctrl+S).
@@ -22,6 +23,12 @@ namespace EchoKnightEditor
         public static void CreatePrologueStage()
         {
             BuildScene(EchoPrologueLayout.Build(), "序章「崩れた鐘楼」のステージを作りました。");
+        }
+
+        [MenuItem("Tools/Echo Knight/Create Chapter 1 Stage")]
+        public static void CreateChapter1Stage()
+        {
+            BuildScene(EchoChapter1Layout.Build(), "第一章「灰の城下町」のステージを作りました。");
         }
 
         [MenuItem("Tools/Echo Knight/Create Prototype Stage")]

@@ -9,9 +9,11 @@ static class Program
 {
     static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0] == "town") return DumpTownPieces(args.Length > 1 ? args[1] : "town.bin");
         if (args.Length > 0 && args[0] == "armor") return DumpArmor(args.Length > 1 ? args[1] : "armor.bin");
         if (args.Length > 0 && args[0] == "stage") return DumpStage(args.Length > 1 ? args[1] : "stage.bin");
         if (args.Length > 0 && args[0] == "prologue") return DumpLayout(EchoKnight.EchoPrologueLayout.Build(), args.Length > 1 ? args[1] : "prologue");
+        if (args.Length > 0 && args[0] == "chapter1") return DumpLayout(EchoKnight.EchoChapter1Layout.Build(), args.Length > 1 ? args[1] : "chapter1");
         if (args.Length > 0 && args[0] == "sounds") return DumpSounds(args.Length > 1 ? args[1] : "sounds");
         string outPath = args.Length > 0 ? args[0] : "cloak.bin";
         int stage = args.Length > 1 ? int.Parse(args[1]) : (int)BuildStage.Complete;
@@ -74,6 +76,33 @@ static class Program
             total += enemy.Count;
         }
         Console.WriteLine($"stage points: {total} ({sw.ElapsedMilliseconds} ms)");
+        return 0;
+    }
+
+    // The chapter 1 town pieces side by side along X: house, ruined house, well, stall.
+    static int DumpTownPieces(string outPath)
+    {
+        var K = EchoKnight.EchoKitKind.House;
+        var specs = new (EchoKnight.EchoKitSpec spec, float x)[]
+        {
+            (new EchoKnight.EchoKitSpec { kind = K, size = new UnityEngine.Vector3(11f, 9f, 8f), roofHeight = 4.5f, pointSpacing = 0.16f, seed = 1 }, -14f),
+            (new EchoKnight.EchoKitSpec { kind = K, size = new UnityEngine.Vector3(10f, 8f, 8f), ruined = true, pointSpacing = 0.16f, seed = 2 }, 0f),
+            (new EchoKnight.EchoKitSpec { kind = EchoKnight.EchoKitKind.Well, size = new UnityEngine.Vector3(3.2f, 1.1f, 0f), pointSpacing = 0.09f, seed = 3 }, 10f),
+            (new EchoKnight.EchoKitSpec { kind = EchoKnight.EchoKitKind.Stall, size = new UnityEngine.Vector3(4f, 3.4f, 2.6f), pointSpacing = 0.1f, seed = 4 }, 17f),
+        };
+        int total = 0;
+        using (var w = new BinaryWriter(File.Create(outPath)))
+        {
+            foreach (var (spec, x) in specs)
+            {
+                var b = new EchoKnight.EchoPointBuilder(spec.seed);
+                EchoKnight.EchoKitGenerator.Build(spec, b, new System.Collections.Generic.List<UnityEngine.Bounds>());
+                Write(w, b, new UnityEngine.Vector3(x, 0f, 0f), 0f, 0f);
+                Console.WriteLine($"  {spec.kind}{(spec.ruined ? " (ruined)" : ""),-10} {b.Count,8}");
+                total += b.Count;
+            }
+        }
+        Console.WriteLine($"town pieces: {total}");
         return 0;
     }
 

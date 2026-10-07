@@ -30,6 +30,7 @@
 | `Assets/VoidCloak/Scripts/Echo/EchoSystem.cs` | 音の波の管理（シェーダーへ渡す、敵へ知らせる） |
 | `Assets/VoidCloak/Scripts/Echo/EchoPlayer.cs` | 足音の波と鐘打ち |
 | `Assets/VoidCloak/Scripts/Echo/EchoKit.cs` / `EchoKitPiece.cs` | 中世建築の部品キット（数式で作る建物と当たり判定） |
+| `Assets/VoidCloak/Scripts/Echo/EchoKitTown.cs` | 町の部品（家・焼け落ちた家・井戸・市場の屋台） |
 | `Assets/VoidCloak/Scripts/Echo/EchoPointBuilder.cs` | 石積み・敷石・円柱・屋根などの点の作り方 |
 | `Assets/VoidCloak/Scripts/Echo/EchoShapes.cs` | 聴き手・抜け殻の鎧の体と、プロトタイプステージの配置 |
 | `Assets/VoidCloak/Scripts/Echo/EchoEnemy.cs` | 敵の共通の決まり（剣が当たる・パリィされる） |
@@ -37,6 +38,7 @@
 | `Assets/VoidCloak/Scripts/Echo/EchoHollowArmorEnemy.cs` | 抜け殻の鎧（波を出さずに巡回する敵） |
 | `Assets/VoidCloak/Scripts/Echo/EchoBellShrine.cs` | 鐘の祠（セーブ地点・回復・聴き手を追い払う） |
 | `Assets/VoidCloak/Scripts/Echo/EchoStages.cs` | ステージの配置データ（序章・プロトタイプ）と残響の人影の形 |
+| `Assets/VoidCloak/Scripts/Echo/EchoChapter1.cs` | 第一章「灰の城下町」の配置データ |
 | `Assets/VoidCloak/Scripts/Echo/EchoStageEvents.cs` | 画面の文字（ヒント・セリフ・章タイトルの見た目） |
 | `Assets/VoidCloak/Scripts/Echo/EchoHintZone.cs` | 入るとヒントやセリフが出る場所 |
 | `Assets/VoidCloak/Scripts/Echo/EchoMemoryGhost.cs` | 残響（金色の人影と最後の言葉） |
@@ -176,6 +178,34 @@ Inspectorの **Sword** で設定します（`enabled` で表示/非表示）。�
 - **ゴール**（`EchoStageGoal`）：大門に着くと金色の大きな波が広がり、章の題名が出る。
 - 新しい部品：崩れた塔（`Tower` の `ruined`。中に入れる）、瓦礫（`Rubble`）、暁鐘の破片（`BellFragment`、金色）。
 - 配置は `EchoStages.cs` の `EchoPrologueLayout` にまとまっている。
+
+## 第一章「灰の城下町」
+
+![chapter1 map](Docs/chapter1_map.png)
+
+（真上から見た第一章。右がスタート、左がゴール。青い線は当たり判定で確かめた、スタートからゴールまで歩ける経路。下に飛び出しているのが隠し中庭）
+
+![chapter1 views](Docs/chapter1_views.png)
+
+（左上：大通りと聴き手、右上：市場広場と抜け殻の鎧、左下：細い路地の鎧、右下：大聖堂の扉と4つの鐘）
+
+メニュー **Tools > Echo Knight > Create Chapter 1 Stage** でシーンを作り、Ctrl+S で保存して Play。
+
+| # | 場所 | 中身 | 物語 |
+|---|---|---|---|
+| A | 城門の通り | 崩れた城門から町へ。焼け落ちた家 | リーネ「……ここが、城下町。みんな、灰になってしまった。」 |
+| B | 大通り | 聴き手2体。焼け落ちた家に入って隠れられる。祠 | 少年の残響「母さん、鐘が鳴らないよ。……夜が、終わらないよ」 |
+| C | 市場広場 | 屋台と井戸。抜け殻の鎧が井戸のまわりを巡回、聴き手1体。祠。**西側の家の間に空洞の壁**（裏に隠し中庭） | 商人の残響（アルドレンが鐘楼へ走った夜の話）、隠し中庭に鐘守りの母の残響 |
+| D | 細い路地 | 高い家にはさまれた一本道を、抜け殻の鎧が行ったり来たり。焼け落ちた家に逃げ込める | リーネ「……狭い。足音が、壁に跳ね返ってる。」 |
+| E | 大聖堂の広場 | 聴き手1体が守る。**歌う扉と4つの鐘**（序章より長い4音）。祠 | 鐘守りの残響「割れた暁鐘の心臓は、大聖堂の下へ沈んだ……」 |
+| F | 大聖堂の下 | 地下への階段。ゴール | 「第一章　灰の城下町　―　完」 |
+
+- 道案内はない。音と波だけで進む（序章で覚えたことを全部使う）。
+- 町の部品（`EchoKitTown.cs`）：
+  - **家**（House）：窓、扉、石の帯、切妻の瓦屋根、煙突。並んだ家は裏側を作らない（Front Only）ので軽い。
+  - **焼け落ちた家**（House + Ruined）：屋根がなく、壁の上がギザギザ。中に入れる（隠れ場所）。
+  - **井戸**（Well）・**市場の屋台**（Stall）。
+- 点の数は約126万。序章（約61万）の2倍なので、重い場合は家の `Point Spacing` を大きくする。
 
 ## 残響の騎士 プロトタイプ（暗闇＋音の波）
 

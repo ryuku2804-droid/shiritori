@@ -29,6 +29,13 @@ namespace EchoKnight
         Rubble,
         /// <summary>A shard of the great bell lying on the floor. size.x = bell diameter, size.y = bell height.</summary>
         BellFragment,
+        /// <summary>Town house with windows, a door on the front (+Z) and a gable roof. size = width, wall height, depth.
+        /// ruined = no roof, broken walls, and you can walk in through the doorway.</summary>
+        House,
+        /// <summary>Round stone well with a little roof. size.x = diameter, size.y = height of the stone ring.</summary>
+        Well,
+        /// <summary>Abandoned market stall: counter at the front (+Z), posts and a torn awning. size = width, height, depth.</summary>
+        Stall,
     }
 
     /// <summary>Everything needed to build one piece. Lengths in world units (the knight is ~4.2 tall).</summary>
@@ -46,7 +53,7 @@ namespace EchoKnight
         [Header("Wall")]
         [Tooltip("Crenellations along the top of a wall.")]
         public bool battlements;
-        [Tooltip("Only the front face (+Z) is built. Use for outer walls nobody sees from behind.")]
+        [Tooltip("Only the front face (+Z) is built. Use for outer walls (and row houses) nobody sees from behind.")]
         public bool frontOnly;
 
         [Header("Arch / Door")]
@@ -72,7 +79,7 @@ namespace EchoKnight
     /// Builds the points and the collision boxes of a kit piece (local space, piece origin at
     /// the bottom centre). Pure C# so it also runs in the offline preview.
     /// </summary>
-    public static class EchoKitGenerator
+    public static partial class EchoKitGenerator
     {
         public static void Build(EchoKitSpec spec, EchoPointBuilder b, List<Bounds> colliders)
         {
@@ -90,6 +97,9 @@ namespace EchoKnight
                 case EchoKitKind.Barrel: Barrel(spec, b, colliders); break;
                 case EchoKitKind.Rubble: Rubble(spec, b, colliders); break;
                 case EchoKitKind.BellFragment: BellFragment(spec, b, colliders); break;
+                case EchoKitKind.House: House(spec, b, colliders); break;
+                case EchoKitKind.Well: Well(spec, b, colliders); break;
+                case EchoKitKind.Stall: Stall(spec, b, colliders); break;
             }
         }
 
