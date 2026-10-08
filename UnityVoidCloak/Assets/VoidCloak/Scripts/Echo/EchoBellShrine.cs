@@ -129,6 +129,20 @@ namespace EchoKnight
             EchoSystem.Emit(transform.TransformPoint(EchoBellShrineShape.BellPivot), ringEchoRadius, EchoSource.Bell, ringEchoStrength);
             EchoAudio.Play(EchoSound.ShrineBell, transform.TransformPoint(EchoBellShrineShape.BellPivot), 1f);
 
+            EchoGame.SaveShrine(gameObject.name);
+            SetCheckpointHere(false);
+        }
+
+        /// <summary>"Continue" from the title screen: the knight wakes up in front of this shrine.</summary>
+        public void ResumeHere()
+        {
+            activated = true;
+            ActiveShrine = this;
+            SetCheckpointHere(true);
+        }
+
+        void SetCheckpointHere(bool moveThere)
+        {
             EchoPlayer player = EchoPlayer.Current;
             if (player == null) return;
             Vector3 spot = transform.position + transform.forward * respawnOffset;
@@ -136,11 +150,13 @@ namespace EchoKnight
             player.SetCheckpoint(spot, facing);
             var combat = player.GetComponent<EchoCombat>();
             if (combat != null) combat.RestoreHealth();
+            if (moveThere) player.Respawn();
         }
 
         /// <summary>F key or gamepad A this frame (also used by the puzzle bells).</summary>
         internal static bool InteractPressed()
         {
+            if (EchoGame.Paused) return false;
 #if ENABLE_INPUT_SYSTEM
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.fKey.wasPressedThisFrame) return true;

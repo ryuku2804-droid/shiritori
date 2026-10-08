@@ -13,6 +13,7 @@ static class Program
         if (args.Length > 0 && args[0] == "armor") return DumpArmor(args.Length > 1 ? args[1] : "armor.bin");
         if (args.Length > 0 && args[0] == "stage") return DumpStage(args.Length > 1 ? args[1] : "stage.bin");
         if (args.Length > 0 && args[0] == "prologue") return DumpLayout(EchoKnight.EchoPrologueLayout.Build(), args.Length > 1 ? args[1] : "prologue");
+        if (args.Length > 0 && args[0] == "title") return DumpLayout(EchoKnight.EchoTitleLayout.Build(), args.Length > 1 ? args[1] : "title");
         if (args.Length > 0 && args[0] == "chapter1") return DumpLayout(EchoKnight.EchoChapter1Layout.Build(), args.Length > 1 ? args[1] : "chapter1");
         if (args.Length > 0 && args[0] == "sounds") return DumpSounds(args.Length > 1 ? args[1] : "sounds");
         string outPath = args.Length > 0 ? args[0] : "cloak.bin";

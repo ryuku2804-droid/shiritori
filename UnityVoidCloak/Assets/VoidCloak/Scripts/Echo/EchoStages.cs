@@ -273,6 +273,32 @@ namespace EchoKnight
         }
     }
 
+    /// <summary>
+    /// The title screen: the knight stands among the shards of the great bell, broken pillars and
+    /// an arch behind him. Only pieces; the title scene has no enemies or goal.
+    /// </summary>
+    public static class EchoTitleLayout
+    {
+        public static readonly Vector3 CameraPosition = new Vector3(0f, 3.2f, 16f);
+        public static readonly Vector3 CameraTarget = new Vector3(0f, 2.1f, -1f);
+
+        public static EchoStageLayout Build()
+        {
+            var L = new EchoStageLayout { name = "Title", playerSpawn = new Vector3(0f, 0f, 0f), playerYaw = 0f };
+            L.Floor("Floor Title", new Vector3(0f, 0f, -2f), 30f, 26f, 9001);
+            L.Arch("Title Arch", new Vector3(0f, 0f, -12f), 0f, 18f, 11f, 5f, 7.5f, 9002, 1.4f, true);
+            L.Pillar("Title Pillar 1", new Vector3(-7.5f, 0f, -4f), 1.5f, 7f, 9003);
+            L.Pillar("Title Pillar 2", new Vector3(7.5f, 0f, -4f), 1.5f, 5.5f, 9004);
+            L.Pillar("Title Pillar 3", new Vector3(-4.5f, 0f, -8.5f), 1.5f, 8.5f, 9005);
+            L.Pillar("Title Pillar 4", new Vector3(4.5f, 0f, -8.5f), 1.5f, 6.5f, 9006);
+            L.Piece("Title Bell Shard 1", new Vector3(-3.8f, 0f, -2.5f), 40f, new EchoKitSpec { kind = EchoKitKind.BellFragment, size = new Vector3(6f, 4f, 0f), pointSpacing = 0.09f, seed = 9007 }, true);
+            L.Piece("Title Bell Shard 2", new Vector3(4.2f, 0f, -1.5f), -60f, new EchoKitSpec { kind = EchoKitKind.BellFragment, size = new Vector3(4.5f, 3.2f, 0f), pointSpacing = 0.09f, seed = 9008 }, true);
+            L.Piece("Title Rubble 1", new Vector3(-6.5f, 0f, 1.5f), 25f, new EchoKitSpec { kind = EchoKitKind.Rubble, size = new Vector3(2.6f, 1.4f, 2.2f), pointSpacing = 0.11f, seed = 9009 });
+            L.Piece("Title Rubble 2", new Vector3(6.8f, 0f, 2.5f), -15f, new EchoKitSpec { kind = EchoKitKind.Rubble, size = new Vector3(2.2f, 1.2f, 2f), pointSpacing = 0.11f, seed = 9010 });
+            return L;
+        }
+    }
+
     /// <summary>The original test courtyard as a stage layout.</summary>
     public static class EchoPrototypeStage
     {

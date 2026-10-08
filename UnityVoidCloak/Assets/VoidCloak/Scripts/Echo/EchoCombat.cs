@@ -103,6 +103,7 @@ namespace EchoKnight
 
         void ReadInput()
         {
+            if (EchoGame.Paused) return;
             Action pressed = Action.None;
 #if ENABLE_INPUT_SYSTEM
             var mouse = UnityEngine.InputSystem.Mouse.current;

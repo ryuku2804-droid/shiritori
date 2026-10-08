@@ -2,7 +2,10 @@ using UnityEngine;
 
 namespace EchoKnight
 {
-    /// <summary>The end of a stage: reaching it rings out a great golden echo and shows the chapter title.</summary>
+    /// <summary>
+    /// The end of a stage: reaching it rings out a great golden echo and shows the chapter title.
+    /// Then the next chapter is loaded (see <see cref="EchoStageInfo"/>).
+    /// </summary>
     [DisallowMultipleComponent]
     public class EchoStageGoal : MonoBehaviour
     {
@@ -24,7 +27,12 @@ namespace EchoKnight
 
         void Update()
         {
-            if (Reached) return;
+            if (Reached)
+            {
+                // after the title: on to the next chapter (when this stage is part of the game)
+                if (Time.time - reachedTime >= showSeconds && EchoStageInfo.Current != null) EchoStageInfo.Current.FinishChapter();
+                return;
+            }
             EchoPlayer player = EchoPlayer.Current;
             if (player == null) return;
             if (!new Bounds(transform.position, size).Contains(player.transform.position + Vector3.up)) return;

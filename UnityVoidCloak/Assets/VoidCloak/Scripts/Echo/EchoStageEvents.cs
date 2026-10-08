@@ -27,7 +27,8 @@ namespace EchoKnight
             return s;
         }
 
-        static void Label(Rect r, string text, GUIStyle style, float alpha)
+        /// <summary>Text with a soft drop shadow, so it stays readable when an echo lights up the stones behind it.</summary>
+        public static void Label(Rect r, string text, GUIStyle style, float alpha)
         {
             if (string.IsNullOrEmpty(text)) return;
             Color old = GUI.color;

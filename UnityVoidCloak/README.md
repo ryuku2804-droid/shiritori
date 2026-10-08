@@ -42,7 +42,12 @@
 | `Assets/VoidCloak/Scripts/Echo/EchoStageEvents.cs` | 画面の文字（ヒント・セリフ・章タイトルの見た目） |
 | `Assets/VoidCloak/Scripts/Echo/EchoHintZone.cs` | 入るとヒントやセリフが出る場所 |
 | `Assets/VoidCloak/Scripts/Echo/EchoMemoryGhost.cs` | 残響（金色の人影と最後の言葉） |
-| `Assets/VoidCloak/Scripts/Echo/EchoStageGoal.cs` | ステージのゴール |
+| `Assets/VoidCloak/Scripts/Echo/EchoStageGoal.cs` | ステージのゴール（着いたら次の章へ） |
+| `Assets/VoidCloak/Scripts/Echo/EchoGame.cs` | ゲーム全体（章の一覧・セーブ・一時停止・メニューの操作） |
+| `Assets/VoidCloak/Scripts/Echo/EchoSceneFader.cs` | 暗転してシーンを切り替える |
+| `Assets/VoidCloak/Scripts/Echo/EchoStageInfo.cs` | 各ステージの章番号（章タイトル表示・セーブ・つづきから） |
+| `Assets/VoidCloak/Scripts/Echo/EchoPauseMenu.cs` | 一時停止メニュー（Esc / Start） |
+| `Assets/VoidCloak/Scripts/Echo/EchoTitleScreen.cs` | タイトル画面 |
 | `Assets/VoidCloak/Scripts/Echo/EchoPuzzleBell.cs` | 謎解きの鐘（剣で打つかFで鳴らす） |
 | `Assets/VoidCloak/Scripts/Echo/EchoBellDoor.cs` | 歌う扉（鐘を同じ順に鳴らすと開く） |
 | `Assets/VoidCloak/Scripts/Echo/EchoHollowWall.cs` | 空洞の壁（大きな音に響く、強攻撃で壊せる） |
@@ -153,6 +158,28 @@ Inspectorの **Sword** で設定します（`enabled` で表示/非表示）。�
 （左：地面の布が動かない以前の状態、中・右：地面の布も一緒になびく）
 
 - 注意：`LoweredRight` の持ち方では、歩くと剣先が地面を滑ります。
+
+## ゲームとして通して遊ぶ（タイトル画面から）
+
+![title](Docs/preview_title.png)
+
+（タイトル画面の構図。枠は文字が入る場所：上がタイトル『残響の騎士』、下がメニュー。騎士のまわりの廃墟は、数秒ごとの波で一瞬だけ見える）
+
+1. メニューの **Tools > Echo Knight > Build Game (Title + All Chapters)** を押す。
+   - タイトル画面・序章・第一章のシーンが `Assets/EchoKnightScenes` に保存され、**Build Settings** にも登録される。
+   - 少し時間がかかる（第一章が大きいため）。
+2. 終わると **EchoTitle** シーンが開くので、そのまま Play。
+
+| 場面 | 内容 |
+|---|---|
+| タイトル | **はじめから** / **つづきから**（セーブがあるときだけ。どの章かも出る） / **おわる**。W/S・↑↓・十字キー・左スティックで選び、Enter・Space・Aで決定。マウスでクリックしてもよい |
+| 章のはじめ | 「序章　崩れた鐘楼」などの章タイトルが出る |
+| ゴール | 章の終わりの文字のあと、暗転して**自動で次の章へ**。最後の章のあとはタイトルに戻り「第二章へ　つづく」と出る |
+| 一時停止 | **Esc**（ゲームパッドは **Start**）。つづける / タイトルへもどる |
+
+- **セーブ**は自動（PlayerPrefs）。章に入ったときと、**鐘の祠を鳴らしたとき**に保存される。「つづきから」は、最後に鳴らした祠の前から始まる（祠を鳴らしていなければ、その章のはじめから）。
+- 章の順番とシーン名は `EchoGame.cs` の `Chapters` にまとまっている。新しい章を足すときは、ここと `EchoPrototypeSceneBuilder.cs` の `ChapterLayout` に1行ずつ足す。
+- 「Create Prologue Stage」などの個別のメニューも今まで通り使える（その章だけを試すとき）。ただし、その場合ゴールに着いても次の章へ進むには Build Game が必要（画面に案内が出る）。
 
 ## 序章「崩れた鐘楼」
 

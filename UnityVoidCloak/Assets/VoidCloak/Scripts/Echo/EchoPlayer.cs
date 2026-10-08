@@ -121,6 +121,7 @@ namespace EchoKnight
 
         static bool StrikePressed()
         {
+            if (EchoGame.Paused) return false;
 #if ENABLE_INPUT_SYSTEM
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.spaceKey.wasPressedThisFrame) return true;
