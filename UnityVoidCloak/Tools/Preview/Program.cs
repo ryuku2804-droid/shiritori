@@ -14,6 +14,7 @@ static class Program
         if (args.Length > 0 && args[0] == "stage") return DumpStage(args.Length > 1 ? args[1] : "stage.bin");
         if (args.Length > 0 && args[0] == "prologue") return DumpLayout(EchoKnight.EchoPrologueLayout.Build(), args.Length > 1 ? args[1] : "prologue");
         if (args.Length > 0 && args[0] == "title") return DumpLayout(EchoKnight.EchoTitleLayout.Build(), args.Length > 1 ? args[1] : "title");
+        if (args.Length > 0 && args[0] == "chapter2") return DumpLayout(EchoKnight.EchoChapter2Layout.Build(), args.Length > 1 ? args[1] : "chapter2");
         if (args.Length > 0 && args[0] == "chapter1") return DumpLayout(EchoKnight.EchoChapter1Layout.Build(), args.Length > 1 ? args[1] : "chapter1");
         if (args.Length > 0 && args[0] == "sounds") return DumpSounds(args.Length > 1 ? args[1] : "sounds");
         string outPath = args.Length > 0 ? args[0] : "cloak.bin";
@@ -205,6 +206,13 @@ static class Program
                 var b = new EchoKnight.EchoPointBuilder(11);
                 EchoKnight.EchoHollowArmorBody.Build(b);
                 Write(w, b, a.position, a.yaw, 1f);
+                total += b.Count;
+            }
+            foreach (var water in L.waters)
+            {
+                var b = new EchoKnight.EchoPointBuilder(5);
+                EchoKnight.EchoKitGenerator.WaterSurface(b, water.size, 0.35f);
+                Write(w, b, water.position, 0f, 0f);
                 total += b.Count;
             }
             foreach (var th in L.theatres)

@@ -93,6 +93,14 @@ namespace EchoKnight
                 EchoAudio.Play(EchoSound.Step, Feet(), 0.15f, 0.7f);
                 return;
             }
+            if (EchoWaterZone.IsInWater(transform.position))
+            {
+                // shallow water: every step splashes - a bigger echo each time, and everything hears it
+                EchoAudio.Play(EchoSound.Splash, Feet(), running ? 1f : 0.8f, Random.Range(0.9f, 1.1f));
+                lastStepEchoTime = Time.time;
+                EchoSystem.Emit(Feet(), (running ? runEchoRadius : walkEchoRadius) * 1.3f, EchoSource.Player, running ? runEchoStrength : walkEchoStrength);
+                return;
+            }
             // every step is heard...
             EchoAudio.Play(running ? EchoSound.RunStep : EchoSound.Step, Feet(), running ? 0.85f : 0.55f);
             // ...but only one echo per interval is "seen"

@@ -39,6 +39,9 @@
 | `Assets/VoidCloak/Scripts/Echo/EchoBellShrine.cs` | 鐘の祠（セーブ地点・回復・聴き手を追い払う） |
 | `Assets/VoidCloak/Scripts/Echo/EchoStages.cs` | ステージの配置データ（序章・プロトタイプ）と残響の人影の形 |
 | `Assets/VoidCloak/Scripts/Echo/EchoChapter1.cs` | 第一章「灰の城下町」の配置データ |
+| `Assets/VoidCloak/Scripts/Echo/EchoChapter2.cs` | 第二章「沈んだ修道院」の配置データ |
+| `Assets/VoidCloak/Scripts/Echo/EchoKitCrypt.cs` | 地下の部品（墓石・石棺・低い天井・水面） |
+| `Assets/VoidCloak/Scripts/Echo/EchoWaterZone.cs` | 浅い水（歩くと一歩ごとに大きな波、敵もしぶきで見える） |
 | `Assets/VoidCloak/Scripts/Echo/EchoStageEvents.cs` | 画面の文字（ヒント・セリフ・章タイトルの見た目） |
 | `Assets/VoidCloak/Scripts/Echo/EchoHintZone.cs` | 入るとヒントやセリフが出る場所 |
 | `Assets/VoidCloak/Scripts/Echo/EchoMemoryGhost.cs` | 残響（金色の人影と最後の言葉） |
@@ -172,7 +175,7 @@ Inspectorの **Sword** で設定します（`enabled` で表示/非表示）。�
 （タイトル画面の構図。枠は文字が入る場所：上がタイトル『残響の騎士』、下がメニュー。騎士のまわりの廃墟は、数秒ごとの波で一瞬だけ見える）
 
 1. メニューの **Tools > Echo Knight > Build Game (Title + All Chapters)** を押す。
-   - タイトル画面・序章・第一章のシーンが `Assets/EchoKnightScenes` に保存され、**Build Settings** にも登録される。
+   - タイトル画面・序章・第一章・第二章のシーンが `Assets/EchoKnightScenes` に保存され、**Build Settings** にも登録される。
    - 少し時間がかかる（第一章が大きいため）。
 2. 終わると **EchoTitle** シーンが開くので、そのまま Play。
 
@@ -286,6 +289,34 @@ Inspectorの **Sword** で設定します（`enabled` で表示/非表示）。�
   - **焼け落ちた家**（House + Ruined）：屋根がなく、壁の上がギザギザ。中に入れる（隠れ場所）。
   - **井戸**（Well）・**市場の屋台**（Stall）。
 - 点の数は約126万。序章（約61万）の2倍なので、重い場合は家の `Point Spacing` を大きくする。
+
+## 第二章「沈んだ修道院」
+
+![chapter2 map](Docs/chapter2_map.png)
+
+（真上から見た第二章。右がスタート、左がゴール。下に飛び出しているのが空洞の壁の裏の小部屋）
+
+![chapter2 views](Docs/chapter2_views.png)
+
+（左上：墓石の並ぶ地下の階段、右上：石棺と柱の墓所、左下：水に沈んだ回廊（水の中を歩く聴き手）、右下：聴き手の巣と「選ばれた子どもたち」の残響劇）
+
+メニュー **Tools > Echo Knight > Create Chapter 2 Stage**（または Build Game）。
+
+| # | 場所 | 中身 | 物語 |
+|---|---|---|---|
+| A | 地下の階段 | 墓石の並ぶ低い通路 | リーネ「……地下。息が、白い。」 |
+| B | 墓所 | 低い天井、柱と石棺。聴き手2体。祠 | |
+| C | 水に沈んだ回廊 | 真ん中は**浅い水**。左右に回廊。水の中に聴き手2体、東の回廊に抜け殻の鎧、西の回廊に聴き手。**どこを通るか** | リーネ「……水の音。踏めば、すべてに聞こえる。」 |
+| D | 聴き手の巣（参事会室） | 石棺の間に聴き手4体。**残響劇「選ばれた子どもたち」**。西の壁に**空洞の壁**（小部屋に「選ばれなかった子の残響」） | 修道院長「今年も、ひとり。鐘は、声を求める」 |
+| E | 通路 | 祠 | |
+| F | 沈んだ祭壇 | **ボス：沈黙の騎士 オルヴァン**（体力11）。左右は浅い水、柱4本、中央に祭壇 | 倒すと残響劇：「暁鐘は、声を食べて鳴る」 |
+| G | 封じられた扉の先 | ゴール | 「第二章　沈んだ修道院　―　完」 |
+
+- **浅い水**（`EchoWaterZone`）：
+  - 騎士が水の中を歩くと、**一歩ごとに**しぶきの音と、いつもより大きな波が出る（待ち時間なし）。よく見えるが、全部の敵に聞こえる。
+  - 敵が水の中を歩くと、**しぶきで小さな赤い波が出て、姿が見える**。オルヴァン戦では、水に誘い込むと位置がわかる。
+- 新しい部品（`EchoKitCrypt.cs`）：**墓石**（Gravestone）・**石棺**（Coffin）・**低い天井**（Ceiling）。
+- 第二章のあとはタイトルに戻り「第三章へ　つづく」と出る。
 
 ## 残響の騎士 プロトタイプ（暗闇＋音の波）
 

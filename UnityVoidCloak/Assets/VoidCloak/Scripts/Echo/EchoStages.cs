@@ -18,6 +18,14 @@ namespace EchoKnight
         public Vector3[] route;
     }
 
+    /// <summary>Shallow water (see EchoWaterZone). Centre on the floor; size = X and Z extent.</summary>
+    public struct EchoWaterPlacement
+    {
+        public string name;
+        public Vector3 position;
+        public Vector2 size;
+    }
+
     /// <summary>A wall with an empty room behind it (sound puzzle). Same sizes as a Wall kit piece.</summary>
     public struct EchoHollowWallPlacement
     {
@@ -68,6 +76,12 @@ namespace EchoKnight
         public float yaw;
         public string sealedDoorName;
         public string theatreName;
+        /// <summary>Name on screen (empty = Gareth).</summary>
+        public string bossName;
+        /// <summary>Rine's line when it wakes (empty = the line about Gareth).</summary>
+        public string awakenLine;
+        /// <summary>0 = default (9).</summary>
+        public float maxHealth;
     }
 
     /// <summary>A zone that shows a line of story and / or an instruction while the knight is inside.</summary>
@@ -105,6 +119,7 @@ namespace EchoKnight
         public readonly List<EchoBellDoorPlacement> bellDoors = new List<EchoBellDoorPlacement>();
         public readonly List<EchoTheatrePlacement> theatres = new List<EchoTheatrePlacement>();
         public readonly List<EchoBossPlacement> bosses = new List<EchoBossPlacement>();
+        public readonly List<EchoWaterPlacement> waters = new List<EchoWaterPlacement>();
         public readonly List<EchoHintPlacement> hints = new List<EchoHintPlacement>();
         public readonly List<EchoGhostPlacement> ghosts = new List<EchoGhostPlacement>();
         public bool hasGoal;

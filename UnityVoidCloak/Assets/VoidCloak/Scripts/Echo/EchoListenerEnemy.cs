@@ -85,6 +85,7 @@ namespace EchoKnight
         float waitUntil;
         float nextStepEchoTime;
         float nextStepSoundTime;
+        float nextWadeTime;
         float health;
         float stateUntil;
         Vector3 knockback;
@@ -373,6 +374,13 @@ namespace EchoKnight
                 float soundInterval = state == State.Chase ? 0.38f : state == State.Investigate ? 0.65f : 0.9f;
                 nextStepSoundTime = Time.time + soundInterval * Random.Range(0.85f, 1.15f);
                 EchoAudio.Play(EchoSound.ListenerStep, transform.position + Vector3.up * 0.3f, state == State.Chase ? 0.85f : 0.55f);
+            }
+            if (EchoWaterZone.IsInWater(transform.position) && Time.time >= nextWadeTime)
+            {
+                // wading: the splashes give it away
+                nextWadeTime = Time.time + 0.7f;
+                EchoAudio.Play(EchoSound.Splash, transform.position, 0.6f, 0.85f);
+                EchoSystem.Emit(transform.position + Vector3.up * 0.3f, 6f, EchoSource.Enemy, 0.9f);
             }
             // ...but it only shows up as an echo now and then
             if (footstepEchoRadius <= 0f || Time.time < nextStepEchoTime) return;

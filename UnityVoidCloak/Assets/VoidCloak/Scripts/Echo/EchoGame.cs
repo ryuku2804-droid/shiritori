@@ -23,6 +23,7 @@ namespace EchoKnight
         {
             new Chapter("EchoPrologue", "序章　崩れた鐘楼"),
             new Chapter("EchoChapter1", "第一章　灰の城下町"),
+            new Chapter("EchoChapter2", "第二章　沈んだ修道院"),
         };
 
         const string KeyHasSave = "EchoKnight.HasSave";
@@ -33,6 +34,14 @@ namespace EchoKnight
 
         /// <summary>True while the pause menu is open: gameplay input is ignored.</summary>
         public static bool Paused { get; private set; }
+
+        static readonly string[] Numerals = { "零", "一", "二", "三", "四", "五", "六", "七", "八", "九" };
+
+        /// <summary>"第三章" etc.: the chapter after the last one that exists (for "to be continued").</summary>
+        public static string NextChapterName
+        {
+            get { int n = Chapters.Length; return "第" + (n < Numerals.Length ? Numerals[n] : n.ToString()) + "章"; }
+        }
 
         /// <summary>Set when the last chapter has just been finished (the title screen says "to be continued").</summary>
         public static bool FinishedAll { get; set; }

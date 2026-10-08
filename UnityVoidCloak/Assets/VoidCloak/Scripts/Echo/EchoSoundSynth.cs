@@ -30,6 +30,7 @@ namespace EchoKnight
         HollowKnock,
         WallCrumble,
         StoneClack,
+        Splash,
         Count,
     }
 
@@ -51,6 +52,7 @@ namespace EchoKnight
                 case EchoSound.ListenerStep:
                 case EchoSound.ArmorStep:
                 case EchoSound.StoneClack:
+                case EchoSound.Splash:
                     return 4;
                 case EchoSound.Hit:
                 case EchoSound.SwingLight:
@@ -96,6 +98,7 @@ namespace EchoKnight
                 case EchoSound.HollowKnock: data = HollowKnock(rng); break;
                 case EchoSound.WallCrumble: data = WallCrumble(rng); break;
                 case EchoSound.StoneClack: data = StoneClack(rng); break;
+                case EchoSound.Splash: data = Splash(rng); break;
                 default: data = new float[1]; break;
             }
             Normalize(data, sound == EchoSound.Ambience ? 0.5f : 0.9f, !Loops(sound));
@@ -568,6 +571,39 @@ namespace EchoKnight
                 for (int i = 0; i < 260 && s0 + i < d.Length; i++) d[s0 + i] += Noise(rng) * (float)Math.Exp(-i / 35.0) * level[k];
                 float f = 2300f + (float)rng.NextDouble() * 900f;
                 AddPartials(d, rng, new[] { f, f * 1.37f, f * 0.61f }, new[] { 0.25f * level[k], 0.15f * level[k], 0.12f * level[k] }, new[] { 38f, 50f, 30f }, at[k]);
+            }
+            return d;
+        }
+
+        /// <summary>A foot in shallow water: a slap, a hiss of spray and a few bubbly drops.</summary>
+        static float[] Splash(Random rng)
+        {
+            float[] d = Buffer(0.55f);
+            float lp = 0f, lp2 = 0f;
+            float a = Alpha(3200f), a2 = Alpha(600f);
+            for (int i = 0; i < d.Length; i++)
+            {
+                float t = (float)i / SampleRate;
+                float n = Noise(rng);
+                lp += a * (n - lp);
+                lp2 += a2 * (n - lp2);
+                float spray = (lp - lp2) * (float)Math.Exp(-t * 9f) * Math.Min(1f, t / 0.01f);
+                float slap = lp2 * (float)Math.Exp(-t * 30f) * 2.5f;
+                d[i] = spray * 1.6f + slap;
+            }
+            // drops: short rising chirps
+            for (int k = 0; k < 4; k++)
+            {
+                float start = 0.05f + (float)rng.NextDouble() * 0.35f;
+                float f0 = 700f + (float)rng.NextDouble() * 900f;
+                int s0 = (int)(start * SampleRate);
+                double phase = 0.0;
+                for (int i = 0; i < SampleRate / 25 && s0 + i < d.Length; i++)
+                {
+                    float t = (float)i / SampleRate;
+                    phase += 2.0 * Math.PI * f0 * (1.0 + t * 25.0) / SampleRate;
+                    d[s0 + i] += Sin(phase) * (float)Math.Exp(-t * 90f) * 0.25f;
+                }
             }
             return d;
         }

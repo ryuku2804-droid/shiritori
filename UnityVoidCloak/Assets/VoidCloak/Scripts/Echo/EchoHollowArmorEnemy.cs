@@ -389,6 +389,11 @@ namespace EchoKnight
         void Footsteps(float moved)
         {
             if (moved <= 0f || Time.time < nextStepTime) return;
+            if (EchoWaterZone.IsInWater(transform.position))
+            {
+                EchoAudio.Play(EchoSound.Splash, transform.position, 0.7f, 0.75f);
+                EchoSystem.Emit(transform.position + Vector3.up * 0.3f, 6f, EchoSource.Enemy, 0.9f);   // wading shows it
+            }
             float interval = state == State.Pursue ? 0.55f : state == State.Investigate ? 0.7f : 0.95f;
             nextStepTime = Time.time + interval * Random.Range(0.9f, 1.1f);
             EchoAudio.Play(EchoSound.ArmorStep, transform.position + Vector3.up * 1.5f, state == State.Pursue ? 0.8f : 0.55f, Random.Range(0.94f, 1.06f));

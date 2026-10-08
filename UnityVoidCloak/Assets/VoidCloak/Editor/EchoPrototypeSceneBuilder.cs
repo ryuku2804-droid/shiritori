@@ -14,6 +14,7 @@ namespace EchoKnightEditor
     ///   Tools > Echo Knight > Build Game              (title screen + every chapter, saved and added to Build Settings)
     ///   Tools > Echo Knight > Create Prologue Stage   (序章「崩れた鐘楼」)
     ///   Tools > Echo Knight > Create Chapter 1 Stage  (第一章「灰の城下町」)
+    ///   Tools > Echo Knight > Create Chapter 2 Stage  (第二章「沈んだ修道院」)
     ///   Tools > Echo Knight > Create Prototype Stage  (the test courtyard)
     /// Each creates a new scene with the dark stage, the knight, the follow camera, enemies,
     /// shrines, hints and memory echoes. Save the scene afterwards (Ctrl+S).
@@ -31,6 +32,7 @@ namespace EchoKnightEditor
             {
                 case 0: return EchoPrologueLayout.Build();
                 case 1: return EchoChapter1Layout.Build();
+                case 2: return EchoChapter2Layout.Build();
                 default: return null;
             }
         }
@@ -144,6 +146,12 @@ namespace EchoKnightEditor
             BuildScene(EchoChapter1Layout.Build(), 1, "第一章「灰の城下町」のステージを作りました。");
         }
 
+        [MenuItem("Tools/Echo Knight/Create Chapter 2 Stage")]
+        public static void CreateChapter2Stage()
+        {
+            BuildScene(EchoChapter2Layout.Build(), 2, "第二章「沈んだ修道院」のステージを作りました。");
+        }
+
         [MenuItem("Tools/Echo Knight/Create Prototype Stage")]
         public static void CreatePrototypeStage()
         {
@@ -193,6 +201,13 @@ namespace EchoKnightEditor
             {
                 GameObject go = Place(placement.name, stage, placement.position, placement.yaw);
                 go.AddComponent<EchoKitPiece>().Configure(placement.spec, placement.gold ? gold : stone);
+            }
+
+            // ---------------- shallow water
+            int waterSeed = 1;
+            foreach (EchoWaterPlacement water in layout.waters)
+            {
+                Place(water.name, stage, water.position, 0f).AddComponent<EchoWaterZone>().Setup(stone, water.size, waterSeed++);
             }
 
             // ---------------- sound puzzles
@@ -294,7 +309,9 @@ namespace EchoKnightEditor
                 theatresByName.TryGetValue(boss.theatreName ?? "", out memory);
                 var go = Place(boss.name, enemies, boss.position, boss.yaw);
                 go.transform.localScale = Vector3.one * 1.12f;
-                go.AddComponent<EchoSilentKnightBoss>().Setup(enemy, player.transform, sealedDoor, memory);
+                var silentKnight = go.AddComponent<EchoSilentKnightBoss>();
+                silentKnight.SetIdentity(boss.bossName, boss.awakenLine, boss.maxHealth);
+                silentKnight.Setup(enemy, player.transform, sealedDoor, memory);
             }
 
             RenderSettings.skybox = null;

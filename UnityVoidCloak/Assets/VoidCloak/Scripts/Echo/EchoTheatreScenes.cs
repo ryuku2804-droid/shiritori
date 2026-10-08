@@ -64,6 +64,8 @@ namespace EchoKnight
         public const string HallRitual = "hall_ritual";
         public const string MarketNight = "market_night";
         public const string GarethMemory = "gareth_memory";
+        public const string ChosenChildren = "chosen_children";
+        public const string OrvanMemory = "orvan_memory";
 
         public static EchoTheatreScene Get(string id)
         {
@@ -72,6 +74,8 @@ namespace EchoKnight
                 case HallRitual: return Ritual();
                 case MarketNight: return Market();
                 case GarethMemory: return Gareth();
+                case ChosenChildren: return Chosen();
+                case OrvanMemory: return Orvan();
                 default: return null;
             }
         }
@@ -146,6 +150,52 @@ namespace EchoKnight
             s.Line(9.2f, "ガレスの残響", "「……行け。……お前はきっと、後悔する」", 3.8f);
             s.Line(13.6f, "リーネ", "「……兄さん。いまのは……兄さん、なの……？」", 5f);
             s.Flash(7f, 14f, EchoSound.Parry, 0.6f);
+            return s;
+        }
+
+        /// <summary>
+        /// Chapter 2, the chapter house: children kneel in a row. The abbot walks along them and
+        /// stops at one. She stands and follows him.
+        /// </summary>
+        static EchoTheatreScene Chosen()
+        {
+            var s = new EchoTheatreScene { duration = 15f };
+            s.actors.Add(new[]                                                                                                   // the abbot
+            {
+                K(0f, -6f, -4f, 90f, Robed), K(5.5f, 0f, -4f, 90f, Robed), K(6f, 0f, -4f, 0f, ArmsUp), K(8f, 0f, -4f, 0f, Robed),
+                K(8.5f, 0f, -4f, 90f, Robed), K(12.5f, 7f, -4f, 90f, Robed),
+            });
+            foreach (float x in new[] { -5f, -2.5f, 2.5f, 5f })
+                s.actors.Add(new[] { K(0f, x, -1.5f, 180f, ChildKneel) });                                                        // the others
+            s.actors.Add(new[]                                                                                                   // Rine
+            {
+                K(0f, 0f, -1.5f, 180f, ChildKneel), K(6.6f, 0f, -1.5f, 180f, Child), K(9f, 0f, -2.6f, 180f, Child), K(13f, 6f, -5f, 90f, Child),
+            });
+            s.Line(0.5f, "修道院長の残響", "「今年も、ひとり。鐘は、声を求める」", 3.5f);
+            s.Line(6.2f, "修道院長の残響", "「……リーネ。お前の声は、美しい」", 3f);
+            s.Line(9.2f, "幼いリーネの残響", "「……声がなくなったら、もう歌えないの？」", 3.5f);
+            s.Line(12.8f, "修道院長の残響", "「歌は、鐘が代わりに歌ってくれる」", 3.5f);
+            return s;
+        }
+
+        /// <summary>
+        /// Chapter 2, the sunken altar (after the Silent Knight Orvan falls): the bell keeper Orvan
+        /// learns what the bell feeds on, and chooses to guard it anyway.
+        /// </summary>
+        static EchoTheatreScene Orvan()
+        {
+            var s = new EchoTheatreScene { duration = 16f };
+            s.actors.Add(new[] { K(0f, 0f, 5f, 180f, Robed), K(9.5f, 0f, 5f, 180f, ArmsUp), K(11f, 0f, 5f, 180f, Robed) });            // the abbot
+            s.actors.Add(new[]                                                                                                          // Orvan
+            {
+                K(0f, 0f, -3f, 0f, KDown), K(5.5f, 0f, -3f, 0f, KUp), K(8.4f, 0f, -3f, 0f, KUp), K(8.6f, 0f, -3f, 0f, KDown),
+                K(10.5f, 0f, -3f, 180f, KDown), K(14.5f, 0f, -12f, 180f, KDown),
+            });
+            s.Line(0.5f, "オルヴァンの残響", "「暁鐘は、声を食べて鳴る……。知っていて、黙っていたのか」", 4.5f);
+            s.Line(5.2f, "修道院長の残響", "「黙っていたのは、お前もだ、鐘守りよ。百年、皆そうしてきた」", 4.5f);
+            s.Line(9.8f, "オルヴァンの残響", "「……ならば私は、この水の底で鐘の心臓を守ろう。誰にも、触れさせぬ」", 4.5f);
+            s.Line(14.6f, "リーネ", "「……わたしの声も、あの鐘に……？　兄さんは、それを止めようとしたの……？」", 5.5f);
+            s.Flash(0.1f, 30f, EchoSound.ShrineBell, 0.45f);
             return s;
         }
     }

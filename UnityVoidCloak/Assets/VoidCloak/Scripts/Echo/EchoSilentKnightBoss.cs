@@ -32,6 +32,8 @@ namespace EchoKnight
         [Tooltip("Played when it falls (its memory).")]
         [SerializeField] private EchoMemoryTheatre memory = null;
         [SerializeField] private string bossName = "沈黙の騎士　ガレス";
+        [Tooltip("What Rine says when it wakes.")]
+        [SerializeField, TextArea(1, 3)] private string awakenLine = "……この気配。ガレス……？　兄さんの、仲間だった人。";
 
         [Header("Health")]
         [Tooltip("Light attack 1, heavy 2.5, a reflected ring 2. x1.5 while stunned.")]
@@ -77,6 +79,14 @@ namespace EchoKnight
 
         public bool IsAlive { get { return state != State.Dead; } }
         public Vector3 Position { get { return transform.position; } }
+
+        /// <summary>Who this Silent Knight is (name on screen, Rine's line when it wakes, health).</summary>
+        public void SetIdentity(string newName, string newAwakenLine, float newMaxHealth)
+        {
+            if (!string.IsNullOrEmpty(newName)) bossName = newName;
+            if (!string.IsNullOrEmpty(newAwakenLine)) awakenLine = newAwakenLine;
+            if (newMaxHealth > 0f) { maxHealth = newMaxHealth; health = newMaxHealth; }
+        }
 
         public void Setup(Material newMaterial, Transform newPlayer, EchoBellDoor door, EchoMemoryTheatre theatre)
         {
@@ -253,7 +263,7 @@ namespace EchoKnight
             nextVeil = Time.time + 8f;
             EchoSystem.Emit(transform.position + Vector3.up * 2f, 30f, EchoSource.Enemy, 1.4f);
             EchoAudio.Play(EchoSound.ArmorWindUp, transform.position + Vector3.up * 3f, 1f, 0.55f);
-            EchoGame.Say("リーネ", "……この気配。ガレス……？　兄さんの、仲間だった人。", 4.5f);
+            EchoGame.Say("リーネ", awakenLine, 4.5f);
         }
 
         void Slam()
@@ -321,6 +331,11 @@ namespace EchoKnight
         {
             if (EchoGame.Silenced || Time.time < nextStep) return;   // under the veil it makes no sound either
             nextStep = Time.time + 0.75f;
+            if (EchoWaterZone.IsInWater(transform.position))
+            {
+                EchoAudio.Play(EchoSound.Splash, transform.position, 0.8f, 0.7f);
+                EchoSystem.Emit(transform.position + Vector3.up * 0.3f, 7f, EchoSource.Enemy, 1f);   // wading shows it
+            }
             EchoAudio.Play(EchoSound.ArmorStep, transform.position + Vector3.up * 1f, 0.75f, 0.8f);
         }
 

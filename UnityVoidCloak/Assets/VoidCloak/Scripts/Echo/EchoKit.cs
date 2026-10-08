@@ -36,6 +36,12 @@ namespace EchoKnight
         Well,
         /// <summary>Abandoned market stall: counter at the front (+Z), posts and a torn awning. size = width, height, depth.</summary>
         Stall,
+        /// <summary>Gravestone with a rounded top, facing +Z. size = width, height, thickness.</summary>
+        Gravestone,
+        /// <summary>Stone coffin with a lid, long along Z. size = width, height, length.</summary>
+        Coffin,
+        /// <summary>A low ceiling of big slabs with ribs, seen from below. The piece's height is the underside. size.x / size.z = extent.</summary>
+        Ceiling,
     }
 
     /// <summary>Everything needed to build one piece. Lengths in world units (the knight is ~4.2 tall).</summary>
@@ -100,6 +106,9 @@ namespace EchoKnight
                 case EchoKitKind.House: House(spec, b, colliders); break;
                 case EchoKitKind.Well: Well(spec, b, colliders); break;
                 case EchoKitKind.Stall: Stall(spec, b, colliders); break;
+                case EchoKitKind.Gravestone: Gravestone(spec, b, colliders); break;
+                case EchoKitKind.Coffin: Coffin(spec, b, colliders); break;
+                case EchoKitKind.Ceiling: Ceiling(spec, b, colliders); break;
             }
         }
 
