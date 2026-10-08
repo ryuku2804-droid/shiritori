@@ -47,15 +47,15 @@ namespace EchoKnight
 
         [Header("Parry (Q / LB)")]
         [Tooltip("How long after pressing parry an enemy blow is deflected (seconds).")]
-        [SerializeField, Min(0f)] private float parryWindow = 0.3f;
+        [SerializeField, Min(0f)] private float parryWindow = 0.5f;
         [SerializeField, Min(0f)] private float parryEchoRadius = 28f;
         [SerializeField, Min(0f)] private float enemyStunTime = 1.8f;
 
         [Header("Attack Rings")]
         [Tooltip("How early before a ring's front arrives the parry may be pressed (seconds).")]
-        [SerializeField, Min(0f)] private float ringParryEarly = 0.3f;
+        [SerializeField, Min(0f)] private float ringParryEarly = 0.5f;
         [Tooltip("How late after the front arrived the parry still counts (seconds).")]
-        [SerializeField, Min(0f)] private float ringParryLate = 0.08f;
+        [SerializeField, Min(0f)] private float ringParryLate = 0.12f;
         [SerializeField, Min(0f)] private float reflectDamage = 2f;
         [SerializeField, Min(0f)] private float reflectStun = 2.2f;
 
@@ -69,7 +69,7 @@ namespace EchoKnight
         // timing of each action: wind-up, active (hits land in the middle), recovery
         static readonly float[] LightTiming = { 0.12f, 0.12f, 0.26f };
         static readonly float[] HeavyTiming = { 0.42f, 0.14f, 0.5f };
-        static readonly float[] ParryTiming = { 0.06f, 0.3f, 0.22f };
+        static readonly float[] ParryTiming = { 0.06f, 0.5f, 0.22f };   // the guard is held as long as the parry counts
 
         VoidCloakCharacter character;
         VoidCloakMover mover;
