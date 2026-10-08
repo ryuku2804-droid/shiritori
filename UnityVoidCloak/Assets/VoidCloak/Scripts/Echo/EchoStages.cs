@@ -103,6 +103,8 @@ namespace EchoKnight
         public float yaw;
         public string speaker;
         public string line;
+        /// <summary>1-3: a memory fragment (the hidden rooms). 0 = none.</summary>
+        public int memoryId;
     }
 
     /// <summary>Everything that makes up one stage. Built into a scene by the editor menu.</summary>
@@ -122,6 +124,10 @@ namespace EchoKnight
         public readonly List<EchoWaterPlacement> waters = new List<EchoWaterPlacement>();
         public readonly List<EchoHintPlacement> hints = new List<EchoHintPlacement>();
         public readonly List<EchoGhostPlacement> ghosts = new List<EchoGhostPlacement>();
+        /// <summary>The last chapter ends with a choice instead of a goal (see EchoEnding).</summary>
+        public bool hasEnding;
+        public Vector3 endingCenter;
+        public Vector3 endingSize;
         public bool hasGoal;
         public Vector3 goalCenter;
         public Vector3 goalSize;
@@ -221,7 +227,7 @@ namespace EchoKnight
             L.Wall("Hidden Room North", new Vector3(-17.8f, 0f, 56.6f), 0f, 7.6f, 5f, 332, 1.2f);
             L.Wall("Hidden Room South", new Vector3(-17.8f, 0f, 49.4f), 0f, 7.6f, 5f, 333, 1.2f);
             L.ghosts.Add(new EchoGhostPlacement { name = "Echo Young Rine", position = new Vector3(-19.4f, 0f, 53f), yaw = 90f,
-                speaker = "幼いリーネの残響", line = "「兄さん、鐘の音って、どうしてこんなに悲しいの？」" });
+                speaker = "幼いリーネの残響", line = "「兄さん、鐘の音って、どうしてこんなに悲しいの？」", memoryId = 1 });
             L.Wall("Hall North", new Vector3(-6f, 0f, 68f), 0f, 17f, 9f, 305, 1.4f);
             L.Arch("Hall North Gate", new Vector3(8f, 0f, 68f), 0f, 12f, 9f, 5f, 7f, 306);
             for (int i = 0; i < 3; i++)

@@ -45,6 +45,7 @@ namespace EchoKnight
             {
                 loaded = true;
                 EchoGame.SetPaused(false);
+                EchoGame.ResetForScene();
                 SceneManager.LoadScene(sceneName);
                 start = Time.unscaledTime;
             }

@@ -109,7 +109,9 @@ namespace EchoKnight
             float a = Mathf.Clamp01((t - 0.3f) / 2f);
             float w = Screen.width, h = Screen.height;
             EchoScreenText.Label(new Rect(0f, h * 0.06f, w, h * 0.16f), "残響の騎士", titleStyle, a);
-            string line = EchoGame.FinishedAll ? "―　" + EchoGame.NextChapterName + "へ　つづく　―" : "目を失った騎士は、足音で世界を見る";
+            string line = !EchoGame.FinishedAll ? "目を失った騎士は、足音で世界を見る"
+                : EchoGame.LastEnding != null ? "―　終　―　" + EchoGame.LastEnding
+                : "―　" + EchoGame.NextChapterName + "へ　つづく　―";
             EchoScreenText.Label(new Rect(0f, h * 0.22f, w, h * 0.06f), line, subStyle, a);
 
             float menuAlpha = Mathf.Clamp01((t - 1.5f) / 1f) * (chosen ? 0.4f : 1f);

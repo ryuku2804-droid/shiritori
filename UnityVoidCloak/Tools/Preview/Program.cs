@@ -14,6 +14,7 @@ static class Program
         if (args.Length > 0 && args[0] == "stage") return DumpStage(args.Length > 1 ? args[1] : "stage.bin");
         if (args.Length > 0 && args[0] == "prologue") return DumpLayout(EchoKnight.EchoPrologueLayout.Build(), args.Length > 1 ? args[1] : "prologue");
         if (args.Length > 0 && args[0] == "title") return DumpLayout(EchoKnight.EchoTitleLayout.Build(), args.Length > 1 ? args[1] : "title");
+        if (args.Length > 0 && args[0] == "chapter3") return DumpLayout(EchoKnight.EchoChapter3Layout.Build(), args.Length > 1 ? args[1] : "chapter3");
         if (args.Length > 0 && args[0] == "chapter2") return DumpLayout(EchoKnight.EchoChapter2Layout.Build(), args.Length > 1 ? args[1] : "chapter2");
         if (args.Length > 0 && args[0] == "chapter1") return DumpLayout(EchoKnight.EchoChapter1Layout.Build(), args.Length > 1 ? args[1] : "chapter1");
         if (args.Length > 0 && args[0] == "sounds") return DumpSounds(args.Length > 1 ? args[1] : "sounds");
@@ -229,6 +230,13 @@ static class Program
                     total += b.Count;
                 }
             }
+            if (L.hasEnding)
+            {
+                var b = new EchoKnight.EchoPointBuilder(77);
+                EchoKnight.EchoFigureBody.Build(b, EchoKnight.EchoFigurePose.ChildKneel);
+                Write(w, b, L.endingCenter + new UnityEngine.Vector3(0f, 0f, 1.5f), 180f, 2f);
+                total += b.Count;
+            }
             foreach (var boss in L.bosses)
             {
                 var b = new EchoKnight.EchoPointBuilder(21);
@@ -274,7 +282,10 @@ static class Program
         File.WriteAllText(prefix + "_boxes.txt", boxes.ToString());
         var meta = new System.Text.StringBuilder();
         meta.AppendLine(string.Format(inv, "spawn {0} {1} {2}", L.playerSpawn.x, L.playerSpawn.y, L.playerSpawn.z));
-        meta.AppendLine(string.Format(inv, "goal {0} {1} {2} {3} {4} {5}", L.goalCenter.x, L.goalCenter.y, L.goalCenter.z, L.goalSize.x, L.goalSize.y, L.goalSize.z));
+        if (L.hasEnding)   // the walkability check treats the ending zone as the goal
+            meta.AppendLine(string.Format(inv, "goal {0} {1} {2} {3} {4} {5}", L.endingCenter.x, L.endingCenter.y + 2f, L.endingCenter.z, L.endingSize.x, 4f, L.endingSize.z));
+        else
+            meta.AppendLine(string.Format(inv, "goal {0} {1} {2} {3} {4} {5}", L.goalCenter.x, L.goalCenter.y, L.goalCenter.z, L.goalSize.x, L.goalSize.y, L.goalSize.z));
         foreach (var h in L.hints) meta.AppendLine(string.Format(inv, "hint {0} {1} {2} {3} {4} {5}", h.center.x, h.center.y, h.center.z, h.size.x, h.size.y, h.size.z));
         foreach (var g in L.ghosts) meta.AppendLine(string.Format(inv, "ghost {0} {1} {2}", g.position.x, g.position.y, g.position.z));
         foreach (var s in L.shrines) meta.AppendLine(string.Format(inv, "shrine {0} {1} {2}", s.position.x, s.position.y, s.position.z));

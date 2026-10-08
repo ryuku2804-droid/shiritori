@@ -24,6 +24,7 @@
     <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoStages.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoChapter1.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoChapter2.cs" />
+    <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoChapter3.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoKitCrypt.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoFigures.cs" />
     <Compile Include="../../Assets/VoidCloak/Scripts/Echo/EchoTheatreScenes.cs" />

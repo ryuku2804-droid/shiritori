@@ -113,7 +113,7 @@ namespace EchoKnight
             L.Wall("Hidden Cell South", new Vector3(-19.2f, 0f, 110.9f), 0f, 9.6f, 6f, 2333, 1.2f);
             Ceiling(L, "Ceiling Hidden Cell", new Vector3(-19f, 6f, 116f), 8.6f, 9.4f, 2334);
             L.ghosts.Add(new EchoGhostPlacement { name = "Echo Unchosen Child", position = new Vector3(-21f, 0f, 116f), yaw = 90f,
-                speaker = "選ばれなかった子の残響", line = "「……わたしじゃなくて、よかった。……ごめんね、リーネ」" });
+                speaker = "選ばれなかった子の残響", line = "「……わたしじゃなくて、よかった。……ごめんね、リーネ」", memoryId = 3 });
 
             // ---------------- E passage (x -5 .. 5, z 140 .. 156, ceiling 6)
             L.Arch("Arch D-E", new Vector3(0f, 0f, 140f), 0f, 29.2f, 7f, 5f, 6f, 2400);
@@ -157,7 +157,7 @@ namespace EchoKnight
             L.goalCenter = new Vector3(0f, 2f, 192f);
             L.goalSize = new Vector3(5f, 4f, 4f);
             L.goalTitle = "第二章　沈んだ修道院　―　完";
-            L.goalSubtitle = "水の底で、暁鐘の心臓が脈打っている。";
+            L.goalSubtitle = "暁鐘の心臓は、鐘のない塔の上に。……リーネの声とともに。";
             return L;
         }
 

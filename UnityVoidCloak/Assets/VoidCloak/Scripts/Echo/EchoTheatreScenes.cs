@@ -66,6 +66,7 @@ namespace EchoKnight
         public const string GarethMemory = "gareth_memory";
         public const string ChosenChildren = "chosen_children";
         public const string OrvanMemory = "orvan_memory";
+        public const string LastNight = "last_night";
 
         public static EchoTheatreScene Get(string id)
         {
@@ -76,6 +77,7 @@ namespace EchoKnight
                 case GarethMemory: return Gareth();
                 case ChosenChildren: return Chosen();
                 case OrvanMemory: return Orvan();
+                case LastNight: return Last();
                 default: return null;
             }
         }
@@ -193,9 +195,31 @@ namespace EchoKnight
             });
             s.Line(0.5f, "オルヴァンの残響", "「暁鐘は、声を食べて鳴る……。知っていて、黙っていたのか」", 4.5f);
             s.Line(5.2f, "修道院長の残響", "「黙っていたのは、お前もだ、鐘守りよ。百年、皆そうしてきた」", 4.5f);
-            s.Line(9.8f, "オルヴァンの残響", "「……ならば私は、この水の底で鐘の心臓を守ろう。誰にも、触れさせぬ」", 4.5f);
+            s.Line(9.8f, "オルヴァンの残響", "「……ならば私は、塔への道を守ろう。鐘の心臓には、誰も触れさせぬ」", 4.5f);
             s.Line(14.6f, "リーネ", "「……わたしの声も、あの鐘に……？　兄さんは、それを止めようとしたの……？」", 5.5f);
             s.Flash(0.1f, 30f, EchoSound.ShrineBell, 0.45f);
+            return s;
+        }
+
+        /// <summary>
+        /// Chapter 3, the top of the tower (after Aldren's own echo falls): the night the bell broke.
+        /// The child has lost her voice; the knight gives the Silence his eyes and asks for her
+        /// voice back. That is why he is blind.
+        /// </summary>
+        static EchoTheatreScene Last()
+        {
+            var s = new EchoTheatreScene { duration = 16f };
+            s.actors.Add(new[] { K(0f, 0f, 3f, 180f, ChildKneel), K(11f, 0f, 3f, 180f, ChildKneel) });                                   // Rine
+            s.actors.Add(new[]                                                                                                          // Aldren
+            {
+                K(0f, 0f, -6f, 0f, KDown), K(3f, 0f, 1f, 0f, KDown), K(4f, 0f, 1f, 0f, EchoFigurePose.Kneel), K(9f, 0f, 1f, 0f, EchoFigurePose.Kneel),
+                K(9.5f, 0f, 1f, 180f, KDown), K(13f, 0f, -4f, 180f, KUp),
+            });
+            s.Line(0.5f, "アルドレンの残響", "「リーネ……？　声が……出ないのか」", 3.5f);
+            s.Line(4.5f, null, "……砕けた鐘からあふれた しじま が、少女の声を呑みこんだ。", 4f);
+            s.Line(9.4f, "アルドレンの残響", "「……俺の目を持っていけ。代わりに、あの子の声を返せ……！」", 4f);
+            s.Line(13.6f, "リーネ", "「……兄さんの目は、あのとき……わたしのために……」", 4.5f);
+            s.Flash(13f, 40f, EchoSound.Death, 0.5f);
             return s;
         }
     }

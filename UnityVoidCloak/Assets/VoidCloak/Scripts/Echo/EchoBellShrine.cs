@@ -169,7 +169,7 @@ namespace EchoKnight
         /// <summary>F key or gamepad A this frame (also used by the puzzle bells).</summary>
         internal static bool InteractPressed()
         {
-            if (EchoGame.Paused) return false;
+            if (EchoGame.InputBlocked) return false;
 #if ENABLE_INPUT_SYSTEM
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null && kb.fKey.wasPressedThisFrame) return true;

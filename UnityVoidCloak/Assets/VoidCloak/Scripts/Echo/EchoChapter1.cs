@@ -90,7 +90,7 @@ namespace EchoKnight
             L.Wall("Hidden Yard North", new Vector3(-34.6f, 0f, 127.6f), 0f, 10f, 6f, 1283, 1.2f);
             L.Wall("Hidden Yard South", new Vector3(-34.6f, 0f, 113.4f), 0f, 10f, 6f, 1284, 1.2f);
             L.ghosts.Add(new EchoGhostPlacement { name = "Echo Mother", position = new Vector3(-36.5f, 0f, 120.5f), yaw = 90f,
-                speaker = "鐘守りの母の残響", line = "「リーネが、選ばれた……。アルドレン、お願い。あの子を守って」" });
+                speaker = "鐘守りの母の残響", line = "「リーネが、選ばれた……。アルドレン、お願い。あの子を守って」", memoryId = 2 });
 
             // ---------------- D narrow alley (x -3.5 .. 3.5, z 148 .. 196)
             L.Floor("Floor D", new Vector3(0f, 0f, 172f), 7.4f, 48.4f, 1300);

@@ -15,6 +15,7 @@ namespace EchoKnightEditor
     ///   Tools > Echo Knight > Create Prologue Stage   (序章「崩れた鐘楼」)
     ///   Tools > Echo Knight > Create Chapter 1 Stage  (第一章「灰の城下町」)
     ///   Tools > Echo Knight > Create Chapter 2 Stage  (第二章「沈んだ修道院」)
+    ///   Tools > Echo Knight > Create Chapter 3 Stage  (第三章「鐘のない塔」 - the last)
     ///   Tools > Echo Knight > Create Prototype Stage  (the test courtyard)
     /// Each creates a new scene with the dark stage, the knight, the follow camera, enemies,
     /// shrines, hints and memory echoes. Save the scene afterwards (Ctrl+S).
@@ -33,6 +34,7 @@ namespace EchoKnightEditor
                 case 0: return EchoPrologueLayout.Build();
                 case 1: return EchoChapter1Layout.Build();
                 case 2: return EchoChapter2Layout.Build();
+                case 3: return EchoChapter3Layout.Build();
                 default: return null;
             }
         }
@@ -152,6 +154,12 @@ namespace EchoKnightEditor
             BuildScene(EchoChapter2Layout.Build(), 2, "第二章「沈んだ修道院」のステージを作りました。");
         }
 
+        [MenuItem("Tools/Echo Knight/Create Chapter 3 Stage")]
+        public static void CreateChapter3Stage()
+        {
+            BuildScene(EchoChapter3Layout.Build(), 3, "第三章「鐘のない塔」のステージを作りました。");
+        }
+
         [MenuItem("Tools/Echo Knight/Create Prototype Stage")]
         public static void CreatePrototypeStage()
         {
@@ -239,7 +247,9 @@ namespace EchoKnightEditor
             var events = new GameObject("Story").transform;
             foreach (EchoGhostPlacement ghost in layout.ghosts)
             {
-                Place(ghost.name, events, ghost.position, ghost.yaw).AddComponent<EchoMemoryGhost>().Setup(gold, ghost.speaker, ghost.line);
+                var memoryGhost = Place(ghost.name, events, ghost.position, ghost.yaw).AddComponent<EchoMemoryGhost>();
+                memoryGhost.SetMemory(ghost.memoryId);
+                memoryGhost.Setup(gold, ghost.speaker, ghost.line);
             }
             var theatresByName = new Dictionary<string, EchoMemoryTheatre>();
             foreach (EchoTheatrePlacement th in layout.theatres)
@@ -251,6 +261,10 @@ namespace EchoKnightEditor
             foreach (EchoHintPlacement hint in layout.hints)
             {
                 Place(hint.name, events, hint.center, 0f).AddComponent<EchoHintZone>().Setup(hint.size, hint.speaker, hint.line, hint.instruction);
+            }
+            if (layout.hasEnding)
+            {
+                Place("Ending (The Heart)", events, layout.endingCenter, 0f).AddComponent<EchoEnding>().Setup(gold, layout.endingSize);
             }
             if (layout.hasGoal)
             {

@@ -17,11 +17,18 @@ namespace EchoKnight
         [SerializeField] private string speaker = "残響";
         [SerializeField, TextArea(1, 3)] private string line = "";
         [SerializeField, Min(1f)] private float hearDistance = 6f;
+        [Tooltip("1-3: hearing this echo gives that memory fragment (all three open the true ending). 0 = none.")]
+        [SerializeField, Range(0, 3)] private int memoryId = 0;
 
         Mesh mesh;
         float alpha;
         bool wasNear;
         float nextChime;
+
+        public void SetMemory(int id)
+        {
+            memoryId = id;
+        }
 
         public void Setup(Material newMaterial, string ghostSpeaker, string ghostLine)
         {
@@ -67,6 +74,7 @@ namespace EchoKnight
                 d.y = 0f;
                 near = d.magnitude < hearDistance;
             }
+            if (near && memoryId > 0) EchoGame.CollectMemory(memoryId);
             if (near && !wasNear && Time.time >= nextChime)
             {
                 // a soft chime so the figure shows itself

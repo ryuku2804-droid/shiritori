@@ -24,7 +24,7 @@ def footprint(b):
 
 foot = [footprint(b) for b in boxes]
 bottoms = boxes[:, 1] - boxes[:, 4] / 2; tops = boxes[:, 1] + boxes[:, 4] / 2
-levels = sorted(set(np.round(t, 2) for t in tops if -10.0 <= t <= 4.0))
+levels = sorted(set(np.round(t, 2) for t in tops if -10.0 <= t <= 40.0))   # (wall and ceiling tops are levels too, but never reachable)
 
 # disc offsets for the capsule radius
 r = int(np.ceil(RADIUS / RES)); offs = [(i, j) for i in range(-r, r + 1) for j in range(-r, r + 1) if (i * RES) ** 2 + (j * RES) ** 2 <= RADIUS ** 2]

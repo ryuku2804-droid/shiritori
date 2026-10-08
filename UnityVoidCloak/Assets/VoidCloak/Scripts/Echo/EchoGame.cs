@@ -24,16 +24,30 @@ namespace EchoKnight
             new Chapter("EchoPrologue", "序章　崩れた鐘楼"),
             new Chapter("EchoChapter1", "第一章　灰の城下町"),
             new Chapter("EchoChapter2", "第二章　沈んだ修道院"),
+            new Chapter("EchoChapter3", "第三章　鐘のない塔"),
         };
 
         const string KeyHasSave = "EchoKnight.HasSave";
         const string KeyChapter = "EchoKnight.Chapter";
         const string KeyShrine = "EchoKnight.Shrine";
+        const string KeyMemories = "EchoKnight.Memories";
+
+        /// <summary>The memory fragments hidden behind the hollow walls (one per chapter before the last).</summary>
+        public const int MemoryTotal = 3;
 
         static string pendingShrine;
 
         /// <summary>True while the pause menu is open: gameplay input is ignored.</summary>
         public static bool Paused { get; private set; }
+
+        /// <summary>True during the ending: the knight does not act.</summary>
+        public static bool InCutscene { get; set; }
+
+        /// <summary>Gameplay input (attacks, strike, stones, shrines) is ignored.</summary>
+        public static bool InputBlocked { get { return Paused || InCutscene; } }
+
+        /// <summary>The ending just reached (the title screen names it), or null.</summary>
+        public static string LastEnding { get; private set; }
 
         static readonly string[] Numerals = { "零", "一", "二", "三", "四", "五", "六", "七", "八", "九" };
 
@@ -133,6 +147,8 @@ namespace EchoKnight
         {
             pendingShrine = null;
             FinishedAll = false;
+            LastEnding = null;
+            PlayerPrefs.SetInt(KeyMemories, 0);   // the memory fragments are found again
             SaveChapterStart(0);
             EchoSceneFader.FadeTo(Chapters[0].scene);
         }
@@ -141,6 +157,7 @@ namespace EchoKnight
         {
             if (!HasSave) { NewGame(); return; }
             FinishedAll = false;
+            LastEnding = null;
             pendingShrine = PlayerPrefs.GetString(KeyShrine, "");
             EchoSceneFader.FadeTo(Chapters[SavedChapter].scene);
         }
@@ -160,6 +177,61 @@ namespace EchoKnight
                 FinishedAll = chapter >= 0;
                 EchoSceneFader.FadeTo(TitleScene);
             }
+        }
+
+        /// <summary>The story is over: back to the title, which names the ending.</summary>
+        public static void FinishGame(string endingName)
+        {
+            pendingShrine = null;
+            InCutscene = false;
+            FinishedAll = true;
+            LastEnding = endingName;
+            EchoSceneFader.FadeTo(TitleScene);
+        }
+
+        // ------------------------------------------------------------------ memory fragments
+
+        public static bool HasMemory(int id)
+        {
+            return id >= 1 && id <= 30 && (PlayerPrefs.GetInt(KeyMemories, 0) & (1 << id)) != 0;
+        }
+
+        public static int MemoryCount
+        {
+            get
+            {
+                int bits = PlayerPrefs.GetInt(KeyMemories, 0), n = 0;
+                for (int i = 1; i <= MemoryTotal; i++) if ((bits & (1 << i)) != 0) n++;
+                return n;
+            }
+        }
+
+        /// <summary>A hidden memory echo was heard: one fragment more (saved at once).</summary>
+        public static void CollectMemory(int id)
+        {
+            if (id < 1 || HasMemory(id)) return;
+            PlayerPrefs.SetInt(KeyMemories, PlayerPrefs.GetInt(KeyMemories, 0) | (1 << id));
+            PlayerPrefs.Save();
+            Notice("―　記憶のかけら　" + MemoryCount + " / " + MemoryTotal + "　―", 4f);
+        }
+
+        static string noticeText;
+        static float noticeFrom, noticeUntil = -1f;
+
+        /// <summary>A short line near the bottom of the screen (below dialogue).</summary>
+        public static void Notice(string text, float seconds)
+        {
+            noticeText = text;
+            noticeFrom = Time.time;
+            noticeUntil = Time.time + seconds;
+        }
+
+        public static float Noticing(out string text)
+        {
+            text = noticeText;
+            if (noticeFrom > Time.time + 1f) noticeUntil = -1f;
+            float a = Mathf.Clamp01((Time.time - noticeFrom) / 0.4f) * Mathf.Clamp01((noticeUntil - Time.time) / 0.8f);
+            return text == null ? 0f : a;
         }
 
         public static void BackToTitle()
@@ -182,6 +254,13 @@ namespace EchoKnight
             Paused = paused;
             Time.timeScale = paused ? 0f : 1f;
             AudioListener.pause = paused;
+        }
+
+        /// <summary>Called when a stage loads: nothing from the last scene carries over.</summary>
+        public static void ResetForScene()
+        {
+            InCutscene = false;
+            SilencedUntil = 0f;
         }
     }
 

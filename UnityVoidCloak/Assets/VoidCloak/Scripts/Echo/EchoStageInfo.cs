@@ -71,6 +71,9 @@ namespace EchoKnight
             string speaker, line;
             float say = EchoGame.Saying(out speaker, out line);
             if (say > 0.01f) EchoScreenText.Draw(speaker, line, null, say);
+            string notice;
+            float noticeAlpha = EchoGame.Noticing(out notice);
+            if (noticeAlpha > 0.01f) EchoScreenText.DrawPrompt(notice, noticeAlpha);
 
             if (chapterIndex < 0 || chapterIndex >= EchoGame.Chapters.Length || titleSeconds <= 0f) return;
             float t = Time.time - startTime;

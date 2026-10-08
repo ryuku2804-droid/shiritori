@@ -38,7 +38,7 @@ namespace EchoKnight
                 Land(flights[i].land);
                 flights.RemoveAt(i);
             }
-            if (EchoGame.Paused || (combat != null && combat.IsDying)) return;
+            if (EchoGame.InputBlocked || (combat != null && combat.IsDying)) return;
             if (Time.time >= readyTime && ThrowPressed()) Throw();
         }
 
