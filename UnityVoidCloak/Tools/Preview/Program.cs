@@ -207,6 +207,28 @@ static class Program
                 Write(w, b, a.position, a.yaw, 1f);
                 total += b.Count;
             }
+            foreach (var th in L.theatres)
+            {
+                var scene = EchoKnight.EchoTheatreScenes.Get(th.sceneId);
+                if (scene == null || th.triggerRadius <= 0f) continue;   // hidden until a boss falls
+                var tq = UnityEngine.Quaternion.Euler(0f, th.yaw, 0f);
+                foreach (var keys in scene.actors)
+                {
+                    if (keys[0].pose == EchoKnight.EchoFigurePose.None) continue;
+                    var b = new EchoKnight.EchoPointBuilder(40 + (int)keys[0].pose);
+                    EchoKnight.EchoFigureBody.Build(b, keys[0].pose);
+                    Write(w, b, th.position + tq * keys[0].position, th.yaw + keys[0].yaw, 2f);
+                    total += b.Count;
+                }
+            }
+            foreach (var boss in L.bosses)
+            {
+                var b = new EchoKnight.EchoPointBuilder(21);
+                EchoKnight.EchoSilentKnightBody.Build(b);
+                for (int i = 0; i < b.Count; i++) b.positions[i] = b.positions[i] * 1.12f;
+                Write(w, b, boss.position, boss.yaw, 1f);
+                total += b.Count;
+            }
             // sound puzzles. The hollow wall and the door leaves are left out of the colliders,
             // so the walkability check sees them solved (broken / open).
             foreach (var hw in L.hollowWalls)
@@ -251,6 +273,7 @@ static class Program
         foreach (var e in L.listeners) meta.AppendLine(string.Format(inv, "listener {0} {1} {2} {3}", e.position.x, e.position.y, e.position.z, e.wanderRadius));
         foreach (var door in L.bellDoors)
             foreach (var bp in door.bells) meta.AppendLine(string.Format(inv, "bell {0} {1} {2}", bp.position.x, bp.position.y, bp.position.z));
+        foreach (var boss in L.bosses) meta.AppendLine(string.Format(inv, "armor {0} {1} {2}", boss.position.x, boss.position.y, boss.position.z));
         foreach (var a in L.armors)
             foreach (var r in a.route) meta.AppendLine(string.Format(inv, "armor {0} {1} {2}", r.x, r.y, r.z));
         File.WriteAllText(prefix + "_meta.txt", meta.ToString());

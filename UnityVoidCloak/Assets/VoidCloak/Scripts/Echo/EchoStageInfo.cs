@@ -68,6 +68,10 @@ namespace EchoKnight
 
         void OnGUI()
         {
+            string speaker, line;
+            float say = EchoGame.Saying(out speaker, out line);
+            if (say > 0.01f) EchoScreenText.Draw(speaker, line, null, say);
+
             if (chapterIndex < 0 || chapterIndex >= EchoGame.Chapters.Length || titleSeconds <= 0f) return;
             float t = Time.time - startTime;
             if (t > titleSeconds) return;

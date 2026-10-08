@@ -37,6 +37,14 @@ namespace EchoKnight
         float ringTime = -100f;
         float messageUntil;
         bool activated;
+        bool sangBefore;
+
+        static readonly string[] FirstRingLines =
+        {
+            "……あったかい音。少しだけ、休んで。",
+            "この音……覚えてる。小さいころ、兄さんと聞いた。",
+            "鐘の音がするところでは、あれは来ない。……少しだけ、ね。",
+        };
 
         /// <summary>The shrine the knight will return to (null until one is rung).</summary>
         public static EchoBellShrine ActiveShrine { get; private set; }
@@ -130,6 +138,11 @@ namespace EchoKnight
             EchoAudio.Play(EchoSound.ShrineBell, transform.TransformPoint(EchoBellShrineShape.BellPivot), 1f);
 
             EchoGame.SaveShrine(gameObject.name);
+            if (!sangBefore)
+            {
+                sangBefore = true;
+                EchoGame.Say("リーネ", FirstRingLines[Random.Range(0, FirstRingLines.Length)], 3.5f);
+            }
             SetCheckpointHere(false);
         }
 

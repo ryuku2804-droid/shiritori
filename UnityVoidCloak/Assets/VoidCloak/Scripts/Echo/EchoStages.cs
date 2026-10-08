@@ -49,6 +49,27 @@ namespace EchoKnight
         public int[] sequence;
     }
 
+    /// <summary>An echo theatre: a past scene replayed by golden figures (see EchoTheatreScenes).</summary>
+    public struct EchoTheatrePlacement
+    {
+        public string name;
+        public Vector3 position;
+        public float yaw;
+        public string sceneId;
+        /// <summary>A bell strike inside this distance starts it (0 = only started by a boss falling).</summary>
+        public float triggerRadius;
+    }
+
+    /// <summary>The Silent Knight. It opens the named door and plays the named theatre when it falls.</summary>
+    public struct EchoBossPlacement
+    {
+        public string name;
+        public Vector3 position;
+        public float yaw;
+        public string sealedDoorName;
+        public string theatreName;
+    }
+
     /// <summary>A zone that shows a line of story and / or an instruction while the knight is inside.</summary>
     public struct EchoHintPlacement
     {
@@ -82,6 +103,8 @@ namespace EchoKnight
         public readonly List<EchoArmorPlacement> armors = new List<EchoArmorPlacement>();
         public readonly List<EchoHollowWallPlacement> hollowWalls = new List<EchoHollowWallPlacement>();
         public readonly List<EchoBellDoorPlacement> bellDoors = new List<EchoBellDoorPlacement>();
+        public readonly List<EchoTheatrePlacement> theatres = new List<EchoTheatrePlacement>();
+        public readonly List<EchoBossPlacement> bosses = new List<EchoBossPlacement>();
         public readonly List<EchoHintPlacement> hints = new List<EchoHintPlacement>();
         public readonly List<EchoGhostPlacement> ghosts = new List<EchoGhostPlacement>();
         public bool hasGoal;
@@ -192,7 +215,9 @@ namespace EchoKnight
                 L.Pillar("Hall Pillar E" + i, new Vector3(7f, 0f, 45f + i * 8f), 1.6f, 8f, 320 + i);
             }
             L.Hint("Hint Strike", new Vector3(0f, 4f, 41.5f), new Vector3(28f, 8f, 7f), null, null,
-                   "Space：鐘打ち　―　剣で床を打ち、大きな波を出す。少し待つと、また使える");
+                   "Space：鐘打ち　―　大きな波を出す。波は、この場所に残る記憶も呼び起こす");
+            L.theatres.Add(new EchoTheatrePlacement { name = "Echo Theatre (The Offering)", position = new Vector3(0f, 0f, 53f), yaw = 0f,
+                sceneId = EchoTheatreScenes.HallRitual, triggerRadius = 16f });
             L.ghosts.Add(new EchoGhostPlacement { name = "Echo Bell Keeper", position = new Vector3(-9.5f, 0f, 63f), yaw = 135f,
                 speaker = "鐘守りの残響", line = "「鐘が……割れる……！　アルドレン、どこだ……！」" });
             // the Hollow Armor walks a loop between the pillar rows; the side aisles stay out of its reach
@@ -223,7 +248,7 @@ namespace EchoKnight
             L.Piece("Cloister Crate 2", new Vector3(6.8f, 0f, 96.8f), -10f, new EchoKitSpec { kind = EchoKitKind.Crate, size = new Vector3(1.3f, 1.3f, 1.3f), pointSpacing = 0.09f, seed = 419 });
             L.listeners.Add(new EchoEnemyPlacement { position = new Vector3(14f, 0f, 90f), yaw = 180f, wanderRadius = 7f });
             L.Hint("Hint Listener", new Vector3(8f, 3f, 71.5f), new Vector3(10f, 6f, 6f), "リーネ", "……何かいる。目の見えない、音だけを聞くもの。",
-                   "聴き手は音でしか追ってこない　―　立ち止まれば見つからない");
+                   "聴き手は音でしか追ってこない。立ち止まれば見つからない　―　R：石を投げる（落ちた所で音がして、聴き手はそこへ向かう）");
             L.shrines.Add(new EchoShrinePlacement { name = "Bell Shrine (Cloister)", position = new Vector3(22.5f, 0f, 95.5f), yaw = 180f });
 
             // ---------------- 5 chapel (x 4 .. 24, z 100 .. 124)
@@ -238,8 +263,8 @@ namespace EchoKnight
             L.Pillar("Chapel Pillar 3", new Vector3(10f, 0f, 119.5f), 1.4f, 7f, 512);
             L.Pillar("Chapel Pillar 4", new Vector3(18f, 0f, 119.5f), 1.4f, 7f, 513);
             L.listeners.Add(new EchoEnemyPlacement { position = new Vector3(14f, 0f, 112f), yaw = 180f, wanderRadius = 3.5f });
-            L.Hint("Hint Fight", new Vector3(14f, 3f, 103f), new Vector3(16f, 6f, 5f), null, null,
-                   "左クリック：斬る　E：強く斬る　Q：パリィ　―　聴き手が叫んだら、それが攻撃の合図");
+            L.Hint("Hint Fight", new Vector3(14f, 3f, 103f), new Vector3(16f, 6f, 5f), null, "左クリック：斬る　E：強く斬る　Q：パリィ",
+                   "聴き手の叫びは赤い輪になって広がり、触れると死ぬ　―　輪が届く瞬間に Q（パリィ）で跳ね返す。柱の陰なら届かない");
             // the north gate is shut by a singing door: three bells answer it
             L.bellDoors.Add(new EchoBellDoorPlacement
             {

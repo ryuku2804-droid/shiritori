@@ -11,8 +11,10 @@ namespace EchoKnight
     ///                        a hollow wall in the west row hides a courtyard (the mother's echo)
     ///   D Narrow alley     - tall houses, a Hollow Armor walking up and down; ruins to step into
     ///   E Cathedral square - a Listener guards four bells; the cathedral door sings their order
-    ///   F Under the door   - stairs down into the dark: end of the chapter
-    /// The path runs north (+Z) from z = 0 to z = 253.
+    ///   F Under the door   - stairs down into the dark
+    ///   G The crypt hall   - the Silent Knight Gareth. Four pillars to hide behind from his rings.
+    ///                        When he falls, the sealed door opens and his memory plays: Aldren broke the bell.
+    /// The path runs north (+Z) from z = 0 to z = 289.
     /// </summary>
     public static class EchoChapter1Layout
     {
@@ -60,6 +62,8 @@ namespace EchoKnight
             HouseRow(L, "C North West", new Vector3(-3.5f, 0f, 148f), 180f, 8f, new[] { 8f, 10f, 8.5f }, new[] { 11f, 9f, 12f }, 1250, -1);
             HouseRow(L, "C North East", new Vector3(30f, 0f, 148f), 180f, 8f, new[] { 9f, 9.5f, 8f }, new[] { 10f, 12f, 9f }, 1255, -1);
             L.Piece("Market Well", new Vector3(0f, 0f, 126f), 0f, new EchoKitSpec { kind = EchoKitKind.Well, size = new Vector3(3.4f, 1.1f, 0f), pointSpacing = 0.09f, seed = 1260 });
+            L.theatres.Add(new EchoTheatrePlacement { name = "Echo Theatre (The Night The Bell Stopped)", position = new Vector3(0f, 0f, 126f), yaw = 0f,
+                sceneId = EchoTheatreScenes.MarketNight, triggerRadius = 14f });
             Stall(L, "Stall 1", new Vector3(-12f, 0f, 110f), 0f, 1261);
             Stall(L, "Stall 2", new Vector3(12f, 0f, 110f), 0f, 1262);
             Stall(L, "Stall 3", new Vector3(-17f, 0f, 128f), 90f, 1263);
@@ -131,9 +135,37 @@ namespace EchoKnight
             L.Piece("Crypt Landing", new Vector3(0f, -3f, 249f), 0f, new EchoKitSpec { kind = EchoKitKind.Floor, size = new Vector3(6.4f, 0f, 7.6f), pointSpacing = 0.2f, seed = 1501 });
             L.Wall("Crypt West", new Vector3(-3.7f, -3f, 245.4f), 90f, 16f, 15f, 1502, 1.2f);
             L.Wall("Crypt East", new Vector3(3.7f, -3f, 245.4f), 90f, 16f, 15f, 1503, 1.2f);
-            L.Wall("Crypt End", new Vector3(0f, -3f, 253.4f), 0f, 8.6f, 15f, 1504, 1.2f);
+
+            // ---------------- G the crypt hall: the Silent Knight (x -13 .. 13, z 253 .. 280, floor at y = -3)
+            L.Floor("Floor Crypt Hall", new Vector3(0f, -3f, 266.7f), 26.4f, 28.6f, 1600);   // z 252.4 .. 281: under both doorways
+            L.Wall("Crypt Hall West", new Vector3(-13.8f, -3f, 266.4f), 90f, 28.2f, 12f, 1601, 1.2f);
+            L.Wall("Crypt Hall East", new Vector3(13.8f, -3f, 266.4f), 90f, 28.2f, 12f, 1602, 1.2f);
+            L.Wall("Crypt Hall South West", new Vector3(-8.45f, -3f, 252.6f), 0f, 9.5f, 12f, 1603, 1.2f);
+            L.Wall("Crypt Hall South East", new Vector3(8.45f, -3f, 252.6f), 0f, 9.5f, 12f, 1604, 1.2f);
+            L.Arch("Crypt Hall North", new Vector3(0f, -3f, 280.4f), 0f, 28.8f, 12f, 5f, 6.5f, 1605);
+            for (int i = 0; i < 4; i++)
+            {
+                float px = i % 2 == 0 ? -6.5f : 6.5f, pz = i < 2 ? 259f : 273f;
+                L.Pillar("Crypt Hall Pillar " + (i + 1), new Vector3(px, -3f, pz), 1.8f, 8f, 1610 + i);
+            }
+            L.shrines.Add(new EchoShrinePlacement { name = "Bell Shrine (Crypt)", position = new Vector3(-10.5f, -3f, 256f), yaw = 90f });
+            L.bellDoors.Add(new EchoBellDoorPlacement
+            {
+                name = "Sealed Door (Crypt)", position = new Vector3(0f, -3f, 280.4f), yaw = 0f, width = 5f, openingHeight = 6.5f,
+                bells = new EchoPuzzleBellPlacement[0], sequence = new int[0],
+            });
+            L.theatres.Add(new EchoTheatrePlacement { name = "Echo Theatre (Gareth)", position = new Vector3(0f, -3f, 266f), yaw = 0f,
+                sceneId = EchoTheatreScenes.GarethMemory, triggerRadius = 0f });
+            L.bosses.Add(new EchoBossPlacement { name = "Silent Knight Gareth", position = new Vector3(0f, -3f, 272f), yaw = 180f,
+                sealedDoorName = "Sealed Door (Crypt)", theatreName = "Echo Theatre (Gareth)" });
+
+            // ---------------- H the way on, behind the sealed door
+            L.Floor("Floor Crypt Exit", new Vector3(0f, -3f, 284.8f), 7.4f, 8.2f, 1620);
+            L.Wall("Crypt Exit West", new Vector3(-4.3f, -3f, 285.2f), 90f, 9.2f, 10f, 1621, 1.2f);
+            L.Wall("Crypt Exit East", new Vector3(4.3f, -3f, 285.2f), 90f, 9.2f, 10f, 1622, 1.2f);
+            L.Wall("Crypt Exit End", new Vector3(0f, -3f, 289.5f), 0f, 9.8f, 10f, 1623, 1.2f);
             L.hasGoal = true;
-            L.goalCenter = new Vector3(0f, -1f, 250f);
+            L.goalCenter = new Vector3(0f, -1f, 286f);
             L.goalSize = new Vector3(5f, 4f, 4f);
             L.goalTitle = "第一章　灰の城下町　―　完";
             L.goalSubtitle = "大聖堂の下から、沈んだ鐘の音が聞こえる。";

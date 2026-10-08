@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace EchoKnight
@@ -35,6 +36,53 @@ namespace EchoKnight
 
         /// <summary>Set when the last chapter has just been finished (the title screen says "to be continued").</summary>
         public static bool FinishedAll { get; set; }
+
+        // ------------------------------------------------------------------ during play
+
+        /// <summary>The knight fell. Enemies go back to where they started; attack rings vanish.</summary>
+        public static event Action PlayerDied;
+
+        public static void NotifyPlayerDied()
+        {
+            EchoShockwaves.Clear();
+            SilencedUntil = 0f;
+            if (PlayerDied != null) PlayerDied();
+            Say("リーネ", DeathLines[UnityEngine.Random.Range(0, DeathLines.Length)], 3.5f);
+        }
+
+        static readonly string[] DeathLines =
+        {
+            "……兄さん。立って。",
+            "まだ、終わってない。……聞こえる？",
+            "……もう一度。今度は、よく聞いて。",
+            "音は、嘘をつかない。……兄さん、もう一度。",
+        };
+
+        /// <summary>While Time.time is below this, the knight's footsteps make no echo (the Silent Knight's veil).</summary>
+        public static float SilencedUntil { get; set; }
+        public static bool Silenced { get { return Time.time < SilencedUntil; } }
+
+        /// <summary>A line of dialogue at the bottom of the screen (Rine mostly). Drawn by the stage.</summary>
+        public static void Say(string speaker, string line, float seconds)
+        {
+            sayingSpeaker = speaker;
+            sayingLine = line;
+            sayingUntil = Time.time + seconds;
+            sayingFrom = Time.time;
+        }
+
+        static string sayingSpeaker, sayingLine;
+        static float sayingUntil = -1f, sayingFrom;
+
+        /// <summary>Current line and its fade (0 when nothing is said).</summary>
+        public static float Saying(out string speaker, out string line)
+        {
+            speaker = sayingSpeaker;
+            line = sayingLine;
+            if (sayingFrom > Time.time + 1f) sayingUntil = -1f;   // left over from an earlier play session
+            float a = Mathf.Clamp01((Time.time - sayingFrom) / 0.4f) * Mathf.Clamp01((sayingUntil - Time.time) / 0.8f);
+            return line == null ? 0f : a;
+        }
 
         // ------------------------------------------------------------------ save data
 

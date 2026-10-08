@@ -16,6 +16,7 @@ namespace EchoKnight
     ///   as it raises the sword - no red echo. Parry (Q / LB) on the scrape's end.
     ///   The blow hits the floor hard and that DOES send out a red echo.
     /// - A shrine bell makes it stop and stand still for a while (it was once a bell keeper).
+    /// - Its blow is death. When the knight falls, it goes back to the start of its round.
     /// </summary>
     [ExecuteAlways]
     [DisallowMultipleComponent]
@@ -78,6 +79,7 @@ namespace EchoKnight
         float nextStepTime;
         float health;
         Vector3 knockback;
+        Quaternion homeRotation;
 
         public bool IsAlive { get { return state != State.Dead; } }
         public Vector3 Position { get { return transform.position; } }
@@ -95,11 +97,13 @@ namespace EchoKnight
         {
             BuildBody();
             home = transform.position;
+            homeRotation = transform.rotation;
             health = maxHealth;
             state = State.Patrol;
             routeIndex = 0;
             target = RoutePoint(0);
             EchoSystem.WaveEmitted += OnWave;
+            EchoGame.PlayerDied += Revive;
             EchoTargets.Register(this);
         }
 
@@ -107,6 +111,7 @@ namespace EchoKnight
         {
             EchoTargets.Unregister(this);
             EchoSystem.WaveEmitted -= OnWave;
+            EchoGame.PlayerDied -= Revive;
             var filter = GetComponent<MeshFilter>();
             if (filter != null && filter.sharedMesh == mesh) filter.sharedMesh = null;
             EchoMeshUtil.DestroySafe(mesh);
@@ -183,6 +188,7 @@ namespace EchoKnight
             // steel on steel rings out
             EchoSystem.Emit(transform.position + Vector3.up * 2.5f, 12f + damage * 4f, EchoSource.Enemy, 1.3f);
             EchoAudio.Play(EchoSound.ArmorHit, transform.position + Vector3.up * 2.5f, 0.9f, Random.Range(0.92f, 1.08f));
+            EchoSystem.Noise(transform.position, 20f);   // steel ringing carries far
 
             if (health <= 0f)
             {
@@ -216,7 +222,11 @@ namespace EchoKnight
 
         void Revive()
         {
-            transform.position = home;
+            transform.SetPositionAndRotation(home, homeRotation);
+            knockback = Vector3.zero;
+            lastSenseTime = -100f;
+            waitUntil = 0f;
+            routeDir = 1;
             health = maxHealth;
             state = State.Patrol;
             routeIndex = 0;

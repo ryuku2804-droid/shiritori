@@ -196,6 +196,7 @@ namespace EchoKnightEditor
             }
 
             // ---------------- sound puzzles
+            var doorsByName = new Dictionary<string, EchoBellDoor>();
             foreach (EchoHollowWallPlacement wall in layout.hollowWalls)
             {
                 Place(wall.name, stage, wall.position, wall.yaw).AddComponent<EchoHollowWall>().Setup(stone, wall.size, wall.seed);
@@ -208,7 +209,9 @@ namespace EchoKnightEditor
                     bells[i] = Place(door.name + " - Bell " + (i + 1), stage, door.bells[i].position, door.bells[i].yaw).AddComponent<EchoPuzzleBell>();
                     bells[i].Setup(gold, i);
                 }
-                Place(door.name, stage, door.position, door.yaw).AddComponent<EchoBellDoor>().Setup(stone, door.width, door.openingHeight, bells, door.sequence);
+                var bellDoor = Place(door.name, stage, door.position, door.yaw).AddComponent<EchoBellDoor>();
+                bellDoor.Setup(stone, door.width, door.openingHeight, bells, door.sequence);
+                doorsByName[door.name] = bellDoor;
             }
 
             // ---------------- bell shrines (save points)
@@ -222,6 +225,13 @@ namespace EchoKnightEditor
             foreach (EchoGhostPlacement ghost in layout.ghosts)
             {
                 Place(ghost.name, events, ghost.position, ghost.yaw).AddComponent<EchoMemoryGhost>().Setup(gold, ghost.speaker, ghost.line);
+            }
+            var theatresByName = new Dictionary<string, EchoMemoryTheatre>();
+            foreach (EchoTheatrePlacement th in layout.theatres)
+            {
+                var theatre = Place(th.name, events, th.position, th.yaw).AddComponent<EchoMemoryTheatre>();
+                theatre.Setup(gold, th.sceneId, th.triggerRadius);
+                theatresByName[th.name] = theatre;
             }
             foreach (EchoHintPlacement hint in layout.hints)
             {
@@ -249,6 +259,7 @@ namespace EchoKnightEditor
             player.AddComponent<VoidCloakMover>();
             player.AddComponent<EchoPlayer>();
             player.AddComponent<EchoCombat>();
+            player.AddComponent<EchoStoneThrow>();
 
             // ---------------- camera (pure black background)
             var camGo = new GameObject("Main Camera");
@@ -273,6 +284,17 @@ namespace EchoKnightEditor
             foreach (EchoArmorPlacement a in layout.armors)
             {
                 Place("Hollow Armor " + n++, enemies, a.position, a.yaw).AddComponent<EchoHollowArmorEnemy>().Setup(enemy, player.transform, a.route);
+            }
+
+            foreach (EchoBossPlacement boss in layout.bosses)
+            {
+                EchoBellDoor sealedDoor;
+                EchoMemoryTheatre memory;
+                doorsByName.TryGetValue(boss.sealedDoorName ?? "", out sealedDoor);
+                theatresByName.TryGetValue(boss.theatreName ?? "", out memory);
+                var go = Place(boss.name, enemies, boss.position, boss.yaw);
+                go.transform.localScale = Vector3.one * 1.12f;
+                go.AddComponent<EchoSilentKnightBoss>().Setup(enemy, player.transform, sealedDoor, memory);
             }
 
             RenderSettings.skybox = null;

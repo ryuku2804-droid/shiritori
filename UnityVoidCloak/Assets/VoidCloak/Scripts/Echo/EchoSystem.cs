@@ -95,17 +95,35 @@ namespace EchoKnight
         {
             EchoSystem s = Ensure();
             if (s == null) return;
+            Emit(origin, radius, source, strength, s.waveSpeed);
+        }
+
+        /// <summary>A wave with its own speed (attack rings travel slowly enough to be seen coming).</summary>
+        public static void Emit(Vector3 origin, float radius, EchoSource source, float strength, float speed)
+        {
+            EchoSystem s = Ensure();
+            if (s == null) return;
             var wave = new EchoWave
             {
                 origin = origin,
                 startTime = Time.time,
                 radius = radius,
-                speed = s.waveSpeed,
+                speed = Mathf.Max(0.5f, speed),
                 strength = strength,
                 source = source,
             };
             s.Add(wave);
             if (WaveEmitted != null) WaveEmitted(wave);
+        }
+
+        /// <summary>
+        /// A sound enemies hear but nobody sees (a sword biting, a body falling). It reaches
+        /// listeners like a wave of the given source, but draws nothing.
+        /// </summary>
+        public static void Noise(Vector3 origin, float radius, EchoSource heardAs = EchoSource.Strike)
+        {
+            if (WaveEmitted == null) return;
+            WaveEmitted(new EchoWave { origin = origin, startTime = Time.time, radius = radius, speed = 26f, strength = 0f, source = heardAs });
         }
 
         void Add(EchoWave wave)

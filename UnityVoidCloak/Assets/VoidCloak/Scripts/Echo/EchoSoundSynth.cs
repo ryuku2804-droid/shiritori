@@ -29,6 +29,7 @@ namespace EchoKnight
         DoorOpen,
         HollowKnock,
         WallCrumble,
+        StoneClack,
         Count,
     }
 
@@ -49,6 +50,7 @@ namespace EchoKnight
                 case EchoSound.RunStep:
                 case EchoSound.ListenerStep:
                 case EchoSound.ArmorStep:
+                case EchoSound.StoneClack:
                     return 4;
                 case EchoSound.Hit:
                 case EchoSound.SwingLight:
@@ -93,6 +95,7 @@ namespace EchoKnight
                 case EchoSound.DoorOpen: data = DoorOpen(rng); break;
                 case EchoSound.HollowKnock: data = HollowKnock(rng); break;
                 case EchoSound.WallCrumble: data = WallCrumble(rng); break;
+                case EchoSound.StoneClack: data = StoneClack(rng); break;
                 default: data = new float[1]; break;
             }
             Normalize(data, sound == EchoSound.Ambience ? 0.5f : 0.9f, !Loops(sound));
@@ -549,6 +552,22 @@ namespace EchoKnight
                     float t = (float)i / SampleRate;
                     d[s0 + i] += (Sin(2.0 * Math.PI * f * t) * 0.5f + Noise(rng) * 0.6f) * (float)Math.Exp(-t * 45f) * level;
                 }
+            }
+            return d;
+        }
+
+        /// <summary>A thrown stone landing: a hard click, a smaller bounce, a little skitter.</summary>
+        static float[] StoneClack(Random rng)
+        {
+            float[] d = Buffer(0.7f);
+            float[] at = { 0.004f, 0.13f + (float)rng.NextDouble() * 0.05f, 0.24f + (float)rng.NextDouble() * 0.05f };   // (not at 0: the edges fade)
+            float[] level = { 1f, 0.45f, 0.2f };
+            for (int k = 0; k < at.Length; k++)
+            {
+                int s0 = (int)(at[k] * SampleRate);
+                for (int i = 0; i < 260 && s0 + i < d.Length; i++) d[s0 + i] += Noise(rng) * (float)Math.Exp(-i / 35.0) * level[k];
+                float f = 2300f + (float)rng.NextDouble() * 900f;
+                AddPartials(d, rng, new[] { f, f * 1.37f, f * 0.61f }, new[] { 0.25f * level[k], 0.15f * level[k], 0.12f * level[k] }, new[] { 38f, 50f, 30f }, at[k]);
             }
             return d;
         }

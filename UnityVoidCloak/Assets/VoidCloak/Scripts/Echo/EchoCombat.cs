@@ -14,8 +14,12 @@ namespace EchoKnight
     /// around. A successful parry rings like a bell: a big echo, and the enemy is stunned and takes
     /// double damage for a moment.
     ///
-    /// Health is shown without a HUD: the screen edges darken as the knight gets hurt and flash
-    /// red on every hit.
+    /// Attack rings (<see cref="EchoShockwaves"/>): parry just as the red ring's front reaches the
+    /// knight and it is thrown back at its owner (damage + stun). Pillars and walls between the
+    /// knight and the ring's origin block it.
+    ///
+    /// One blow is death (Max Health 1): the screen goes dark, the knight wakes at the last shrine
+    /// and every enemy is back where it started.
     /// </summary>
     [DisallowMultipleComponent]
     [RequireComponent(typeof(VoidCloakCharacter), typeof(VoidCloakMover), typeof(EchoPlayer))]
@@ -24,7 +28,8 @@ namespace EchoKnight
         enum Action { None, Light, Heavy, Parry }
 
         [Header("Health")]
-        [SerializeField, Min(1)] private int maxHealth = 5;
+        [Tooltip("1 = any blow is death.")]
+        [SerializeField, Min(1)] private int maxHealth = 1;
         [Tooltip("Seconds of invulnerability after being hit.")]
         [SerializeField, Min(0f)] private float hurtInvulnerability = 0.8f;
 
@@ -46,6 +51,17 @@ namespace EchoKnight
         [SerializeField, Min(0f)] private float parryEchoRadius = 28f;
         [SerializeField, Min(0f)] private float enemyStunTime = 1.8f;
 
+        [Header("Attack Rings")]
+        [Tooltip("How early before a ring's front arrives the parry may be pressed (seconds).")]
+        [SerializeField, Min(0f)] private float ringParryEarly = 0.3f;
+        [Tooltip("How late after the front arrived the parry still counts (seconds).")]
+        [SerializeField, Min(0f)] private float ringParryLate = 0.08f;
+        [SerializeField, Min(0f)] private float reflectDamage = 2f;
+        [SerializeField, Min(0f)] private float reflectStun = 2.2f;
+
+        [Header("Death")]
+        [SerializeField, Min(0.2f)] private float deathSeconds = 1.8f;
+
         [Header("Feel")]
         [Tooltip("Movement speed while attacking (1 = full speed).")]
         [SerializeField, Range(0f, 1f)] private float attackMoveSpeed = 0.25f;
@@ -65,7 +81,12 @@ namespace EchoKnight
         bool hitDone;
         float parryPressedTime = -100f;
 
+        struct Reflection { public IEchoEnemy owner; public float hitTime; public Vector3 from; }
+        readonly System.Collections.Generic.List<Reflection> reflections = new System.Collections.Generic.List<Reflection>();
+
         int health;
+        bool dying;
+        float deathTime;
         float invulnerableUntil;
         float hurtFlash;
         Texture2D vignette;
@@ -94,8 +115,15 @@ namespace EchoKnight
 
         void Update()
         {
+            if (dying)
+            {
+                if (Time.time - deathTime >= deathSeconds) WakeUp();
+                return;
+            }
             ReadInput();
             UpdateAction(Time.deltaTime);
+            ResolveRings();
+            UpdateReflections();
             hurtFlash = Mathf.MoveTowards(hurtFlash, 0f, Time.deltaTime * 2.5f);
         }
 
@@ -261,7 +289,7 @@ namespace EchoKnight
                 if (attacker != null) attacker.Stun(enemyStunTime);
                 return true;
             }
-            if (Time.time < invulnerableUntil) return false;
+            if (Time.time < invulnerableUntil || dying) return false;
 
             health -= damage;
             EchoAudio.Play(EchoSound.Hurt, transform.position + Vector3.up * 2f, 0.9f);
@@ -277,22 +305,118 @@ namespace EchoKnight
             health = maxHealth;
         }
 
+        public bool IsDying { get { return dying; } }
+
         void Die()
         {
+            if (dying) return;
+            dying = true;
+            deathTime = Time.time;
             EchoAudio.Play(EchoSound.Death, transform.position + Vector3.up * 1.5f, 1f);
-            health = maxHealth;
             action = Action.None;
             queued = Action.None;
+            reflections.Clear();
+            mover.SpeedMultiplier = 0f;
+            mover.AllowTurning = false;
+            character.SetSwing(Vector3.zero, Vector3.up, 0f);
+        }
+
+        /// <summary>After the dark: back at the last shrine, enemies reset.</summary>
+        void WakeUp()
+        {
+            dying = false;
+            health = maxHealth;
+            invulnerableUntil = Time.time + 1f;
             mover.SpeedMultiplier = 1f;
             mover.AllowTurning = true;
-            character.SetSwing(Vector3.zero, Vector3.up, 0f);
+            EchoGame.NotifyPlayerDied();
             echoPlayer.Respawn();
+        }
+
+        // ------------------------------------------------------------------ attack rings
+
+        void ResolveRings()
+        {
+            Vector3 me = transform.position;
+            foreach (EchoShockwave ring in EchoShockwaves.Active)
+            {
+                if (ring.resolved) continue;
+                if (!ring.Reaches(me))
+                {
+                    if (Time.time > ring.startTime + ring.radius / ring.speed) ring.resolved = true;
+                    continue;
+                }
+                float arrival = ring.ArrivalTime(me);
+                if (Time.time < arrival + ringParryLate) continue;
+                ring.resolved = true;
+
+                if (parryPressedTime >= arrival - ringParryEarly && parryPressedTime <= arrival + ringParryLate)
+                {
+                    Reflect(ring);
+                }
+                else if (!Shielded(ring.origin) && Time.time >= invulnerableUntil)
+                {
+                    hurtFlash = 1f;
+                    EchoAudio.Play(EchoSound.Hurt, me + Vector3.up * 2f, 0.9f);
+                    health -= 1;
+                    if (health <= 0) Die();
+                    return;
+                }
+            }
+        }
+
+        /// <summary>Is something solid between the ring's origin and the knight?</summary>
+        bool Shielded(Vector3 origin)
+        {
+            Vector3 from = new Vector3(origin.x, transform.position.y + 1.6f, origin.z);
+            Vector3 to = transform.position + Vector3.up * 1.6f;
+            RaycastHit hit;
+            if (!Physics.Linecast(from, to, out hit, ~0, QueryTriggerInteraction.Ignore)) return false;
+            return hit.collider.GetComponentInParent<EchoPlayer>() == null;
+        }
+
+        /// <summary>The ring is thrown back: a golden ring runs back to its owner and hits it.</summary>
+        void Reflect(EchoShockwave ring)
+        {
+            Vector3 chest = transform.position + Vector3.up * 2f;
+            EchoAudio.Play(EchoSound.Parry, chest, 1f);
+            if (ring.owner == null || !ring.owner.IsAlive) return;
+            Vector3 d = ring.owner.Position - transform.position;
+            d.y = 0f;
+            float speed = ring.speed * 1.8f;
+            EchoSystem.Emit(chest, d.magnitude + 2f, EchoSource.Resonance, 1.4f, speed);
+            reflections.Add(new Reflection { owner = ring.owner, hitTime = Time.time + d.magnitude / speed, from = transform.position });
+        }
+
+        void UpdateReflections()
+        {
+            for (int i = reflections.Count - 1; i >= 0; i--)
+            {
+                Reflection r = reflections[i];
+                if (Time.time < r.hitTime) continue;
+                reflections.RemoveAt(i);
+                if (r.owner == null || !r.owner.IsAlive) continue;
+                r.owner.TakeHit(reflectDamage, r.from);
+                if (r.owner.IsAlive) r.owner.Stun(reflectStun);
+            }
         }
 
         // ------------------------------------------------------------------ health on screen
 
         void OnGUI()
         {
+            if (dying)
+            {
+                if (vignette == null) vignette = MakeVignette();
+                float k = Mathf.Clamp01((Time.time - deathTime) / (deathSeconds * 0.6f));
+                Color keep = GUI.color;
+                GUI.color = new Color(0.25f, 0f, 0f, 0.6f + 0.4f * k);
+                GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), vignette);
+                GUI.color = new Color(0f, 0f, 0f, k * 0.92f);
+                GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
+                GUI.color = keep;
+                return;
+            }
             float hurt = 1f - (float)health / Mathf.Max(1, maxHealth);
             float darkness = hurt * 0.9f;
             if (darkness <= 0.001f && hurtFlash <= 0.001f) return;

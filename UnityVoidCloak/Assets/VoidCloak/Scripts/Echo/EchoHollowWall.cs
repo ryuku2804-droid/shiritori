@@ -120,6 +120,7 @@ namespace EchoKnight
             if (!Application.isPlaying || broken) return;
             // only loud sounds make the hollow ring; its own answer must not start it again
             if (wave.source != EchoSource.Strike && wave.source != EchoSource.Bell) return;
+            if (wave.strength <= 0f) return;   // a silent noise (a fight somewhere) is not a wave
             float distance = Vector3.Distance(wave.origin, Center);
             if (distance > wave.radius) return;
             // it answers when the wavefront actually arrives

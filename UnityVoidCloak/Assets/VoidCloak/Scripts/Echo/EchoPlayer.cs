@@ -30,6 +30,7 @@ namespace EchoKnight
         [SerializeField, Min(0f)] private float strikeCooldown = 8f;
 
         VoidCloakMover mover;
+        EchoCombat combat;
         CharacterController controller;
         Vector3 spawnPosition;
         Quaternion spawnRotation;
@@ -57,6 +58,7 @@ namespace EchoKnight
             Current = this;
             EchoAudio.Ensure();
             mover = GetComponent<VoidCloakMover>();
+            combat = GetComponent<EchoCombat>();
             controller = GetComponent<CharacterController>();
             spawnPosition = transform.position;
             spawnRotation = transform.rotation;
@@ -85,6 +87,12 @@ namespace EchoKnight
         void OnStep(float speed)
         {
             bool running = speed > mover.WalkSpeed * 1.15f;
+            if (EchoGame.Silenced)
+            {
+                // the Silent Knight's veil: steps are muffled and make no echo at all
+                EchoAudio.Play(EchoSound.Step, Feet(), 0.15f, 0.7f);
+                return;
+            }
             // every step is heard...
             EchoAudio.Play(running ? EchoSound.RunStep : EchoSound.Step, Feet(), running ? 0.85f : 0.55f);
             // ...but only one echo per interval is "seen"
@@ -96,6 +104,7 @@ namespace EchoKnight
 
         void Update()
         {
+            if (combat != null && combat.IsDying) return;
             if (StrikePressed() && Time.time >= strikeReadyTime)
             {
                 strikeReadyTime = Time.time + strikeCooldown;

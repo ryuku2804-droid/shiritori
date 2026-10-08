@@ -203,6 +203,12 @@ namespace EchoKnight
             progress = first >= 0 && first < bells.Length && bells[first] == bell ? 1 : 0;
         }
 
+        /// <summary>Opens without the puzzle (a door sealed until a boss falls).</summary>
+        public void ForceOpen()
+        {
+            if (!solved) Open();
+        }
+
         void Open()
         {
             solved = true;

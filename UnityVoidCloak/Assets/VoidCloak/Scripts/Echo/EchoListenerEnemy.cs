@@ -10,11 +10,14 @@ namespace EchoKnight
     /// - Wander: shuffles around its home.
     /// - Investigate: walks to where it heard a sound.
     /// - Chase: a loud or close sound makes it rush there.
-    /// - Attack: when it is close it shrieks (a red echo - the warning), then lashes out.
-    ///   Parry (Q / LB) right before the blow to stun it.
+    /// - Attack: when the knight is in reach it draws breath, then SHRIEKS: a red ring of sound
+    ///   spreads from it (<see cref="EchoShockwaves"/>). The ring kills. Parry (Q / LB) as the
+    ///   front reaches the knight to throw it back (the Listener is hurt and stunned), or keep
+    ///   a pillar or wall between the two.
     /// It never sees the knight - it only knows where the last sound came from. Standing
-    /// still is the way to lose it. Its own footsteps send out small red echoes.
-    /// The sound of a shrine bell makes it flee.
+    /// still is the way to lose it. Its footsteps are heard (3D sound), but make no echo:
+    /// it is only seen when the knight's own echo passes over it.
+    /// The sound of a shrine bell makes it flee. When the knight falls, it goes back home.
     /// </summary>
     [ExecuteAlways]
     [DisallowMultipleComponent]
@@ -32,7 +35,7 @@ namespace EchoKnight
         [SerializeField] private Transform player = null;
 
         [Header("Health")]
-        [SerializeField, Min(0.1f)] private float maxHealth = 4f;
+        [SerializeField, Min(0.1f)] private float maxHealth = 3f;
         [Tooltip("Seconds before a defeated Listener rises again (0 = never).")]
         [SerializeField, Min(0f)] private float respawnTime = 0f;
 
@@ -53,12 +56,16 @@ namespace EchoKnight
         [SerializeField, Min(0f)] private float chaseSpeed = 5.2f;
         [SerializeField, Min(1f)] private float turnSpeed = 220f;
 
-        [Header("Attack")]
-        [SerializeField, Min(0.1f)] private float attackRange = 3.6f;
-        [Tooltip("Warning time between the shriek and the blow (seconds).")]
-        [SerializeField, Min(0.05f)] private float windUpTime = 0.75f;
-        [SerializeField, Min(0f)] private float recoverTime = 0.9f;
-        [SerializeField, Min(0)] private int attackDamage = 1;
+        [Header("Attack (shriek ring)")]
+        [Tooltip("It shrieks when the knight is this close.")]
+        [SerializeField, Min(0.1f)] private float attackRange = 7f;
+        [Tooltip("Drawing breath before the shriek (seconds) - a rasping sound is the only warning.")]
+        [SerializeField, Min(0.05f)] private float windUpTime = 0.7f;
+        [SerializeField, Min(0f)] private float recoverTime = 1.4f;
+        [Tooltip("How far the shriek ring reaches.")]
+        [SerializeField, Min(1f)] private float ringRadius = 11f;
+        [Tooltip("How fast the ring spreads (units per second). Slow enough to see it coming.")]
+        [SerializeField, Min(1f)] private float ringSpeed = 9f;
 
         [Header("Footsteps")]
         [Tooltip("Seconds between footstep echoes while wandering (a little random).")]
@@ -67,7 +74,8 @@ namespace EchoKnight
         [SerializeField, Min(0.1f)] private float investigateEchoInterval = 2.2f;
         [Tooltip("Seconds between footstep echoes while chasing.")]
         [SerializeField, Min(0.1f)] private float chaseEchoInterval = 1.1f;
-        [SerializeField, Min(0f)] private float footstepEchoRadius = 7f;
+        [Tooltip("0 = its footsteps make no echo at all (only heard). Larger = it shows itself as it walks.")]
+        [SerializeField, Min(0f)] private float footstepEchoRadius = 0f;
 
         Mesh mesh;
         State state = State.Wander;
@@ -80,6 +88,7 @@ namespace EchoKnight
         float health;
         float stateUntil;
         Vector3 knockback;
+        Quaternion homeRotation;
 
         public bool IsAlive { get { return state != State.Dead; } }
         public Vector3 Position { get { return transform.position; } }
@@ -103,10 +112,12 @@ namespace EchoKnight
         {
             BuildBody();
             home = transform.position;
+            homeRotation = transform.rotation;
             target = home;
             health = maxHealth;
             state = State.Wander;
             EchoSystem.WaveEmitted += OnWave;
+            EchoGame.PlayerDied += ResetToStart;
             if (!all.Contains(this)) all.Add(this);
             EchoTargets.Register(this);
         }
@@ -116,6 +127,7 @@ namespace EchoKnight
             all.Remove(this);
             EchoTargets.Unregister(this);
             EchoSystem.WaveEmitted -= OnWave;
+            EchoGame.PlayerDied -= ResetToStart;
             var filter = GetComponent<MeshFilter>();
             if (filter != null && filter.sharedMesh == mesh) filter.sharedMesh = null;
             EchoMeshUtil.DestroySafe(mesh);
@@ -188,6 +200,7 @@ namespace EchoKnight
 
             // the hit itself is loud: the knight sees what it struck
             EchoSystem.Emit(transform.position + Vector3.up * 1.5f, 10f + damage * 4f, EchoSource.Enemy, 1.3f);
+            EchoSystem.Noise(transform.position, 18f);   // the other Listeners hear the fight
             EchoAudio.Play(EchoSound.Hit, transform.position + Vector3.up * 1.8f, 0.9f);
 
             if (health <= 0f)
@@ -265,13 +278,12 @@ namespace EchoKnight
                 PickWanderTarget();
             }
 
-            // close enough to the knight: shriek, then strike
+            // the knight is in reach: draw breath (a rasp - the only warning), then shriek
             if (state == State.Chase && player != null && FlatDistance(player.position) < attackRange)
             {
                 state = State.WindUp;
                 stateUntil = Time.time + windUpTime;
-                EchoSystem.Emit(transform.position + Vector3.up * 3f, 14f, EchoSource.Enemy, 1.2f);
-                EchoAudio.Play(EchoSound.ListenerShriek, transform.position + Vector3.up * 3f, 1f);
+                EchoAudio.Play(EchoSound.ListenerYelp, transform.position + Vector3.up * 3f, 0.55f, 0.55f);
                 return;
             }
 
@@ -304,27 +316,27 @@ namespace EchoKnight
             Footsteps(step.magnitude);
         }
 
+        /// <summary>The shriek: a ring of sound that kills (see EchoShockwaves).</summary>
         void LandBlow()
         {
             state = State.Recover;
             stateUntil = Time.time + recoverTime;
-            if (player == null) return;
+            Vector3 mouth = transform.position + Vector3.up * 3f;
+            EchoShockwaves.Fire(new Vector3(mouth.x, transform.position.y + 0.3f, mouth.z), this, ringRadius, ringSpeed);
+            EchoAudio.Play(EchoSound.ListenerShriek, mouth, 1f);
+        }
 
-            Vector3 to = player.position - transform.position;
-            to.y = 0f;
-            bool inReach = to.magnitude < attackRange + 0.8f && Vector3.Angle(transform.forward, to) < 70f;
-            if (!inReach) return;
-
-            var combat = player.GetComponent<EchoCombat>();
-            if (combat != null)
-            {
-                combat.ReceiveBlow(attackDamage, this);
-            }
-            else
-            {
-                var echoPlayer = player.GetComponent<EchoPlayer>();
-                if (echoPlayer != null) echoPlayer.Respawn();
-            }
+        /// <summary>The knight fell: back home, whole again, unaware.</summary>
+        void ResetToStart()
+        {
+            transform.SetPositionAndRotation(home, homeRotation);
+            health = maxHealth;
+            state = State.Wander;
+            knockback = Vector3.zero;
+            lastHeardTime = -100f;
+            waitUntil = 0f;
+            target = home;
+            GetComponent<MeshRenderer>().enabled = true;
         }
 
         void FacePlayer(float dt)
@@ -363,7 +375,7 @@ namespace EchoKnight
                 EchoAudio.Play(EchoSound.ListenerStep, transform.position + Vector3.up * 0.3f, state == State.Chase ? 0.85f : 0.55f);
             }
             // ...but it only shows up as an echo now and then
-            if (Time.time < nextStepEchoTime) return;
+            if (footstepEchoRadius <= 0f || Time.time < nextStepEchoTime) return;
             float interval = state == State.Chase ? chaseEchoInterval : state == State.Investigate ? investigateEchoInterval : wanderEchoInterval;
             nextStepEchoTime = Time.time + interval * Random.Range(0.8f, 1.25f);   // uneven, so it is not a steady beat
             float loudness = state == State.Chase ? 1.5f : 1f;
