@@ -109,7 +109,7 @@ namespace EchoKnight
                 name = "Silent Knight Aldren", position = new Vector3(0f, 9f, 124f), yaw = 180f,
                 sealedDoorName = "Sealed Door (Broken Floor)", theatreName = "Echo Theatre (The Last Night)",
                 bossName = "沈黙の騎士　アルドレンの残響",
-                awakenLine = "……あれは、兄さん……？　あの夜の、兄さんの残響……！", maxHealth = 12f,
+                awakenLine = "……あれは、兄さん……？　あの夜の、兄さんの残響……！", maxHealth = 21f,
             });
 
             // ---------------- stairs to y 12

@@ -145,7 +145,7 @@ namespace EchoKnight
             {
                 name = "Silent Knight Orvan", position = new Vector3(0f, 0f, 177f), yaw = 180f,
                 sealedDoorName = "Sealed Door (Sunken Altar)", theatreName = "Echo Theatre (Orvan)",
-                bossName = "沈黙の騎士　オルヴァン", awakenLine = "……水の底に、誰かいる。……オルヴァン。修道院の、鐘守り。", maxHealth = 11f,
+                bossName = "沈黙の騎士　オルヴァン", awakenLine = "……水の底に、誰かいる。……オルヴァン。修道院の、鐘守り。", maxHealth = 15f,
             });
 
             // ---------------- G behind the sealed door
