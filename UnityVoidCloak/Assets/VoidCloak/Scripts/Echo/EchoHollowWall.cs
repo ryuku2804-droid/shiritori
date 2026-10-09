@@ -14,7 +14,7 @@ namespace EchoKnight
     [ExecuteAlways]
     [DisallowMultipleComponent]
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
-    public class EchoHollowWall : MonoBehaviour, IEchoHittable
+    public class EchoHollowWall : MonoBehaviour, IEchoHittable, IEchoSaveable
     {
         [SerializeField] private Material material = null;
         [Tooltip("Width, height and thickness of the wall (same as a Wall kit piece).")]
@@ -51,11 +51,13 @@ namespace EchoKnight
             Build();
             EchoSystem.WaveEmitted += OnWave;
             EchoTargets.Register(this);
+            EchoSnapshot.Register(this);
         }
 
         void OnDisable()
         {
             EchoTargets.Unregister(this);
+            EchoSnapshot.Unregister(this);
             EchoSystem.WaveEmitted -= OnWave;
             var filter = GetComponent<MeshFilter>();
             if (filter != null && filter.sharedMesh == wallMesh) filter.sharedMesh = null;
@@ -101,6 +103,17 @@ namespace EchoKnight
             if (material != null) r.sharedMaterial = material;
             r.shadowCastingMode = ShadowCastingMode.Off;
             r.receiveShadows = false;
+        }
+
+        public string SaveKey { get { return gameObject.name; } }
+        public string Capture() { return broken ? "b" : "w"; }
+
+        /// <summary>Broken after the last save? Then time going back makes it whole again.</summary>
+        public void Restore(string saved)
+        {
+            broken = saved == "b";
+            resonateAt = -1f;
+            ShowBroken(broken);
         }
 
         void ShowBroken(bool isBroken)

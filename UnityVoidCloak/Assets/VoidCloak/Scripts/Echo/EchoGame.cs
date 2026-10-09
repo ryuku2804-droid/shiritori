@@ -69,6 +69,7 @@ namespace EchoKnight
         {
             EchoShockwaves.Clear();
             SilencedUntil = 0f;
+            EchoSnapshot.RestoreLast();   // time goes back to the last save
             if (PlayerDied != null) PlayerDied();
             Say("リーネ", DeathLines[UnityEngine.Random.Range(0, DeathLines.Length)], 3.5f);
         }
@@ -119,6 +120,7 @@ namespace EchoKnight
             PlayerPrefs.SetInt(KeyHasSave, 1);
             PlayerPrefs.SetInt(KeyChapter, chapter);
             PlayerPrefs.SetString(KeyShrine, "");
+            EchoSnapshot.ClearSave();
             PlayerPrefs.Save();
         }
 
@@ -126,11 +128,15 @@ namespace EchoKnight
         public static void SaveShrine(string shrineName)
         {
             EchoStageInfo stage = EchoStageInfo.Current;
-            if (stage == null || stage.ChapterIndex < 0) return;   // a test scene: nothing to save
+            if (stage == null || stage.ChapterIndex < 0)
+            {
+                EchoSnapshot.Capture(false);   // a test scene: time still goes back here, but nothing is written
+                return;
+            }
             PlayerPrefs.SetInt(KeyHasSave, 1);
             PlayerPrefs.SetInt(KeyChapter, stage.ChapterIndex);
             PlayerPrefs.SetString(KeyShrine, shrineName ?? "");
-            PlayerPrefs.Save();
+            EchoSnapshot.Capture(true);   // the world as it is now: this is where time goes back to
         }
 
         /// <summary>Called by the stage when it starts: the shrine to resume at, if the player chose "continue".</summary>

@@ -17,12 +17,13 @@ namespace EchoKnight
     /// It never sees the knight - it only knows where the last sound came from. Standing
     /// still is the way to lose it. Its footsteps are heard (3D sound), but make no echo:
     /// it is only seen when the knight's own echo passes over it.
-    /// The sound of a shrine bell makes it flee. When the knight falls, it goes back home.
+    /// The sound of a shrine bell makes it flee. When the knight falls, time goes back to the last
+    /// save (EchoSnapshot): if it was alive then, it is back where it was; if it was dead, it stays dead.
     /// </summary>
     [ExecuteAlways]
     [DisallowMultipleComponent]
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
-    public class EchoListenerEnemy : MonoBehaviour, IEchoEnemy
+    public class EchoListenerEnemy : MonoBehaviour, IEchoEnemy, IEchoSaveable
     {
         enum State { Wander, Investigate, Chase, WindUp, Recover, Stunned, Flee, Dead }
 
@@ -118,7 +119,7 @@ namespace EchoKnight
             health = maxHealth;
             state = State.Wander;
             EchoSystem.WaveEmitted += OnWave;
-            EchoGame.PlayerDied += ResetToStart;
+            EchoSnapshot.Register(this);
             if (!all.Contains(this)) all.Add(this);
             EchoTargets.Register(this);
         }
@@ -128,7 +129,7 @@ namespace EchoKnight
             all.Remove(this);
             EchoTargets.Unregister(this);
             EchoSystem.WaveEmitted -= OnWave;
-            EchoGame.PlayerDied -= ResetToStart;
+            EchoSnapshot.Unregister(this);
             var filter = GetComponent<MeshFilter>();
             if (filter != null && filter.sharedMesh == mesh) filter.sharedMesh = null;
             EchoMeshUtil.DestroySafe(mesh);
@@ -327,16 +328,34 @@ namespace EchoKnight
             EchoAudio.Play(EchoSound.ListenerShriek, mouth, 1f);
         }
 
-        /// <summary>The knight fell: back home, whole again, unaware.</summary>
-        void ResetToStart()
+        // ------------------------------------------------------------------ save / time going back
+
+        public string SaveKey { get { return gameObject.name; } }
+
+        public string Capture()
         {
-            transform.SetPositionAndRotation(home, homeRotation);
-            health = maxHealth;
-            state = State.Wander;
+            return state == State.Dead ? "d" : EchoSnapshot.Living(transform, health);
+        }
+
+        /// <summary>Back to the moment of the last save: where it was then, unaware - or still dead.</summary>
+        public void Restore(string saved)
+        {
             knockback = Vector3.zero;
             lastHeardTime = -100f;
             waitUntil = 0f;
-            target = home;
+            Vector3 position;
+            float yaw, savedHealth;
+            if (!EchoSnapshot.ParseLiving(saved, out position, out yaw, out savedHealth))
+            {
+                state = State.Dead;
+                stateUntil = float.MaxValue;
+                GetComponent<MeshRenderer>().enabled = false;
+                return;
+            }
+            transform.SetPositionAndRotation(position, Quaternion.Euler(0f, yaw, 0f));
+            health = savedHealth;
+            state = State.Wander;
+            target = position;
             GetComponent<MeshRenderer>().enabled = true;
         }
 

@@ -16,12 +16,12 @@ namespace EchoKnight
     ///   as it raises the sword - no red echo. Parry (Q / LB) on the scrape's end.
     ///   The blow hits the floor hard and that DOES send out a red echo.
     /// - A shrine bell makes it stop and stand still for a while (it was once a bell keeper).
-    /// - Its blow is death. When the knight falls, it goes back to the start of its round.
+    /// - Its blow is death. When the knight falls, time goes back to the last save (EchoSnapshot).
     /// </summary>
     [ExecuteAlways]
     [DisallowMultipleComponent]
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
-    public class EchoHollowArmorEnemy : MonoBehaviour, IEchoEnemy
+    public class EchoHollowArmorEnemy : MonoBehaviour, IEchoEnemy, IEchoSaveable
     {
         enum State { Patrol, Investigate, Pursue, WindUp, Recover, Stunned, Frozen, Dead }
 
@@ -103,7 +103,7 @@ namespace EchoKnight
             routeIndex = 0;
             target = RoutePoint(0);
             EchoSystem.WaveEmitted += OnWave;
-            EchoGame.PlayerDied += Revive;
+            EchoSnapshot.Register(this);
             EchoTargets.Register(this);
         }
 
@@ -111,7 +111,7 @@ namespace EchoKnight
         {
             EchoTargets.Unregister(this);
             EchoSystem.WaveEmitted -= OnWave;
-            EchoGame.PlayerDied -= Revive;
+            EchoSnapshot.Unregister(this);
             var filter = GetComponent<MeshFilter>();
             if (filter != null && filter.sharedMesh == mesh) filter.sharedMesh = null;
             EchoMeshUtil.DestroySafe(mesh);
@@ -232,6 +232,35 @@ namespace EchoKnight
             routeIndex = 0;
             target = RoutePoint(0);
             GetComponent<MeshRenderer>().enabled = true;
+        }
+
+        // ------------------------------------------------------------------ save / time going back
+
+        public string SaveKey { get { return gameObject.name; } }
+
+        public string Capture()
+        {
+            return state == State.Dead ? "d" : EchoSnapshot.Living(transform, health);
+        }
+
+        public void Restore(string saved)
+        {
+            knockback = Vector3.zero;
+            lastSenseTime = -100f;
+            waitUntil = 0f;
+            Vector3 position;
+            float yaw, savedHealth;
+            if (!EchoSnapshot.ParseLiving(saved, out position, out yaw, out savedHealth))
+            {
+                state = State.Dead;
+                stateUntil = float.MaxValue;
+                GetComponent<MeshRenderer>().enabled = false;
+                return;
+            }
+            transform.SetPositionAndRotation(position, Quaternion.Euler(0f, yaw, 0f));
+            health = savedHealth;
+            GetComponent<MeshRenderer>().enabled = true;
+            ReturnToRoute();
         }
 
         // ------------------------------------------------------------------ behaviour

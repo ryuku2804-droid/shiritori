@@ -42,9 +42,12 @@ namespace EchoKnight
             if (EchoGame.TakePendingShrine(out shrineName) && ResumeAt(shrineName))
             {
                 titleSeconds = 0f;   // coming back: no title card
+                EchoSnapshot.RestoreFromSave();   // enemies killed before the save stay dead, and so on
+                EchoSnapshot.Capture(false);
                 return;
             }
             if (chapterIndex >= 0) EchoGame.SaveChapterStart(chapterIndex);
+            EchoSnapshot.Capture(chapterIndex >= 0);
         }
 
         bool ResumeAt(string shrineName)

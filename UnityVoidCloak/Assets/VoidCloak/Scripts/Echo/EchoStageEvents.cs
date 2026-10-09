@@ -40,21 +40,57 @@ namespace EchoKnight
         }
 
         /// <summary>Story line and / or instruction in the lower part of the screen.</summary>
+        // Several things may speak at once (a hint, a memory echo, Rine). Each block of text drawn in
+        // the same GUI pass goes above the previous one instead of on top of it; the same text twice
+        // is drawn once.
+        static int passFrame = -1;
+        static EventType passEvent;
+        static float nextBottom, nextPromptTop;
+        static readonly System.Collections.Generic.List<string> drawnThisPass = new System.Collections.Generic.List<string>();
+
+        static void BeginPass()
+        {
+            EventType e = Event.current != null ? Event.current.type : EventType.Repaint;
+            if (passFrame == Time.frameCount && passEvent == e) return;
+            passFrame = Time.frameCount;
+            passEvent = e;
+            nextBottom = Screen.height * 0.79f;
+            nextPromptTop = Screen.height * 0.82f;
+            drawnThisPass.Clear();
+        }
+
+        /// <summary>Story line and / or instruction in the lower part of the screen (stacked upwards if several).</summary>
         public static void Draw(string speaker, string line, string instruction, float alpha)
         {
             Ensure();
+            BeginPass();
+            string key = speaker + "\n" + line + "\n" + instruction;
+            if (drawnThisPass.Contains(key)) return;
+            drawnThisPass.Add(key);
+
             float w = Screen.width * 0.8f, x = Screen.width * 0.1f, h = Screen.height;
-            Label(new Rect(x, h * 0.60f, w, h * 0.05f), speaker, speakerStyle, alpha);
-            Label(new Rect(x, h * 0.645f, w, h * 0.07f), line, lineStyle, alpha);
-            Label(new Rect(x, h * 0.72f, w, h * 0.07f), instruction, instructionStyle, alpha);
+            float hs = string.IsNullOrEmpty(speaker) ? 0f : h * 0.045f;
+            float hl = string.IsNullOrEmpty(line) ? 0f : h * 0.07f;
+            float hi = string.IsNullOrEmpty(instruction) ? 0f : h * 0.07f;
+            float total = hs + hl + hi;
+            if (total <= 0f) return;
+            float y = nextBottom - total;
+            Label(new Rect(x, y, w, hs), speaker, speakerStyle, alpha);
+            Label(new Rect(x, y + hs, w, hl), line, lineStyle, alpha);
+            Label(new Rect(x, y + hs + hl, w, hi), instruction, instructionStyle, alpha);
+            nextBottom = y - h * 0.02f;
         }
 
         /// <summary>A short "press F" style prompt near the bottom (below hints, so both can show at once).</summary>
         public static void DrawPrompt(string text, float alpha)
         {
             Ensure();
+            BeginPass();
+            if (string.IsNullOrEmpty(text) || drawnThisPass.Contains(text)) return;
+            drawnThisPass.Add(text);
             float w = Screen.width * 0.8f, x = Screen.width * 0.1f, h = Screen.height;
-            Label(new Rect(x, h * 0.82f, w, h * 0.06f), text, speakerStyle, alpha);
+            Label(new Rect(x, nextPromptTop, w, h * 0.05f), text, speakerStyle, alpha);
+            nextPromptTop += h * 0.05f;   // several prompts stack downwards
         }
 
         /// <summary>Big centred title (end of a chapter).</summary>

@@ -15,7 +15,7 @@ namespace EchoKnight
     /// </summary>
     [ExecuteAlways]
     [DisallowMultipleComponent]
-    public class EchoBellDoor : MonoBehaviour
+    public class EchoBellDoor : MonoBehaviour, IEchoSaveable
     {
         [SerializeField] private Material material = null;
         [Tooltip("Width of the opening (the two leaves share it).")]
@@ -66,10 +66,12 @@ namespace EchoKnight
         {
             Build();
             Subscribe(true);
+            EchoSnapshot.Register(this);
         }
 
         void OnDisable()
         {
+            EchoSnapshot.Unregister(this);
             Subscribe(false);
             for (int i = 0; i < 2; i++)
             {
@@ -201,6 +203,20 @@ namespace EchoKnight
             EchoAudio.Play(EchoSound.PuzzleWrong, Center, 0.9f, 1f, 0.35f);
             int first = sequence[0];
             progress = first >= 0 && first < bells.Length && bells[first] == bell ? 1 : 0;
+        }
+
+        public string SaveKey { get { return gameObject.name; } }
+        public string Capture() { return solved ? "o" : "c"; }
+
+        /// <summary>Opened after the last save? Then time going back shuts it again (already open: stays open).</summary>
+        public void Restore(string saved)
+        {
+            solved = saved == "o";
+            progress = 0;
+            melodyNext = -1;
+            messageUntil = 0f;
+            openStart = solved ? -1000f : -100f;   // open: swung fully at once
+            ApplyLeafRotation();
         }
 
         /// <summary>Opens without the puzzle (a door sealed until a boss falls).</summary>

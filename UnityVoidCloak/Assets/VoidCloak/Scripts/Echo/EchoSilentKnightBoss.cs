@@ -15,13 +15,13 @@ namespace EchoKnight
     ///   It hunts in the dark. Stones and the bell strike still sound.
     /// - It blocks every blow from the front. It can only be hurt while stunned, or from behind.
     ///   A blocked blow rings out, and it answers with a thrust at once.
-    /// When the knight falls it goes back to its place and waits again.
+    /// When the knight falls, time goes back to the last save: it waits at its place again (or stays fallen).
     /// When it falls, the sealed door opens and its memory (an echo theatre) plays.
     /// </summary>
     [ExecuteAlways]
     [DisallowMultipleComponent]
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
-    public class EchoSilentKnightBoss : MonoBehaviour, IEchoEnemy
+    public class EchoSilentKnightBoss : MonoBehaviour, IEchoEnemy, IEchoSaveable
     {
         enum State { Dormant, Stalk, SlamWindUp, LungeWindUp, Lunge, Recover, Stunned, Veil, Dead }
 
@@ -105,13 +105,13 @@ namespace EchoKnight
             health = maxHealth;
             state = State.Dormant;
             EchoTargets.Register(this);
-            EchoGame.PlayerDied += ResetToStart;
+            EchoSnapshot.Register(this);
         }
 
         void OnDisable()
         {
             EchoTargets.Unregister(this);
-            EchoGame.PlayerDied -= ResetToStart;
+            EchoSnapshot.Unregister(this);
             var filter = GetComponent<MeshFilter>();
             if (filter != null && filter.sharedMesh == mesh) filter.sharedMesh = null;
             EchoMeshUtil.DestroySafe(mesh);
@@ -178,13 +178,27 @@ namespace EchoKnight
             else EchoGame.Say("リーネ", "……眠って。もう、鐘を守らなくていいの。", 5f);
         }
 
-        void ResetToStart()
+        public string SaveKey { get { return gameObject.name; } }
+
+        public string Capture()
         {
-            if (state == State.Dead) return;
+            return state == State.Dead ? "d" : "a";
+        }
+
+        /// <summary>A fight is never saved half-way: it either fell before the save, or waits whole at its place.</summary>
+        public void Restore(string saved)
+        {
+            if (saved == "d")
+            {
+                state = State.Dead;
+                GetComponent<MeshRenderer>().enabled = false;
+                return;
+            }
             transform.SetPositionAndRotation(home, homeRotation);
             health = maxHealth;
             state = State.Dormant;
             nextVeil = 0f;
+            GetComponent<MeshRenderer>().enabled = true;
         }
 
         // ------------------------------------------------------------------ behaviour
