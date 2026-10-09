@@ -396,8 +396,10 @@ namespace EchoKnight
                 if (Time.time < r.hitTime) continue;
                 reflections.RemoveAt(i);
                 if (r.owner == null || !r.owner.IsAlive) continue;
+                // stun first: a reflected ring always lands (a Silent Knight would otherwise block it
+                // when it arrives after the knight's recovery), and it gets the stunned bonus
+                r.owner.Stun(reflectStun);
                 r.owner.TakeHit(reflectDamage, r.from);
-                if (r.owner.IsAlive) r.owner.Stun(reflectStun);
             }
         }
 
