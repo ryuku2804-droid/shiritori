@@ -65,3 +65,8 @@
 - `DebugHud.cs`:試作用の状態表示(F1 で切替)
 - `Editor/GrayboxRoomBuilder.cs`:メニュー「BlindSpot > ステップ1: テスト部屋とプレイヤーを作成」
 - プレイヤーは `Player` レイヤー。床・天井判定のマスクから Player を外す前提
+
+## コードの渡し方
+
+- 毎回、変更したファイルは差分ではなく全文で渡し、ファイルごとに【新規】/【変更】を付ける
+- コピペ用ページは `python3 BlindSpot/tools/make_source_page.py <出力.html>` で作り、Artifact として公開する(ステップ1は https://claude.ai/artifact/6Ek4AtZMgD4P7qAwoWXzAL)。`FILES` の一覧と状態をステップごとに書き換える
