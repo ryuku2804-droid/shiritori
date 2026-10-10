@@ -177,50 +177,46 @@ ol.flow li:first-child .who::before { content: ""; }
   .code { font-size: 12px; }
 }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+
+/* 手順編 */
+.part { font-family: var(--font-mono); font-size: 12px; letter-spacing: .16em; color: var(--accent); font-weight: 600; border-top: 2px solid var(--accent); padding-top: 10px; }
+section.phase { display: grid; gap: 14px; scroll-margin-top: 16px; }
+section.phase h2 { margin: 0; font-size: 21px; display: flex; gap: 10px; align-items: baseline; text-wrap: balance; }
+section.phase h2 .pn { font-family: var(--font-mono); color: var(--accent); font-size: 15px; font-weight: 600; white-space: nowrap; }
+.extra { display: grid; gap: 12px; }
+.scripts-tbl td .copy-s { padding: 6px 12px; border: 0; border-radius: 5px; background: var(--accent); color: var(--surface); font: 600 13px/1 var(--font-body); cursor: pointer; white-space: nowrap; }
+.scripts-tbl td .copy-s.done { background: var(--new-fg); }
+.scripts-tbl td.fn { font-family: var(--font-mono); font-weight: 600; white-space: nowrap; }
+.scripts-tbl td.dir { font-family: var(--font-mono); font-size: 13px; white-space: nowrap; }
+.scripts-tbl a { color: var(--accent); font-size: 13px; white-space: nowrap; }
+.method { font-size: 15px; font-weight: 700; margin: 4px 0 0; }
 </style>
 
 <div class="wrap">
   <header>
     <div class="eyebrow">BLIND SPOT / SOURCE &amp; STUDY</div>
     <h1>{{STEP_TITLE}}</h1>
-    <p class="lead">上から順に進めれば、ゼロから動くところまで作れます。各ファイルには「コピー」ボタンと、コードの意味・書き方の理由・別の書き方・発展のさせ方の解説が付いています。</p>
+    <p class="lead">Unity を開くところから、スクリプトを貼り、オブジェクトに付けて、動かして確かめ、意味を説明できるようになるまでを、上から順に並べました。各手順の緑の枠「こうなっていれば OK」と同じになっているか確かめながら進めてください。</p>
     <div class="counts"><span class="badge new">新規 {{NEW_COUNT}}</span><span class="badge chg">変更 {{CHANGED_COUNT}}</span></div>
   </header>
 
   <nav class="toc" aria-label="目次">
-    <div class="row"><a href="#setup">進め方</a><a href="#after">貼り終わったら</a><a href="#flow">全体の流れ</a><a href="#attach">組み立て図</a><a href="#basics">C# と Unity の基礎</a></div>
+    <div class="row" id="toc-guide"></div>
+    <div class="row"><a href="#flow">全体の流れ</a><a href="#basics">C# と Unity の基礎</a></div>
     <div class="row" id="chips"></div>
   </nav>
 
-  <section class="block" id="setup">
-    <h2 class="sec">進め方</h2>
-    <ol class="steps" id="steps"></ol>
-    <h2 class="sec">学び方のおすすめ</h2>
-    <ul class="tips" id="tips"></ul>
-  </section>
+  <div class="part">PART 1 / 作って動かす</div>
+  <div id="guide" style="display:grid;gap:40px"></div>
 
-  <section class="block" id="after">
-    <h2 class="sec">コードを貼り終わったら</h2>
-    <p class="lead">6つのファイルを貼り終えてから、動作を確認するまでの手順です。各手順の「こうなっていれば OK」と同じになっているか確かめながら進めてください。</p>
-    <ol class="steps after" id="after-list"></ol>
-    <h3 class="sec3">期待される数値(左上の「最後の足音」)</h3>
-    <div class="tbl"><table id="expected"></table></div>
-    <p class="hint-s" id="expected-note"></p>
-    <h3 class="sec3">よくあるエラーと直し方</h3>
-    <div class="tbl"><table id="trouble"></table></div>
-  </section>
+  <div class="part">PART 2 / 理解する</div>
 
   <section class="block" id="flow">
     <h2 class="sec">全体の流れ:W キーを押してから、音が怪物に届くまで</h2>
-    <p class="lead">6つのファイルが、どの順番でバトンを渡しているかの流れです。まずこれを人に説明できるようになると、各ファイルの役割が自然につながります。</p>
+    <p class="lead">6つのファイルが、どの順番でバトンを渡しているかの流れです。まずこれを説明できるようになると、各ファイルの役割が自然につながります。</p>
     <ol class="flow" id="flow-list"></ol>
-  </section>
-
-  <section class="block" id="attach">
-    <h2 class="sec">組み立て図:どのスクリプトを何に付けるか</h2>
-    <p class="lead">メニュー「BlindSpot &gt; ステップ1」を押すと、この形が自動で組み立てられます。[ ] の中がアタッチされているコンポーネントです。Hierarchy と Inspector を見比べながら読んでください。</p>
-    <pre class="tree" id="tree"></pre>
-    <details class="full manual"><summary>メニューを使わずに手で組み立てる手順</summary><ol class="steps" id="manual"></ol></details>
+    <h3 class="sec3">学び方のおすすめ</h3>
+    <ul class="tips" id="tips"></ul>
   </section>
 
   <section class="block" id="basics">
@@ -241,14 +237,11 @@ ol.flow li:first-child .who::before { content: ""; }
   const TOKEN = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|(\$?@?"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])')|(^[ \t]*#[^\n]*)|\b(\d+(?:\.\d+)?f?)\b|\b([A-Za-z_]\w*)\b/gm;
 
   function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-
-  // `code` と **太字** だけを解釈する
   function inline(s) {
     return esc(s)
       .replace(/`([^`]+)`/g, '<code class="i">$1</code>')
       .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
   }
-
   function highlight(src) {
     let out = '', last = 0, m;
     TOKEN.lastIndex = 0;
@@ -265,9 +258,99 @@ ol.flow li:first-child .who::before { content: ""; }
     }
     return out + esc(src.slice(last));
   }
-
   function snip(code) { return code ? '<pre class="snip"><code>' + highlight(code) + '</code></pre>' : ''; }
+  function anchorOf(name) { return name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]/g, ''); }
+  function badgeOf(f) { return '<span class="badge ' + (f.status === '変更' ? 'chg' : 'new') + '">' + esc(f.status) + '</span>'; }
+  function folderOf(path) { return path.replace(/\/[^/]+$/, '/'); }
 
+  async function copyText(text, btn, codeEl) {
+    try {
+      await navigator.clipboard.writeText(text);
+      flash(btn, 'コピーしました');
+    } catch (e) {
+      if (!codeEl) { flash(btn, 'コピー失敗'); return; }
+      const details = codeEl.closest('details');
+      if (details) details.open = true;
+      codeEl.scrollIntoView({ block: 'center' });
+      const range = document.createRange();
+      range.selectNodeContents(codeEl);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      flash(btn, 'Ctrl+C でコピー');
+    }
+  }
+  function flash(btn, label) {
+    const orig = btn.dataset.label || btn.textContent;
+    btn.dataset.label = orig;
+    btn.textContent = label;
+    btn.classList.add('done');
+    clearTimeout(btn._t);
+    btn._t = setTimeout(() => { btn.textContent = orig; btn.classList.remove('done'); }, 1800);
+  }
+
+  function table(head, rows, cls) {
+    return '<div class="tbl"><table class="' + (cls || '') + '"><thead><tr>' + head.map(h => '<th>' + esc(h) + '</th>').join('') +
+      '</tr></thead><tbody>' + rows.map(r => '<tr>' + r.join('') + '</tr>').join('') + '</tbody></table></div>';
+  }
+
+  // ---------- PART 1: 手順 ----------
+  function extraScripts() {
+    const rows = data.files.map((f, i) => [
+      '<td class="num">' + (i + 1) + '</td>',
+      '<td class="dir">' + esc(folderOf(f.path)) + '</td>',
+      '<td class="fn">' + esc(f.name.replace(/\.cs$/, '')) + '</td>',
+      '<td>' + badgeOf(f) + '</td>',
+      '<td>' + inline(data.attach[f.name] ? data.attach[f.name].target : '') + '</td>',
+      '<td><button class="copy-s" type="button" data-i="' + i + '" id="copy-s-' + i + '">コピー</button> <a href="#' + anchorOf(f.name) + '">解説</a></td>',
+    ]);
+    return '<div class="extra">' + table(['#', 'フォルダ', 'ファイル名', '状態', 'アタッチ先(次のフェーズ)', ''], rows, 'scripts-tbl') + '</div>';
+  }
+  function extraAssemble() {
+    const attachRows = data.files.map(f => {
+      const a = data.attach[f.name] || { target: '', detail: '' };
+      return ['<td class="fn">' + esc(f.name) + '</td>', '<td><b>' + inline(a.target) + '</b><br>' + inline(a.detail) + '</td>'];
+    });
+    return '<div class="extra">' +
+      '<h3 class="sec3">組み立て図(方法A で作られる形 = 方法B で目指す形)</h3>' +
+      '<p class="hint-s">[ ] の中が、そのオブジェクトにアタッチされているコンポーネントです。Hierarchy と Inspector を見比べながら読んでください。</p>' +
+      '<pre class="tree">' + esc(data.hierarchy).replace(/\[([^\]]+)\]/g, '<b>[$1]</b>') + '</pre>' +
+      '<h3 class="sec3">スクリプトごとのアタッチ先と設定</h3>' +
+      table(['スクリプト', 'どこに付けて、何を設定するか'], attachRows) +
+      '<details class="full manual"><summary>方法B: メニューを使わずに手で組み立てる手順</summary><ol class="steps">' +
+        data.manual.map(s => '<li><b>' + inline(s[0]) + '</b><span>' + inline(s[1]) + '</span></li>').join('') +
+      '</ol></details></div>';
+  }
+  function extraPlay() {
+    const ex = data.expected;
+    const exRows = ex.rows.map(r => r.map((c, k) => '<td' + (k ? ' class="num"' : '') + '>' + esc(c) + '</td>'));
+    const trRows = data.trouble.map(t => ['<td class="err">' + inline(t[0]) + '</td>', '<td>' + inline(t[1]) + '</td>', '<td>' + inline(t[2]) + '</td>']);
+    return '<div class="extra">' +
+      '<h3 class="sec3">期待される数値(左上の「最後の足音」)</h3>' + table(ex.head, exRows) +
+      '<p class="hint-s">' + esc(ex.note) + '</p>' +
+      '<h3 class="sec3" id="trouble">よくあるエラーと直し方</h3>' + table(['症状・エラー文', '原因', '直し方'], trRows) +
+      '</div>';
+  }
+  const EXTRAS = { scripts: extraScripts, assemble: extraAssemble, play: extraPlay };
+
+  const guide = document.getElementById('guide');
+  const tocGuide = document.getElementById('toc-guide');
+  data.guide.forEach((ph, i) => {
+    const n = i + 1;
+    tocGuide.insertAdjacentHTML('beforeend', '<a href="#' + ph.id + '"><span class="ord">' + n + '</span>' + esc(ph.title) + '</a>');
+    const sec = document.createElement('section');
+    sec.className = 'phase';
+    sec.id = ph.id;
+    sec.innerHTML =
+      '<h2><span class="pn">フェーズ ' + n + '</span>' + esc(ph.title) + '</h2>' +
+      '<p class="lead">' + inline(ph.intro) + '</p>' +
+      '<ol class="steps after">' + ph.steps.map(s =>
+        '<li><b>' + inline(s[0]) + '</b><span>' + inline(s[1]) + '</span><span class="ok">' + inline(s[2]) + '</span></li>').join('') + '</ol>' +
+      (ph.extra && EXTRAS[ph.extra] ? EXTRAS[ph.extra]() : '');
+    guide.appendChild(sec);
+  });
+
+  // ---------- PART 2: 理解 ----------
   function lessonCard(l) {
     let h = '<article class="lesson"><h4>' + inline(l.title) + '</h4>' + snip(l.code) + '<dl class="kv">';
     if (l.meaning) h += '<dt>意味</dt><dd>' + inline(l.meaning) + '</dd>';
@@ -282,49 +365,6 @@ ol.flow li:first-child .who::before { content: ""; }
     }
     return h + '</dl></article>';
   }
-
-  function anchorOf(name) { return name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]/g, ''); }
-
-  async function copyText(text, btn, codeEl) {
-    try {
-      await navigator.clipboard.writeText(text);
-      flash(btn, 'コピーしました');
-    } catch (e) {
-      const details = codeEl.closest('details');
-      if (details) details.open = true;
-      const range = document.createRange();
-      range.selectNodeContents(codeEl);
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
-      flash(btn, 'Ctrl+C でコピー');
-    }
-  }
-  function flash(btn, label) {
-    btn.textContent = label;
-    btn.classList.add('done');
-    clearTimeout(btn._t);
-    btn._t = setTimeout(() => { btn.textContent = 'コピー'; btn.classList.remove('done'); }, 1800);
-  }
-
-  // 進め方・学び方・基礎
-  document.getElementById('steps').innerHTML = data.setup.map(s => '<li><b>' + inline(s.title) + '</b><span>' + inline(s.body) + '</span></li>').join('');
-  document.getElementById('tips').innerHTML = data.tips.map(t => '<li>' + inline(t) + '</li>').join('');
-  document.getElementById('basics-list').innerHTML = data.basics.map(lessonCard).join('');
-  document.getElementById('after-list').innerHTML = data.after.map(s =>
-    '<li><b>' + inline(s[0]) + '</b><span>' + inline(s[1]) + '</span><span class="ok">' + inline(s[2]) + '</span></li>').join('');
-  const ex = data.expected;
-  document.getElementById('expected').innerHTML =
-    '<thead><tr>' + ex.head.map(h => '<th>' + esc(h) + '</th>').join('') + '</tr></thead><tbody>' +
-    ex.rows.map(r => '<tr>' + r.map((c, k) => '<td' + (k ? ' class="num"' : '') + '>' + esc(c) + '</td>').join('') + '</tr>').join('') + '</tbody>';
-  document.getElementById('expected-note').textContent = ex.note;
-  document.getElementById('trouble').innerHTML =
-    '<thead><tr><th>症状・エラー文</th><th>原因</th><th>直し方</th></tr></thead><tbody>' +
-    data.trouble.map(t => '<tr><td class="err">' + inline(t[0]) + '</td><td>' + inline(t[1]) + '</td><td>' + inline(t[2]) + '</td></tr>').join('') + '</tbody>';
-  document.getElementById('tree').innerHTML = esc(data.hierarchy).replace(/\[([^\]]+)\]/g, '<b>[$1]</b>');
-  document.getElementById('manual').innerHTML = data.manual.map(s => '<li><b>' + inline(s[0]) + '</b><span>' + inline(s[1]) + '</span></li>').join('');
-  document.getElementById('flow-list').innerHTML = data.flow.map(f => '<li><span class="who">' + esc(f[0]) + '</span><span>' + inline(f[1]) + '</span></li>').join('');
-
   function explainBox(x) {
     if (!x) return '';
     return '<h4 class="subhead">説明してみよう</h4><div class="explain">' +
@@ -336,36 +376,33 @@ ol.flow li:first-child .who::before { content: ""; }
       '</ol></details></div>';
   }
 
-  // ファイル
+  document.getElementById('flow-list').innerHTML = data.flow.map(f => '<li><span class="who">' + esc(f[0]) + '</span><span>' + inline(f[1]) + '</span></li>').join('');
+  document.getElementById('tips').innerHTML = data.tips.map(t => '<li>' + inline(t) + '</li>').join('');
+  document.getElementById('basics-list').innerHTML = data.basics.map(lessonCard).join('');
+
   const chips = document.getElementById('chips');
   const main = document.getElementById('files');
+  const codeEls = [];
   data.files.forEach((f, i) => {
     const id = anchorOf(f.name);
-    const badgeClass = f.status === '変更' ? 'chg' : 'new';
-    const badge = '<span class="badge ' + badgeClass + '">' + esc(f.status) + '</span>';
     const ord = String(i + 1);
-
-    const a = document.createElement('a');
-    a.className = 'file';
-    a.href = '#' + id;
-    a.innerHTML = '<span class="ord">' + ord + '</span>' + esc(f.name) + ' ' + badge;
-    chips.appendChild(a);
+    chips.insertAdjacentHTML('beforeend', '<a class="file" href="#' + id + '"><span class="ord">' + ord + '</span>' + esc(f.name) + ' ' + badgeOf(f) + '</a>');
 
     const code = f.code.replace(/\n$/, '');
     const lineCount = code.split('\n').length;
     const g = f.guide || { summary: '', lessons: [], next: [] };
+    const at = data.attach[f.name];
 
     const sec = document.createElement('section');
     sec.className = 'file';
     sec.id = id;
     sec.innerHTML =
       '<div class="file-head"><div class="file-meta">' +
-        '<h3 class="fname"><span class="ord">' + ord + '.</span>' + esc(f.name) + ' ' + badge + '</h3>' +
+        '<h3 class="fname"><span class="ord">' + ord + '.</span>' + esc(f.name) + ' ' + badgeOf(f) + '</h3>' +
         '<div class="path">' + esc(f.path) + '<span class="lines">' + f.lines + ' 行</span></div>' +
         '<p>' + inline(f.desc) + '</p>' +
       '</div><button class="copy" type="button" id="copy-' + id + '">コピー</button></div>' +
-      (data.attach[f.name] ? '<div class="attach"><span class="lbl">アタッチ先</span><span class="tgt">' + inline(data.attach[f.name].target) +
-        '</span><span class="dt">' + inline(data.attach[f.name].detail) + '</span></div>' : '') +
+      (at ? '<div class="attach"><span class="lbl">アタッチ先</span><span class="tgt">' + inline(at.target) + '</span><span class="dt">' + inline(at.detail) + '</span></div>' : '') +
       (g.summary ? '<p class="summary">' + inline(g.summary) + '</p>' : '') +
       '<details class="full"><summary>コード全文を表示(' + f.lines + ' 行)</summary>' +
         '<div class="code" tabindex="0" aria-label="' + esc(f.name) + ' のソースコード">' +
@@ -379,9 +416,16 @@ ol.flow li:first-child .who::before { content: ""; }
         '</ul>' : '');
     main.appendChild(sec);
 
-    const btn = sec.querySelector('button.copy');
     const codeEl = sec.querySelector('.code pre:last-child code');
+    codeEls[i] = codeEl;
+    const btn = sec.querySelector('button.copy');
     btn.addEventListener('click', () => copyText(f.code, btn, codeEl));
+  });
+
+  // フェーズ3の表のコピーボタン
+  document.querySelectorAll('.scripts-tbl .copy-s').forEach(btn => {
+    const i = Number(btn.dataset.i);
+    btn.addEventListener('click', () => copyText(data.files[i].code, btn, codeEls[i]));
   });
 })();
 </script>

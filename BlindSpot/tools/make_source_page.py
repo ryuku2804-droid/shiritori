@@ -44,7 +44,7 @@ def main(out_path):
         })
     payload = {
         "files": files,
-        "setup": lessons.SETUP,
+        "guide": lessons.GUIDE,
         "tips": lessons.STUDY_TIPS,
         "basics": lessons.BASICS,
         "flow": lessons.FLOW,
@@ -52,7 +52,6 @@ def main(out_path):
         "hierarchy": lessons.HIERARCHY,
         "manual": lessons.MANUAL_STEPS,
         "attach": lessons.ATTACH,
-        "after": lessons.AFTER_CODE,
         "expected": lessons.EXPECTED,
         "trouble": lessons.TROUBLE,
     }

@@ -11,31 +11,6 @@
   }
 """
 
-SETUP = [
-    {
-        "title": "Unity プロジェクトを作る",
-        "body": "Unity Hub で「New project」を押し、**Unity 6** の **Universal 3D** テンプレートで作成します。",
-    },
-    {
-        "title": "Input System を確認する",
-        "body": "`Window > Package Manager` の「In Project」に **Input System** があるか確認します。無ければ「Unity Registry」からインストールします。"
-                "次に `Edit > Project Settings > Player > Other Settings` で **Active Input Handling** を「Input System Package (New)」か「Both」にします。",
-    },
-    {
-        "title": "フォルダを作る",
-        "body": "`Assets/BlindSpot/Scripts/Noise`、`Scripts/Player`、`Scripts/Debug`、`Assets/BlindSpot/Editor` を作ります。",
-    },
-    {
-        "title": "スクリプトを作って貼る",
-        "body": "下のファイル一覧の順に作ります。フォルダで右クリック → `Create > MonoBehaviour Script` で**同じ名前**のファイルを作り、中身を全部消して「コピー」したコードを貼ります。"
-                "6つそろうまでは Console に赤字が出ることがありますが、全部そろえば消えます。",
-    },
-    {
-        "title": "動かして確かめる",
-        "body": "ここから先は、下の「**コードを貼り終わったら**」の手順に沿って進めます。",
-    },
-]
-
 STUDY_TIPS = [
     "まず貼って動かします。動くものを見てから読むと、コードの意味がつかみやすくなります。",
     "次に Inspector の数値を変えて遊びます。歩幅や距離を変えると、どの値が何に効くかが体でわかります。",
@@ -678,48 +653,6 @@ ATTACH = {
     },
 }
 
-# ---------------- コードを貼り終わったら ----------------
-
-# (見出し, やること, こうなっていれば OK)
-AFTER_CODE = [
-    ("保存して Unity に戻る",
-     "コードエディタで全ファイルを保存し(Ctrl+S)、Unity の画面をクリックします。Unity が自動でコンパイル(コードをゲームが使える形に変換)を始めます。",
-     "画面右下のくるくる回るマークが消えれば、コンパイルは終わりです。数秒〜数十秒かかります。"),
-    ("Console でエラーが無いか確認する",
-     "`Window > General > Console`(Ctrl+Shift+C)を開きます。右上の赤・黄・白のボタンは表示の切り替えです。全部 ON にしておきます。",
-     "**赤いエラーが 0 件**なら OK です。黄色の警告は、今は気にしなくて構いません。赤が出たら、下の「よくあるエラー」を見てください。"),
-    ("テスト用のシーンを作る",
-     "`File > New Scene` で「Basic (URP)」か「Standard (URP)」を選んで Create を押します。`File > Save As` で `Assets/Scenes/Prototype` という名前で保存します。",
-     "Project ウィンドウの `Assets/Scenes` に `Prototype` ができ、Unity の上部に表示されるシーン名が Prototype になります。"),
-    ("メニューから部屋を作る",
-     "一番上のメニューバー(File・Edit・Assets… が並んでいるところ)に **BlindSpot** が増えています。`BlindSpot > ステップ1: テスト部屋とプレイヤーを作成` をクリックします。",
-     "Hierarchy に `Graybox_Room` と `Player` ができます。Console には「[BlindSpot] テスト部屋とプレイヤーを作成しました」と白い文字で出ます。Scene ビューに灰色の部屋と、色付きの床が見えます。"),
-    ("できたものを Inspector で確かめる",
-     "Hierarchy で `Player` をクリックし、Inspector を上から見ます。次に `Graybox_Room > Surfaces > Surface_Carpet` をクリックします。",
-     "Player の上部で Tag が **Player**、Layer が **Player** になっています。その下に Character Controller・Audio Source・Player Controller・Footstep Noise・Debug Hud が並び、Player Controller の Camera Root に CameraRoot が入っています。Surface_Carpet には Surface Material(Type: Carpet)が付いています。"),
-    ("シーンを保存する",
-     "Ctrl+S を押します。",
-     "Hierarchy の上部のシーン名に付いていた「*」(未保存の印)が消えます。"),
-    ("画面を並べる",
-     "**Game** タブをドラッグして、Scene ビューの右側に落とします。Scene ビュー右上の **Gizmos** ボタンを ON(青)にします。Game ビュー上部の解像度は「16:9 Aspect」などにしておきます。",
-     "左に Scene、右に Game が並んでいます。"),
-    ("再生する",
-     "上部中央の ▶ ボタン(Ctrl+P)を押し、**Game ビューを1回クリック**します。マウスが Game ビューに固定され、視点を動かせるようになります。",
-     "Game ビューの左上に「状態: Idle」などの情報が出ます。Esc を押すと、マウスが解放されます。"),
-    ("足音を確かめる",
-     "下の「期待される数値」の表を見ながら、それぞれの床で歩く・しゃがむ・走るを試し、左上の「最後の足音」の数値を見ます。",
-     "数値が表と同じで、Scene ビューに同じ大きさの円が出れば OK です。"),
-    ("しゃがみを確かめる",
-     "部屋の手前にある低い通路(天井の低いトンネル)に、Ctrl を押したまま入ります。中で Ctrl を離します。",
-     "中では立ち上がらず、しゃがんだまま進めます。通路を出ると自動で立ち上がります。"),
-    ("止めて、値を調整する",
-     "もう一度 ▶ を押して止めます。速度や足音の距離を変えたいときは、Player の Inspector で値を変えて、また再生します。",
-     "**注意**:再生中に Inspector で変えた値は、停止すると元に戻ります。再生中に試していい値が見つかったら、コンポーネント右上の「⋮」→ `Copy Component` を選び、停止後に「⋮」→ `Paste Component Values` で反映します。"),
-    ("完了の報告",
-     "全部確かめたら、ここに「できた」と送ってください。うまくいかないときは、Console の赤いエラーをクリックし、下の欄に出る全文を選んでコピーして、そのまま貼ってください。",
-     "ステップ2(怪物 AI)に進みます。"),
-]
-
 # 期待される数値 (足音の届く距離 = 基本距離 × 床の倍率)
 EXPECTED = {
     "head": ["床", "倍率", "しゃがみ (1.5m)", "歩き (5m)", "走り (12m)"],
@@ -768,4 +701,137 @@ TROUBLE = [
     ("画面がピンク色",
      "URP 用ではないマテリアルになっています。",
      "`Assets/BlindSpot/Materials` を削除して、メニューをもう一度実行します。"),
+]
+
+# ---------------- 最初から最後までの手順 ----------------
+# phase = {"id", "title", "intro", "steps": [(見出し, やること, こうなっていれば OK)], "extra": 追加表示の種類}
+
+GUIDE = [
+    {
+        "id": "prep",
+        "title": "Unity の準備",
+        "intro": "コードを書く前に、Unity とプロジェクトを用意します。最初の1回だけの作業です。",
+        "steps": [
+            ("Unity Hub と Unity 6 を入れる",
+             "Unity の公式サイトから **Unity Hub** を入れて起動します。左の `Installs` → `Install Editor` で **Unity 6**(6000.x の LTS)を選びます。途中のモジュール選択では、Windows なら **Microsoft Visual Studio Community** にチェックを入れます(コードを書くためのエディタです)。",
+             "Installs の一覧に Unity 6000.x が表示されます。"),
+            ("プロジェクトを作る",
+             "左の `Projects` → `New project` を押します。上部のバージョンが 6000.x になっているのを確認し、テンプレートから **Universal 3D** を選びます。右側でプロジェクト名を `BlindSpot`、保存場所を決めて `Create project` を押します。初回は数分かかります。",
+             "Unity エディタが開き、SampleScene(空と地面だけのシーン)が表示されます。"),
+            ("Input System を確認する",
+             "上のメニュー `Window > Package Manager` を開き、左上の `In Project` に **Input System** があるか見ます。無ければ `Unity Registry` で Input System を探して `Install` を押します。",
+             "In Project の一覧に Input System が入っています。"),
+            ("入力の方式を新しい方にする",
+             "`Edit > Project Settings` を開き、左の `Player` → `Other Settings` の中の **Active Input Handling** を、「Input System Package (New)」か「Both」にします。再起動を求められたら `Apply` を押します。",
+             "Unity が再起動し、Console に赤いエラーが出ていません。"),
+            ("コードエディタを確認する",
+             "`Edit > Preferences`(Mac は `Unity > Settings`)→ `External Tools` の **External Script Editor** が Visual Studio(または VS Code)になっているか確認します。",
+             "あとでスクリプトをダブルクリックしたとき、そのエディタで開きます。"),
+        ],
+    },
+    {
+        "id": "folders",
+        "title": "フォルダを作る",
+        "intro": "スクリプトを役割ごとに分けて置くためのフォルダを作ります。フォルダ名は、このあとの手順と同じにしてください。",
+        "steps": [
+            ("BlindSpot フォルダを作る",
+             "下の Project ウィンドウで `Assets` を選び、右側の空いているところで右クリック → `Create > Folder` を選び、名前を `BlindSpot` にします。",
+             "Assets の中に BlindSpot フォルダがあります。"),
+            ("中のフォルダを作る",
+             "BlindSpot を開き、同じ方法で `Scripts` と `Editor` を作ります。さらに Scripts を開いて `Noise`、`Player`、`Debug` を作ります。",
+             "`Assets/BlindSpot/Scripts/Noise`、`Scripts/Player`、`Scripts/Debug`、`Assets/BlindSpot/Editor` の4つがそろっています。"),
+            ("Editor の綴りを確認する",
+             "`Editor` は大文字の E で始まり、一字一句この名前にします。Unity はこの名前のフォルダを「エディタ専用」と見なします。",
+             "フォルダ名が `Editor` になっています(`editor` や `Editors` は不可)。"),
+        ],
+    },
+    {
+        "id": "scripts",
+        "title": "スクリプトを作って貼る",
+        "intro": "6つのファイルを作り、コードを貼ります。**スクリプトは作っただけでは何も起きません**。オブジェクトに付けて(アタッチして)はじめて動きます。付ける作業は次のフェーズで行います。",
+        "steps": [
+            ("ファイルを作る",
+             "下の表の「フォルダ」を Project ウィンドウで開き、右クリック → `Create > MonoBehaviour Script`(古い Unity では `C# Script`)を選びます。**すぐに表のファイル名を入力して** Enter を押します(`.cs` は付けません)。",
+             "フォルダに、表と同じ名前のスクリプトができています。"),
+            ("中身を貼り替える",
+             "作ったファイルをダブルクリックしてコードエディタで開きます。Ctrl+A で全部選んで Delete で消し、表の「コピー」を押してから Ctrl+V で貼り、Ctrl+S で保存します。",
+             "エディタの中身が、ページのコードと同じになっています。"),
+            ("6つ全部くり返す",
+             "表の1から6の順に、同じことをくり返します。途中で Unity に戻ると赤いエラーが出ることがありますが、ほかのファイルがまだ無いせいなので、気にせず進めます。",
+             "6つのファイルが、表どおりのフォルダにそろっています。"),
+            ("エラーが無いか確認する",
+             "Unity に戻り、画面右下のくるくる回るマーク(コンパイル中)が消えるのを待ちます。`Window > General > Console`(Ctrl+Shift+C)を開きます。",
+             "**赤いエラーが 0 件**です。黄色の警告は気にしなくて構いません。赤が出たら、フェーズ5の「よくあるエラー」を見てください。"),
+        ],
+        "extra": "scripts",
+    },
+    {
+        "id": "assemble",
+        "title": "シーンを組み立てる(アタッチと設定)",
+        "intro": "スクリプトを付ける相手(プレイヤー・床・カメラ)を作り、スクリプトを付けて、Inspector で設定します。"
+                 "**方法A: メニューで1クリック**(おすすめ)と、**方法B: 手で組み立てる**(仕組みを理解したいとき)の2通りがあります。どちらでも結果は同じです。まず A で作り、余裕があれば別のシーンで B も試すと理解が深まります。",
+        "steps": [
+            ("テスト用のシーンを作る",
+             "`File > New Scene` で「Basic (URP)」か「Standard (URP)」を選んで `Create` を押します。`File > Save As` で `Assets/Scenes` に `Prototype` という名前で保存します。",
+             "Hierarchy の一番上のシーン名が Prototype になっています。"),
+            ("方法A: メニューで組み立てる",
+             "一番上のメニューバー(File・Edit・Assets… が並ぶところ)に **BlindSpot** が増えています。`BlindSpot > ステップ1: テスト部屋とプレイヤーを作成` をクリックします。下の組み立て図の形が、アタッチと設定まで含めて自動で作られます。",
+             "Hierarchy に `Graybox_Room` と `Player` ができ、Console に「[BlindSpot] テスト部屋とプレイヤーを作成しました」と出ます。元からあった Main Camera は消えます(プレイヤーのカメラと2つになるのを防ぐためです)。"),
+            ("Player を Inspector で確かめる",
+             "Hierarchy で `Player` をクリックし、Inspector を上から見ます。",
+             "上部の Tag が **Player**、Layer が **Player** です。その下に Character Controller・Audio Source・Player Controller・Footstep Noise・Debug Hud の5つが並んでいます。Player Controller の **Camera Root** に CameraRoot が入り、**Obstacle Mask** は「Mixed…」(Player だけ外れた状態)になっています。"),
+            ("カメラと床も確かめる",
+             "Player の左の ▶ を開いて `CameraRoot` をクリックします。次に `Graybox_Room > Surfaces > Surface_Carpet` をクリックします。",
+             "CameraRoot には Camera と Audio Listener が付いています。Surface_Carpet には Box Collider と Surface Material(Type: Carpet)が付いています。"),
+            ("シーンを保存する",
+             "Ctrl+S を押します。",
+             "シーン名の横の「*」(未保存の印)が消えます。"),
+        ],
+        "extra": "assemble",
+    },
+    {
+        "id": "play",
+        "title": "動かして確かめる",
+        "intro": "再生して、足音の大きさが状態と床で変わることを確かめます。",
+        "steps": [
+            ("画面を並べる",
+             "**Game** タブをドラッグして、Scene ビューの右側に落とします。Scene ビュー右上の **Gizmos** ボタンを ON にします。",
+             "左に Scene ビュー、右に Game ビューが並んでいます。"),
+            ("再生する",
+             "上部中央の ▶(Ctrl+P)を押し、**Game ビューを1回クリック**します。",
+             "Game ビューの左上に「状態: Idle」などの情報が出て、マウスで視点が動きます。Esc でマウスが解放されます。"),
+            ("足音を確かめる",
+             "WASD で歩き、Shift を押しながら前進して走り、Ctrl か C でしゃがみます。色の違う床の上でもそれぞれ試し、左上の「最後の足音」を下の表と比べます。",
+             "数値が表と同じで、Scene ビューにその大きさの円が出ます。"),
+            ("しゃがみを確かめる",
+             "スタート地点の目の前にある、天井の低い通路に Ctrl を押したまま入り、中で Ctrl を離します。",
+             "通路の中では立ち上がらず、外へ出ると自動で立ちます。"),
+            ("止めて、値を調整する",
+             "もう一度 ▶ を押して止めます。速さや足音の距離は、Player の Inspector で変えられます。",
+             "**再生中に Inspector で変えた値は、停止すると元に戻ります。** 残したいときは、コンポーネント右上の「⋮」→ `Copy Component` でコピーし、停止後に「⋮」→ `Paste Component Values` で貼り付けます。"),
+            ("報告する",
+             "全部確かめたら、チャットに「できた」と送ってください。エラーが出たら、Console のエラーをクリックし、下の欄に出る全文をコピーして貼ってください。",
+             "ステップ2(怪物 AI)に進みます。"),
+        ],
+        "extra": "play",
+    },
+    {
+        "id": "learn",
+        "title": "理解する",
+        "intro": "動いたら、コードの意味と「なぜこう書いたか」を説明できるようにします。このページの後半が教材です。",
+        "steps": [
+            ("全体の流れを読む",
+             "下の「全体の流れ」で、W キーを押してから音が怪物に届くまでに、どのファイルがどの順番でバトンを渡すかをつかみます。",
+             "6つのファイルの役割を、それぞれ一言で言えます。"),
+            ("C# と Unity の基礎を読む",
+             "どのファイルにも出てくる書き方(namespace・Awake と Start・SerializeField・プロパティ)を先に読みます。",
+             "`[SerializeField] private` と `public` の違いを説明できます。"),
+            ("ファイルごとの解説を読み、説明してみる",
+             "各ファイルの解説カードを読んだら、「説明してみよう」で何も見ずに30秒説明し、お手本と比べ、確認の質問に答えます。",
+             "NoiseSystem と FootstepNoise を、自分の言葉で説明できます。"),
+            ("チャットで練習する",
+             "「NoiseSystem を説明するので聞いて」のように送ってもらえれば、合っているところと足りないところを返します。",
+             "わからないところが、具体的な質問にできるようになります。"),
+        ],
+    },
 ]
