@@ -3,7 +3,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap">
 <style>
-/* レイアウト: ファイル一覧のチップ → ファイルごとのセクション (見出し・パス・説明・コピー・コード) を縦に並べる */
+/* レイアウト: 進め方 → C#の基礎 → ファイルごと (見出し・コピー・コード全文・解説カード・発展) を1カラムで縦に並べる */
 :root {
   --bg: #eef0ee;
   --surface: #ffffff;
@@ -12,6 +12,7 @@
   --line: #d5dad7;
   --accent: #1d6f6d;
   --accent-soft: #d8ebe9;
+  --alt-bg: #f5f6f4;
   --new-fg: #1d6b3a;
   --new-bg: #dcefe2;
   --chg-fg: #8a5a00;
@@ -19,7 +20,9 @@
   --code-bg: #14191a;
   --code-fg: #d9e0dd;
   --code-gutter: #5f6b68;
-  --tok-comment: #6f8a83;
+  --code-line: #ffffff14;
+  --inline-bg: #e3e8e5;
+  --tok-comment: #7d958f;
   --tok-string: #d9b77a;
   --tok-keyword: #7fc6d6;
   --tok-number: #c9a0dc;
@@ -30,81 +33,107 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #101413; --surface: #181e1d; --fg: #e3e8e6; --muted: #95a29e; --line: #2b3432;
-    --accent: #5fbdb8; --accent-soft: #1d3332;
+    --accent: #5fbdb8; --accent-soft: #1d3332; --alt-bg: #141a19;
     --new-fg: #8fdca8; --new-bg: #1b3524; --chg-fg: #f0c46a; --chg-bg: #3a2e12;
-    --code-bg: #0b0f0f; --code-fg: #d9e0dd; --code-gutter: #4d5856;
+    --code-bg: #0b0f0f; --inline-bg: #26302e;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #101413; --surface: #181e1d; --fg: #e3e8e6; --muted: #95a29e; --line: #2b3432;
-  --accent: #5fbdb8; --accent-soft: #1d3332;
+  --accent: #5fbdb8; --accent-soft: #1d3332; --alt-bg: #141a19;
   --new-fg: #8fdca8; --new-bg: #1b3524; --chg-fg: #f0c46a; --chg-bg: #3a2e12;
-  --code-bg: #0b0f0f; --code-fg: #d9e0dd; --code-gutter: #4d5856;
+  --code-bg: #0b0f0f; --inline-bg: #26302e;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
-body {
-  background: var(--bg); color: var(--fg);
-  font-family: var(--font-body); font-size: 15px; line-height: 1.7;
-}
-.wrap { max-width: 1040px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 64px; display: grid; gap: 28px; }
-header { display: grid; gap: 6px; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.75; }
+.wrap { max-width: 980px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 80px; display: grid; gap: 36px; }
+p { margin: 0; }
+code.i { font-family: var(--font-mono); font-size: .9em; background: var(--inline-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+
+header { display: grid; gap: 8px; }
 .eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .16em; color: var(--accent); font-weight: 600; }
 h1 { margin: 0; font-size: 26px; line-height: 1.35; text-wrap: balance; }
-.lead { margin: 0; color: var(--muted); }
-.counts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
-.notes { margin: 4px 0 0; padding-left: 1.2em; color: var(--muted); font-size: 14px; }
-.notes li + li { margin-top: 2px; }
-.notes code { font-family: var(--font-mono); font-size: 13px; color: var(--fg); }
+h2.sec { margin: 0; font-size: 20px; text-wrap: balance; }
+.lead { color: var(--muted); max-width: 65ch; }
+.counts { display: flex; flex-wrap: wrap; gap: 8px; }
 
-.badge {
-  display: inline-flex; align-items: center; font-size: 12px; font-weight: 700; line-height: 1;
-  padding: 4px 7px; border-radius: 4px; letter-spacing: .05em; white-space: nowrap;
+nav.toc { display: grid; gap: 10px; }
+nav.toc .row { display: flex; flex-wrap: wrap; gap: 8px; }
+nav.toc a {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--surface);
+  color: var(--accent); text-decoration: none; font-size: 13.5px; font-weight: 500;
 }
+nav.toc a.file { font-family: var(--font-mono); }
+nav.toc a .ord { color: var(--muted); font-variant-numeric: tabular-nums; }
+nav.toc a:hover { border-color: var(--accent); background: var(--accent-soft); }
+a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.badge { display: inline-flex; align-items: center; font-size: 12px; font-weight: 700; line-height: 1; padding: 4px 7px; border-radius: 4px; letter-spacing: .05em; white-space: nowrap; font-family: var(--font-body); }
 .badge.new { color: var(--new-fg); background: var(--new-bg); }
 .badge.chg { color: var(--chg-fg); background: var(--chg-bg); }
 
-nav.chips { display: flex; flex-wrap: wrap; gap: 8px; }
-nav.chips a {
-  display: inline-flex; align-items: center; gap: 8px; min-width: 0;
-  padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface);
-  color: var(--accent); text-decoration: none; font-family: var(--font-mono); font-size: 13.5px; font-weight: 500;
-}
-nav.chips a:hover { border-color: var(--accent); background: var(--accent-soft); }
-nav.chips a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+section.block { display: grid; gap: 16px; scroll-margin-top: 16px; }
+ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 12px; }
+ol.steps li { counter-increment: s; display: grid; grid-template-columns: 2em minmax(0, 1fr); gap: 4px 10px; }
+ol.steps li::before { content: counter(s); grid-row: span 2; font-family: var(--font-mono); font-weight: 600; color: var(--accent); font-size: 18px; line-height: 1.5; }
+ol.steps b { font-size: 15.5px; }
+ul.tips { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; max-width: 72ch; }
 
-section.file { display: grid; gap: 10px; padding-top: 20px; border-top: 1px solid var(--line); scroll-margin-top: 16px; }
+.lessons { display: grid; gap: 14px; }
+article.lesson { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; display: grid; gap: 10px; min-width: 0; }
+article.lesson h4 { margin: 0; font-size: 16px; text-wrap: balance; }
+.kv { display: grid; grid-template-columns: 8.5em minmax(0, 1fr); gap: 6px 12px; }
+.kv dt { font-size: 12.5px; font-weight: 700; color: var(--accent); letter-spacing: .04em; padding-top: 2px; }
+.kv dd { margin: 0; min-width: 0; }
+.alts { display: grid; gap: 10px; }
+.alt { background: var(--alt-bg); border: 1px dashed var(--line); border-radius: 6px; padding: 10px 12px; display: grid; gap: 6px; min-width: 0; }
+.alt-head { font-size: 13px; font-weight: 700; color: var(--muted); }
+.alt-head span { color: var(--fg); }
+.alt .why-not { font-size: 14px; }
+.alt .why-not b { color: var(--muted); font-weight: 700; margin-right: 6px; }
+
+pre.snip { margin: 0; background: var(--code-bg); color: var(--code-fg); border-radius: 6px; padding: 10px 12px; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; overflow-x: auto; white-space: pre; tab-size: 4; }
+
+section.file { display: grid; gap: 14px; padding-top: 24px; border-top: 2px solid var(--line); scroll-margin-top: 16px; }
 .file-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .file-meta { display: grid; gap: 4px; min-width: 0; flex: 1 1 360px; }
-h2 { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
+h3.fname { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 21px; font-weight: 600; overflow-wrap: anywhere; }
+h3.fname .ord { color: var(--muted); font-weight: 500; }
 .path { font-family: var(--font-mono); font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
 .path .lines { margin-left: 12px; font-variant-numeric: tabular-nums; }
-.desc { margin: 0; }
+.summary { max-width: 72ch; }
+.subhead { margin: 6px 0 0; font-size: 13px; letter-spacing: .12em; color: var(--muted); font-weight: 700; }
 
-button.copy {
-  flex: 0 0 auto; min-width: 128px; padding: 10px 18px; border: 0; border-radius: 6px; cursor: pointer;
-  background: var(--accent); color: var(--surface); font: 600 15px/1 var(--font-body);
-}
+button.copy { flex: 0 0 auto; min-width: 128px; padding: 10px 18px; border: 0; border-radius: 6px; cursor: pointer; background: var(--accent); color: var(--surface); font: 600 15px/1 var(--font-body); }
 button.copy:hover { filter: brightness(1.08); }
 button.copy.done { background: var(--new-fg); }
 
-.code {
-  display: grid; grid-template-columns: auto minmax(0, 1fr);
-  background: var(--code-bg); color: var(--code-fg); border-radius: 8px;
-  max-height: 70vh; overflow: auto; font-family: var(--font-mono); font-size: 13px; line-height: 1.6;
-}
+details.full { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+details.full summary { cursor: pointer; padding: 10px 14px; font-weight: 600; color: var(--accent); }
+details.full[open] summary { border-bottom: 1px solid var(--line); }
+.code { display: grid; grid-template-columns: auto minmax(0, 1fr); background: var(--code-bg); color: var(--code-fg); border-radius: 0 0 8px 8px; max-height: 70vh; overflow: auto; font-family: var(--font-mono); font-size: 13px; line-height: 1.6; }
 .code pre { margin: 0; padding: 14px 16px; white-space: pre; tab-size: 4; }
-.code .gutter { color: var(--code-gutter); text-align: right; user-select: none; padding-right: 10px; border-right: 1px solid #ffffff14; font-variant-numeric: tabular-nums; position: sticky; left: 0; background: var(--code-bg); }
+.code .gutter { color: var(--code-gutter); text-align: right; user-select: none; padding-right: 10px; border-right: 1px solid var(--code-line); font-variant-numeric: tabular-nums; position: sticky; left: 0; background: var(--code-bg); }
 .t-c { color: var(--tok-comment); font-style: italic; }
 .t-s { color: var(--tok-string); }
 .t-k { color: var(--tok-keyword); }
 .t-n { color: var(--tok-number); }
 .t-p { color: var(--tok-pre); }
 
-@media (max-width: 560px) {
+ul.next { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+ul.next li { display: grid; grid-template-columns: minmax(0, 13em) minmax(0, 1fr); gap: 4px 14px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+ul.next li b { font-size: 14.5px; }
+ul.next li.try { border-color: var(--accent); background: var(--accent-soft); }
+
+@media (max-width: 640px) {
   h1 { font-size: 22px; }
   button.copy { width: 100%; }
+  .kv { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .kv dd + dt { margin-top: 8px; }
+  ul.next li { grid-template-columns: minmax(0, 1fr); }
   .code { font-size: 12px; }
 }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
@@ -112,32 +141,49 @@ button.copy.done { background: var(--new-fg); }
 
 <div class="wrap">
   <header>
-    <div class="eyebrow">BLIND SPOT / SOURCE</div>
+    <div class="eyebrow">BLIND SPOT / SOURCE &amp; STUDY</div>
     <h1>{{STEP_TITLE}}</h1>
-    <p class="lead">各ファイルの「コピー」を押して、Unity の同じ場所・同じ名前のファイルに丸ごと貼り付けてください。</p>
+    <p class="lead">上から順に進めれば、ゼロから動くところまで作れます。各ファイルには「コピー」ボタンと、コードの意味・書き方の理由・別の書き方・発展のさせ方の解説が付いています。</p>
     <div class="counts"><span class="badge new">新規 {{NEW_COUNT}}</span><span class="badge chg">変更 {{CHANGED_COUNT}}</span></div>
-    <ul class="notes">
-      <li><b>新規</b>:Project ウィンドウでフォルダを作り、右クリック → <code>Create &gt; MonoBehaviour Script</code> で同じ名前のファイルを作って、中身を全部置き換え。</li>
-      <li><b>変更</b>:既存ファイルの中身を全部消して、丸ごと貼り替え(差分ではなく全文です)。</li>
-      <li>ファイル名とクラス名は同じにしてください。<code>Editor</code> フォルダのファイルは必ず <code>Editor</code> という名前のフォルダに置いてください。</li>
-    </ul>
   </header>
 
-  <nav class="chips" id="chips" aria-label="ファイル一覧"></nav>
-  <main id="files" style="display:grid;gap:28px"></main>
+  <nav class="toc" aria-label="目次">
+    <div class="row"><a href="#setup">進め方</a><a href="#basics">C# と Unity の基礎</a></div>
+    <div class="row" id="chips"></div>
+  </nav>
+
+  <section class="block" id="setup">
+    <h2 class="sec">進め方</h2>
+    <ol class="steps" id="steps"></ol>
+    <h2 class="sec">学び方のおすすめ</h2>
+    <ul class="tips" id="tips"></ul>
+  </section>
+
+  <section class="block" id="basics">
+    <h2 class="sec">C# と Unity の基礎</h2>
+    <p class="lead">どのファイルにも出てくる書き方です。先に読んでおくと、ファイルごとの解説が読みやすくなります。</p>
+    <div class="lessons" id="basics-list"></div>
+  </section>
+
+  <main id="files" style="display:grid;gap:40px"></main>
 </div>
 
 <script id="data" type="application/json">{{DATA}}</script>
 <script>
 (function () {
-  const files = JSON.parse(document.getElementById('data').textContent);
-  const chips = document.getElementById('chips');
-  const main = document.getElementById('files');
+  const data = JSON.parse(document.getElementById('data').textContent);
 
   const KEYWORDS = new Set(('abstract as base bool break byte case catch char class const continue decimal default delegate do double else enum event explicit extern false finally fixed float for foreach get set goto if implicit in int interface internal is lock long namespace new null object operator out override params private protected public readonly ref return sbyte sealed short sizeof static string struct switch this throw true try typeof uint ulong unchecked unsafe ushort using var virtual void volatile while yield async await nameof value when where').split(' '));
   const TOKEN = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|(\$?@?"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])')|(^[ \t]*#[^\n]*)|\b(\d+(?:\.\d+)?f?)\b|\b([A-Za-z_]\w*)\b/gm;
 
-  function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+  // `code` と **太字** だけを解釈する
+  function inline(s) {
+    return esc(s)
+      .replace(/`([^`]+)`/g, '<code class="i">$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  }
 
   function highlight(src) {
     let out = '', last = 0, m;
@@ -156,6 +202,23 @@ button.copy.done { background: var(--new-fg); }
     return out + esc(src.slice(last));
   }
 
+  function snip(code) { return code ? '<pre class="snip"><code>' + highlight(code) + '</code></pre>' : ''; }
+
+  function lessonCard(l) {
+    let h = '<article class="lesson"><h4>' + inline(l.title) + '</h4>' + snip(l.code) + '<dl class="kv">';
+    if (l.meaning) h += '<dt>意味</dt><dd>' + inline(l.meaning) + '</dd>';
+    if (l.why) h += '<dt>なぜこう書くか</dt><dd>' + inline(l.why) + '</dd>';
+    if (l.alts && l.alts.length) {
+      h += '<dt>別の書き方</dt><dd><div class="alts">';
+      for (const a of l.alts) {
+        h += '<div class="alt"><div class="alt-head">別の書き方:<span>' + inline(a.label) + '</span></div>' + snip(a.code) +
+             '<p class="why-not"><b>使わない理由</b>' + inline(a.why_not) + '</p></div>';
+      }
+      h += '</div></dd>';
+    }
+    return h + '</dl></article>';
+  }
+
   function anchorOf(name) { return name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]/g, ''); }
 
   async function copyText(text, btn, codeEl) {
@@ -163,7 +226,8 @@ button.copy.done { background: var(--new-fg); }
       await navigator.clipboard.writeText(text);
       flash(btn, 'コピーしました');
     } catch (e) {
-      // クリップボードが使えない環境では、コードを選択状態にして Ctrl+C を促す
+      const details = codeEl.closest('details');
+      if (details) details.open = true;
       const range = document.createRange();
       range.selectNodeContents(codeEl);
       const sel = window.getSelection();
@@ -172,7 +236,6 @@ button.copy.done { background: var(--new-fg); }
       flash(btn, 'Ctrl+C でコピー');
     }
   }
-
   function flash(btn, label) {
     btn.textContent = label;
     btn.classList.add('done');
@@ -180,37 +243,54 @@ button.copy.done { background: var(--new-fg); }
     btn._t = setTimeout(() => { btn.textContent = 'コピー'; btn.classList.remove('done'); }, 1800);
   }
 
-  for (const f of files) {
+  // 進め方・学び方・基礎
+  document.getElementById('steps').innerHTML = data.setup.map(s => '<li><b>' + inline(s.title) + '</b><span>' + inline(s.body) + '</span></li>').join('');
+  document.getElementById('tips').innerHTML = data.tips.map(t => '<li>' + inline(t) + '</li>').join('');
+  document.getElementById('basics-list').innerHTML = data.basics.map(lessonCard).join('');
+
+  // ファイル
+  const chips = document.getElementById('chips');
+  const main = document.getElementById('files');
+  data.files.forEach((f, i) => {
     const id = anchorOf(f.name);
     const badgeClass = f.status === '変更' ? 'chg' : 'new';
+    const badge = '<span class="badge ' + badgeClass + '">' + esc(f.status) + '</span>';
+    const ord = String(i + 1);
 
     const a = document.createElement('a');
+    a.className = 'file';
     a.href = '#' + id;
-    a.innerHTML = esc(f.name) + ' <span class="badge ' + badgeClass + '">' + esc(f.status) + '</span>';
+    a.innerHTML = '<span class="ord">' + ord + '</span>' + esc(f.name) + ' ' + badge;
     chips.appendChild(a);
+
+    const code = f.code.replace(/\n$/, '');
+    const lineCount = code.split('\n').length;
+    const g = f.guide || { summary: '', lessons: [], next: [] };
 
     const sec = document.createElement('section');
     sec.className = 'file';
     sec.id = id;
-    const lineCount = f.code.replace(/\n$/, '').split('\n').length;
     sec.innerHTML =
-      '<div class="file-head">' +
-        '<div class="file-meta">' +
-          '<h2>' + esc(f.name) + ' <span class="badge ' + badgeClass + '">' + esc(f.status) + '</span></h2>' +
-          '<div class="path">' + esc(f.path) + '<span class="lines">' + f.lines + ' 行</span></div>' +
-          '<p class="desc">' + esc(f.desc) + '</p>' +
-        '</div>' +
-        '<button class="copy" type="button" id="copy-' + id + '">コピー</button>' +
-      '</div>' +
-      '<div class="code" tabindex="0" aria-label="' + esc(f.name) + ' のソースコード">' +
-        '<pre class="gutter" aria-hidden="true">' + Array.from({ length: lineCount }, (_, i) => i + 1).join('\n') + '</pre>' +
-        '<pre><code>' + highlight(f.code.replace(/\n$/, '')) + '</code></pre>' +
-      '</div>';
+      '<div class="file-head"><div class="file-meta">' +
+        '<h3 class="fname"><span class="ord">' + ord + '.</span>' + esc(f.name) + ' ' + badge + '</h3>' +
+        '<div class="path">' + esc(f.path) + '<span class="lines">' + f.lines + ' 行</span></div>' +
+        '<p>' + inline(f.desc) + '</p>' +
+      '</div><button class="copy" type="button" id="copy-' + id + '">コピー</button></div>' +
+      (g.summary ? '<p class="summary">' + inline(g.summary) + '</p>' : '') +
+      '<details class="full"><summary>コード全文を表示(' + f.lines + ' 行)</summary>' +
+        '<div class="code" tabindex="0" aria-label="' + esc(f.name) + ' のソースコード">' +
+          '<pre class="gutter" aria-hidden="true">' + Array.from({ length: lineCount }, (_, k) => k + 1).join('\n') + '</pre>' +
+          '<pre><code>' + highlight(code) + '</code></pre>' +
+        '</div></details>' +
+      (g.lessons.length ? '<h4 class="subhead">解説</h4><div class="lessons">' + g.lessons.map(lessonCard).join('') + '</div>' : '') +
+      (g.next.length ? '<h4 class="subhead">ここから発展させるには</h4><ul class="next">' +
+        g.next.map(n => '<li class="' + (n[0] === 'やってみよう' ? 'try' : '') + '"><b>' + inline(n[0]) + '</b><span>' + inline(n[1]) + '</span></li>').join('') +
+        '</ul>' : '');
     main.appendChild(sec);
 
     const btn = sec.querySelector('button.copy');
-    const codeEl = sec.querySelector('code');
+    const codeEl = sec.querySelector('.code pre:last-child code');
     btn.addEventListener('click', () => copyText(f.code, btn, codeEl));
-  }
+  });
 })();
 </script>

@@ -10,6 +10,8 @@ import json
 import pathlib
 import sys
 
+import lessons_step1 as lessons
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent  # BlindSpot/
 
 STEP_TITLE = "ステップ1:プレイヤー操作と足音・音の仕組み"
@@ -38,8 +40,15 @@ def main(out_path):
             "desc": desc,
             "lines": src.count("\n") + (0 if src.endswith("\n") else 1),
             "code": src,
+            "guide": lessons.FILE_LESSONS.get(pathlib.PurePosixPath(rel).name),
         })
-    data = json.dumps(files, ensure_ascii=False).replace("</", "<\\/")
+    payload = {
+        "files": files,
+        "setup": lessons.SETUP,
+        "tips": lessons.STUDY_TIPS,
+        "basics": lessons.BASICS,
+    }
+    data = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
     page = (TEMPLATE
             .replace("{{STEP_TITLE}}", html.escape(STEP_TITLE))
             .replace("{{NEW_COUNT}}", str(sum(f["status"] == "新規" for f in files)))

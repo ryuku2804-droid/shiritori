@@ -70,3 +70,4 @@
 
 - 毎回、変更したファイルは差分ではなく全文で渡し、ファイルごとに【新規】/【変更】を付ける
 - コピペ用ページは `python3 BlindSpot/tools/make_source_page.py <出力.html>` で作り、Artifact として公開する(ステップ1は https://claude.ai/artifact/6Ek4AtZMgD4P7qAwoWXzAL)。`FILES` の一覧と状態をステップごとに書き換える
+- 作者はコードを学びながら作っている。ファイルごとに「意味 / なぜこう書くか / 別の書き方と使わない理由 / 発展のさせ方・やってみよう」の解説を `BlindSpot/tools/lessons_stepN.py` に書き、同じページに載せる
