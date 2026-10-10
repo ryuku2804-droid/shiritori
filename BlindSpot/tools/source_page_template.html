@@ -128,6 +128,12 @@ ul.next li { display: grid; grid-template-columns: minmax(0, 13em) minmax(0, 1fr
 ul.next li b { font-size: 14.5px; }
 ul.next li.try { border-color: var(--accent); background: var(--accent-soft); }
 
+pre.tree { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; font-family: var(--font-mono); font-size: 13px; line-height: 1.65; overflow-x: auto; white-space: pre; }
+details.manual ol.steps { padding: 14px 16px; }
+.attach { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; align-items: baseline; padding: 12px 14px; border-radius: 8px; background: var(--accent-soft); }
+.attach .lbl { font-size: 12px; font-weight: 700; letter-spacing: .06em; color: var(--accent); white-space: nowrap; }
+.attach .tgt { font-weight: 700; }
+.attach .dt { grid-column: 2; font-size: 14px; }
 ol.flow { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; }
 ol.flow li { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 4px 14px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 ol.flow li:last-child { border-bottom: 0; color: var(--muted); }
@@ -169,7 +175,7 @@ ol.flow li:first-child .who::before { content: ""; }
   </header>
 
   <nav class="toc" aria-label="目次">
-    <div class="row"><a href="#setup">進め方</a><a href="#flow">全体の流れ</a><a href="#basics">C# と Unity の基礎</a></div>
+    <div class="row"><a href="#setup">進め方</a><a href="#flow">全体の流れ</a><a href="#attach">組み立て図</a><a href="#basics">C# と Unity の基礎</a></div>
     <div class="row" id="chips"></div>
   </nav>
 
@@ -184,6 +190,13 @@ ol.flow li:first-child .who::before { content: ""; }
     <h2 class="sec">全体の流れ:W キーを押してから、音が怪物に届くまで</h2>
     <p class="lead">6つのファイルが、どの順番でバトンを渡しているかの流れです。まずこれを人に説明できるようになると、各ファイルの役割が自然につながります。</p>
     <ol class="flow" id="flow-list"></ol>
+  </section>
+
+  <section class="block" id="attach">
+    <h2 class="sec">組み立て図:どのスクリプトを何に付けるか</h2>
+    <p class="lead">メニュー「BlindSpot &gt; ステップ1」を押すと、この形が自動で組み立てられます。[ ] の中がアタッチされているコンポーネントです。Hierarchy と Inspector を見比べながら読んでください。</p>
+    <pre class="tree" id="tree"></pre>
+    <details class="full manual"><summary>メニューを使わずに手で組み立てる手順</summary><ol class="steps" id="manual"></ol></details>
   </section>
 
   <section class="block" id="basics">
@@ -274,6 +287,8 @@ ol.flow li:first-child .who::before { content: ""; }
   document.getElementById('steps').innerHTML = data.setup.map(s => '<li><b>' + inline(s.title) + '</b><span>' + inline(s.body) + '</span></li>').join('');
   document.getElementById('tips').innerHTML = data.tips.map(t => '<li>' + inline(t) + '</li>').join('');
   document.getElementById('basics-list').innerHTML = data.basics.map(lessonCard).join('');
+  document.getElementById('tree').innerHTML = esc(data.hierarchy).replace(/\[([^\]]+)\]/g, '<b>[$1]</b>');
+  document.getElementById('manual').innerHTML = data.manual.map(s => '<li><b>' + inline(s[0]) + '</b><span>' + inline(s[1]) + '</span></li>').join('');
   document.getElementById('flow-list').innerHTML = data.flow.map(f => '<li><span class="who">' + esc(f[0]) + '</span><span>' + inline(f[1]) + '</span></li>').join('');
 
   function explainBox(x) {
@@ -315,6 +330,8 @@ ol.flow li:first-child .who::before { content: ""; }
         '<div class="path">' + esc(f.path) + '<span class="lines">' + f.lines + ' 行</span></div>' +
         '<p>' + inline(f.desc) + '</p>' +
       '</div><button class="copy" type="button" id="copy-' + id + '">コピー</button></div>' +
+      (data.attach[f.name] ? '<div class="attach"><span class="lbl">アタッチ先</span><span class="tgt">' + inline(data.attach[f.name].target) +
+        '</span><span class="dt">' + inline(data.attach[f.name].detail) + '</span></div>' : '') +
       (g.summary ? '<p class="summary">' + inline(g.summary) + '</p>' : '') +
       '<details class="full"><summary>コード全文を表示(' + f.lines + ' 行)</summary>' +
         '<div class="code" tabindex="0" aria-label="' + esc(f.name) + ' のソースコード">' +

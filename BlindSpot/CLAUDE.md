@@ -72,3 +72,4 @@
 - コピペ用ページは `python3 BlindSpot/tools/make_source_page.py <出力.html>` で作り、Artifact として公開する(ステップ1は https://claude.ai/artifact/6Ek4AtZMgD4P7qAwoWXzAL)。`FILES` の一覧と状態をステップごとに書き換える
 - 作者はコードを学びながら作っている。ファイルごとに「意味 / なぜこう書くか / 別の書き方と使わない理由 / 発展のさせ方・やってみよう」の解説を `BlindSpot/tools/lessons_stepN.py` に書き、同じページに載せる
 - 当面の目標は「自分で書ける」より先に「コードの意味と、なぜそう書いたかを説明できる」こと。全体の流れ(FLOW)と、ファイルごとの「一言でいうと / 30秒説明のお手本 / 確認の質問」(EXPLAIN)も毎ステップ用意する
+- スクリプトごとの「アタッチ先と Inspector の設定」(ATTACH)、シーンの組み立て図(HIERARCHY)、メニューを使わない手動手順(MANUAL_STEPS)も毎ステップ載せる

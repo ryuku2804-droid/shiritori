@@ -617,3 +617,68 @@ EXPLAIN = {
         ],
     },
 }
+
+# ---------------- どこにアタッチするか ----------------
+
+# シーンの組み立て図 (メニューで自動生成されるものと同じ)
+HIERARCHY = """Player                      ← Layer: Player / Tag: Player / 足元が床の高さ
+│  [CharacterController]    Height 1.8 / Radius 0.35 / Center (0, 0.9, 0) / Step Offset 0.3
+│  [AudioSource]            Play On Awake: OFF / Spatial Blend: 0 (2D)
+│  [PlayerController]       Camera Root ← CameraRoot / Obstacle Mask ← Player 以外
+│  [FootstepNoise]          Ground Mask ← Player 以外 / Audio Source ← 同じ Player の AudioSource
+│  [DebugHud]               Player ← 同じ Player / Footsteps ← 同じ Player
+└─ CameraRoot               ← 子オブジェクト / 位置 (0, 1.65, 0) / Tag: MainCamera / Layer: Player
+      [Camera]
+      [AudioListener]
+
+Graybox_Room
+├─ Floor                    [BoxCollider]                     ← SurfaceMaterial なし = Default
+├─ Surfaces
+│  ├─ Surface_Carpet        [BoxCollider] [SurfaceMaterial: Carpet]
+│  ├─ Surface_Glass         [BoxCollider] [SurfaceMaterial: Glass]
+│  ├─ Surface_Water         [BoxCollider] [SurfaceMaterial: Water]
+│  └─ Surface_Metal         [BoxCollider] [SurfaceMaterial: Metal]
+└─ Obstacles …              [BoxCollider]
+
+(どこにも付けない)  NoiseSystem … static class なので、シーンに置かなくても動く
+(どこにも付けない)  GrayboxRoomBuilder … エディタのメニュー用"""
+
+# メニューを使わずに手で組み立てる手順
+MANUAL_STEPS = [
+    ("Player レイヤーを作る", "`Edit > Project Settings > Tags and Layers` の空いている User Layer に `Player` と入力します。"),
+    ("Player を作る", "Hierarchy で右クリック → `Create Empty` を選び、名前を `Player` にします。Inspector の右上で **Tag を Player**、**Layer を Player** にし、位置を床の上(Y=0 付近)に置きます。"),
+    ("PlayerController を付ける", "Player を選んで `Add Component` → `PlayerController` を追加します。`[RequireComponent]` があるので、**CharacterController も自動で付きます**。CharacterController の Center を (0, 0.9, 0)、Height を 1.8、Radius を 0.35 にします。"),
+    ("FootstepNoise・AudioSource・DebugHud を付ける", "同じ Player に `FootstepNoise`、`AudioSource`、`DebugHud` を追加します。AudioSource は Play On Awake を OFF、Spatial Blend を 0 にします。"),
+    ("CameraRoot を子に作る", "Player を右クリック → `Create Empty` で子オブジェクトを作り、名前を `CameraRoot`、位置を (0, 1.65, 0) にします。`Camera` と `AudioListener` を追加し、Tag を MainCamera にします。シーンに元からある Main Camera は削除します(カメラと AudioListener が2つあると警告が出ます)。"),
+    ("参照をつなぐ", "PlayerController の **Camera Root** に CameraRoot をドラッグします。FootstepNoise の **Audio Source** には Player 自身(の AudioSource)をドラッグします。DebugHud の Player と Footsteps は空でも、Awake で自動的に同じオブジェクトから探します。"),
+    ("マスクから Player を外す", "PlayerController の **Obstacle Mask** と FootstepNoise の **Ground Mask** を開き、`Everything` を選んでから `Player` のチェックだけ外します。外し忘れると、自分の体を天井や床と勘違いして、しゃがみから立てなくなります。"),
+    ("床に SurfaceMaterial を付ける", "素材を変えたい床(Collider 付き)を選び、`SurfaceMaterial` を追加して Type を選びます。何も付けない床は Default(倍率1)になります。"),
+]
+
+# ファイルごとの「どこに付けるか」
+ATTACH = {
+    "NoiseSystem.cs": {
+        "target": "どこにも付けない",
+        "detail": "`static class` で MonoBehaviour ではないので、コンポーネントとして付けることはできません(Add Component の一覧にも出ません)。シーンに置かなくても、どこからでも `NoiseSystem.Emit(...)` で呼べます。",
+    },
+    "SurfaceMaterial.cs": {
+        "target": "素材を変えたい床のオブジェクト(Collider 付き)",
+        "detail": "床そのもの、または床の親オブジェクトに付けます(`GetComponentInParent` で探すため、親に1つ付ければ子の床すべてに効きます)。**Collider が無いと Raycast が当たらない**ので、反応しません。普通の床には付けなくて構いません(Default 扱い)。",
+    },
+    "PlayerController.cs": {
+        "target": "Player(プレイヤーの一番上のオブジェクト)",
+        "detail": "付けると CharacterController も自動で付きます。設定は2つです。**Camera Root** に子の CameraRoot を入れ、**Obstacle Mask** から Player を外します。オブジェクトの原点(pivot)が足元にある前提なので、Player の位置は床の高さにします。",
+    },
+    "FootstepNoise.cs": {
+        "target": "Player(PlayerController と同じオブジェクト)",
+        "detail": "PlayerController の状態を読むので、必ず同じ Player に付けます(`[RequireComponent(typeof(PlayerController))]` があるので、ほかのオブジェクトに付けると PlayerController まで一緒に付いてしまいます)。設定は、**Ground Mask** から Player を外すことと、**Audio Source** に同じ Player の AudioSource を入れることです。足音の効果音を鳴らしたいときは **Default Clips** に音を入れます(空でも動きます)。",
+    },
+    "DebugHud.cs": {
+        "target": "Player(どこでも動くが、Player に付けると設定が要らない)",
+        "detail": "Player と Footsteps の欄が空なら、Awake で**同じオブジェクト**から探します。Player に付ければ設定は不要です。別のオブジェクトに付ける場合は、両方の欄に Player をドラッグします。製品版では外します。",
+    },
+    "GrayboxRoomBuilder.cs": {
+        "target": "どこにも付けない(メニューから使う)",
+        "detail": "エディタ用のスクリプトで、`Editor` フォルダに置くだけで、メニューに「BlindSpot」が出ます。上の組み立て図の「Player」と「Graybox_Room」を自動で作り、アタッチと設定までまとめて行います。",
+    },
+}
