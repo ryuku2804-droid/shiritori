@@ -128,7 +128,28 @@ ul.next li { display: grid; grid-template-columns: minmax(0, 13em) minmax(0, 1fr
 ul.next li b { font-size: 14.5px; }
 ul.next li.try { border-color: var(--accent); background: var(--accent-soft); }
 
+ol.flow { margin: 0; padding: 0; list-style: none; display: grid; gap: 0; }
+ol.flow li { display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 4px 14px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+ol.flow li:last-child { border-bottom: 0; color: var(--muted); }
+ol.flow .who { font-family: var(--font-mono); font-size: 13.5px; font-weight: 600; color: var(--accent); }
+ol.flow .who::before { content: "↓ "; color: var(--muted); }
+ol.flow li:first-child .who::before { content: ""; }
+
+.explain { background: var(--surface); border: 1px solid var(--accent); border-radius: 8px; padding: 16px 18px; display: grid; gap: 12px; }
+.explain .one { font-size: 16.5px; font-weight: 700; text-wrap: balance; }
+.explain .one small { display: block; font-size: 12px; font-weight: 700; letter-spacing: .08em; color: var(--accent); margin-bottom: 2px; }
+.explain details { border-top: 1px dashed var(--line); padding-top: 8px; }
+.explain details summary { cursor: pointer; font-weight: 600; }
+.explain details > div, .explain details > p { margin-top: 6px; color: var(--fg); }
+.explain .hint { font-size: 13.5px; color: var(--muted); }
+.explain ol.quiz { margin: 0; padding-left: 1.4em; display: grid; gap: 8px; }
+.explain ol.quiz details { border: 0; padding: 0; }
+.explain ol.quiz summary { font-weight: 500; }
+.explain ol.quiz summary::marker { color: var(--accent); }
+.explain ol.quiz .ans { margin-top: 4px; padding: 6px 10px; background: var(--accent-soft); border-radius: 6px; }
+
 @media (max-width: 640px) {
+  ol.flow li { grid-template-columns: minmax(0, 1fr); }
   h1 { font-size: 22px; }
   button.copy { width: 100%; }
   .kv { grid-template-columns: minmax(0, 1fr); gap: 2px; }
@@ -148,7 +169,7 @@ ul.next li.try { border-color: var(--accent); background: var(--accent-soft); }
   </header>
 
   <nav class="toc" aria-label="目次">
-    <div class="row"><a href="#setup">進め方</a><a href="#basics">C# と Unity の基礎</a></div>
+    <div class="row"><a href="#setup">進め方</a><a href="#flow">全体の流れ</a><a href="#basics">C# と Unity の基礎</a></div>
     <div class="row" id="chips"></div>
   </nav>
 
@@ -157,6 +178,12 @@ ul.next li.try { border-color: var(--accent); background: var(--accent-soft); }
     <ol class="steps" id="steps"></ol>
     <h2 class="sec">学び方のおすすめ</h2>
     <ul class="tips" id="tips"></ul>
+  </section>
+
+  <section class="block" id="flow">
+    <h2 class="sec">全体の流れ:W キーを押してから、音が怪物に届くまで</h2>
+    <p class="lead">6つのファイルが、どの順番でバトンを渡しているかの流れです。まずこれを人に説明できるようになると、各ファイルの役割が自然につながります。</p>
+    <ol class="flow" id="flow-list"></ol>
   </section>
 
   <section class="block" id="basics">
@@ -247,6 +274,18 @@ ul.next li.try { border-color: var(--accent); background: var(--accent-soft); }
   document.getElementById('steps').innerHTML = data.setup.map(s => '<li><b>' + inline(s.title) + '</b><span>' + inline(s.body) + '</span></li>').join('');
   document.getElementById('tips').innerHTML = data.tips.map(t => '<li>' + inline(t) + '</li>').join('');
   document.getElementById('basics-list').innerHTML = data.basics.map(lessonCard).join('');
+  document.getElementById('flow-list').innerHTML = data.flow.map(f => '<li><span class="who">' + esc(f[0]) + '</span><span>' + inline(f[1]) + '</span></li>').join('');
+
+  function explainBox(x) {
+    if (!x) return '';
+    return '<h4 class="subhead">説明してみよう</h4><div class="explain">' +
+      '<p class="one"><small>一言でいうと</small>' + inline(x.one) + '</p>' +
+      '<p class="hint">まず何も見ずに、このファイルが何をしていて、なぜこう作ったのかを声に出して30秒で説明してみてください。そのあとでお手本と比べます。</p>' +
+      '<details><summary>30秒説明のお手本を見る</summary><p>' + inline(x.talk) + '</p></details>' +
+      '<details open><summary>確認の質問(答えはクリックで表示)</summary><ol class="quiz">' +
+        x.quiz.map(q => '<li><details><summary>' + inline(q[0]) + '</summary><div class="ans">' + inline(q[1]) + '</div></details></li>').join('') +
+      '</ol></details></div>';
+  }
 
   // ファイル
   const chips = document.getElementById('chips');
@@ -283,6 +322,7 @@ ul.next li.try { border-color: var(--accent); background: var(--accent-soft); }
           '<pre><code>' + highlight(code) + '</code></pre>' +
         '</div></details>' +
       (g.lessons.length ? '<h4 class="subhead">解説</h4><div class="lessons">' + g.lessons.map(lessonCard).join('') + '</div>' : '') +
+      explainBox(data.explain[f.name]) +
       (g.next.length ? '<h4 class="subhead">ここから発展させるには</h4><ul class="next">' +
         g.next.map(n => '<li class="' + (n[0] === 'やってみよう' ? 'try' : '') + '"><b>' + inline(n[0]) + '</b><span>' + inline(n[1]) + '</span></li>').join('') +
         '</ul>' : '');
