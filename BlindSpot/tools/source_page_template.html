@@ -128,6 +128,19 @@ ul.next li { display: grid; grid-template-columns: minmax(0, 13em) minmax(0, 1fr
 ul.next li b { font-size: 14.5px; }
 ul.next li.try { border-color: var(--accent); background: var(--accent-soft); }
 
+h3.sec3 { margin: 8px 0 0; font-size: 16px; }
+.hint-s { color: var(--muted); font-size: 13.5px; }
+ol.steps.after li { grid-template-rows: auto auto auto; }
+ol.steps.after li::before { grid-row: span 3; }
+ol.steps .ok { font-size: 14px; padding: 6px 10px; border-radius: 6px; background: var(--new-bg); color: var(--fg); }
+ol.steps .ok::before { content: "こうなっていれば OK:"; display: block; font-size: 12px; font-weight: 700; color: var(--new-fg); }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.tbl table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.tbl th, .tbl td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl tr:last-child td { border-bottom: 0; }
+.tbl th { font-size: 12.5px; color: var(--muted); font-weight: 700; background: var(--alt-bg); white-space: nowrap; }
+.tbl td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.tbl td.err { font-family: var(--font-mono); font-size: 13px; min-width: 14em; }
 pre.tree { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; font-family: var(--font-mono); font-size: 13px; line-height: 1.65; overflow-x: auto; white-space: pre; }
 details.manual ol.steps { padding: 14px 16px; }
 .attach { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; align-items: baseline; padding: 12px 14px; border-radius: 8px; background: var(--accent-soft); }
@@ -175,7 +188,7 @@ ol.flow li:first-child .who::before { content: ""; }
   </header>
 
   <nav class="toc" aria-label="目次">
-    <div class="row"><a href="#setup">進め方</a><a href="#flow">全体の流れ</a><a href="#attach">組み立て図</a><a href="#basics">C# と Unity の基礎</a></div>
+    <div class="row"><a href="#setup">進め方</a><a href="#after">貼り終わったら</a><a href="#flow">全体の流れ</a><a href="#attach">組み立て図</a><a href="#basics">C# と Unity の基礎</a></div>
     <div class="row" id="chips"></div>
   </nav>
 
@@ -184,6 +197,17 @@ ol.flow li:first-child .who::before { content: ""; }
     <ol class="steps" id="steps"></ol>
     <h2 class="sec">学び方のおすすめ</h2>
     <ul class="tips" id="tips"></ul>
+  </section>
+
+  <section class="block" id="after">
+    <h2 class="sec">コードを貼り終わったら</h2>
+    <p class="lead">6つのファイルを貼り終えてから、動作を確認するまでの手順です。各手順の「こうなっていれば OK」と同じになっているか確かめながら進めてください。</p>
+    <ol class="steps after" id="after-list"></ol>
+    <h3 class="sec3">期待される数値(左上の「最後の足音」)</h3>
+    <div class="tbl"><table id="expected"></table></div>
+    <p class="hint-s" id="expected-note"></p>
+    <h3 class="sec3">よくあるエラーと直し方</h3>
+    <div class="tbl"><table id="trouble"></table></div>
   </section>
 
   <section class="block" id="flow">
@@ -287,6 +311,16 @@ ol.flow li:first-child .who::before { content: ""; }
   document.getElementById('steps').innerHTML = data.setup.map(s => '<li><b>' + inline(s.title) + '</b><span>' + inline(s.body) + '</span></li>').join('');
   document.getElementById('tips').innerHTML = data.tips.map(t => '<li>' + inline(t) + '</li>').join('');
   document.getElementById('basics-list').innerHTML = data.basics.map(lessonCard).join('');
+  document.getElementById('after-list').innerHTML = data.after.map(s =>
+    '<li><b>' + inline(s[0]) + '</b><span>' + inline(s[1]) + '</span><span class="ok">' + inline(s[2]) + '</span></li>').join('');
+  const ex = data.expected;
+  document.getElementById('expected').innerHTML =
+    '<thead><tr>' + ex.head.map(h => '<th>' + esc(h) + '</th>').join('') + '</tr></thead><tbody>' +
+    ex.rows.map(r => '<tr>' + r.map((c, k) => '<td' + (k ? ' class="num"' : '') + '>' + esc(c) + '</td>').join('') + '</tr>').join('') + '</tbody>';
+  document.getElementById('expected-note').textContent = ex.note;
+  document.getElementById('trouble').innerHTML =
+    '<thead><tr><th>症状・エラー文</th><th>原因</th><th>直し方</th></tr></thead><tbody>' +
+    data.trouble.map(t => '<tr><td class="err">' + inline(t[0]) + '</td><td>' + inline(t[1]) + '</td><td>' + inline(t[2]) + '</td></tr>').join('') + '</tbody>';
   document.getElementById('tree').innerHTML = esc(data.hierarchy).replace(/\[([^\]]+)\]/g, '<b>[$1]</b>');
   document.getElementById('manual').innerHTML = data.manual.map(s => '<li><b>' + inline(s[0]) + '</b><span>' + inline(s[1]) + '</span></li>').join('');
   document.getElementById('flow-list').innerHTML = data.flow.map(f => '<li><span class="who">' + esc(f[0]) + '</span><span>' + inline(f[1]) + '</span></li>').join('');

@@ -52,6 +52,9 @@ def main(out_path):
         "hierarchy": lessons.HIERARCHY,
         "manual": lessons.MANUAL_STEPS,
         "attach": lessons.ATTACH,
+        "after": lessons.AFTER_CODE,
+        "expected": lessons.EXPECTED,
+        "trouble": lessons.TROUBLE,
     }
     data = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
     page = (TEMPLATE

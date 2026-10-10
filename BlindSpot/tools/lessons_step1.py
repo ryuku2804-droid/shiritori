@@ -31,13 +31,8 @@ SETUP = [
                 "6つそろうまでは Console に赤字が出ることがありますが、全部そろえば消えます。",
     },
     {
-        "title": "テスト部屋を作る",
-        "body": "新しいシーンを保存してから、メニュー `BlindSpot > ステップ1: テスト部屋とプレイヤーを作成` を押し、もう一度 Ctrl+S で保存します。",
-    },
-    {
-        "title": "遊んで確かめる",
-        "body": "Game ビューと Scene ビューを並べ、Scene ビューの Gizmos を ON にして再生します。WASD で移動、Shift で走る、Ctrl か C でしゃがむ、Esc でマウス解放、F1 で情報表示の切替です。"
-                "歩くと約5m、しゃがむと約1.5m、走ると約12m の円が出れば成功です。",
+        "title": "動かして確かめる",
+        "body": "ここから先は、下の「**コードを貼り終わったら**」の手順に沿って進めます。",
     },
 ]
 
@@ -682,3 +677,95 @@ ATTACH = {
         "detail": "エディタ用のスクリプトで、`Editor` フォルダに置くだけで、メニューに「BlindSpot」が出ます。上の組み立て図の「Player」と「Graybox_Room」を自動で作り、アタッチと設定までまとめて行います。",
     },
 }
+
+# ---------------- コードを貼り終わったら ----------------
+
+# (見出し, やること, こうなっていれば OK)
+AFTER_CODE = [
+    ("保存して Unity に戻る",
+     "コードエディタで全ファイルを保存し(Ctrl+S)、Unity の画面をクリックします。Unity が自動でコンパイル(コードをゲームが使える形に変換)を始めます。",
+     "画面右下のくるくる回るマークが消えれば、コンパイルは終わりです。数秒〜数十秒かかります。"),
+    ("Console でエラーが無いか確認する",
+     "`Window > General > Console`(Ctrl+Shift+C)を開きます。右上の赤・黄・白のボタンは表示の切り替えです。全部 ON にしておきます。",
+     "**赤いエラーが 0 件**なら OK です。黄色の警告は、今は気にしなくて構いません。赤が出たら、下の「よくあるエラー」を見てください。"),
+    ("テスト用のシーンを作る",
+     "`File > New Scene` で「Basic (URP)」か「Standard (URP)」を選んで Create を押します。`File > Save As` で `Assets/Scenes/Prototype` という名前で保存します。",
+     "Project ウィンドウの `Assets/Scenes` に `Prototype` ができ、Unity の上部に表示されるシーン名が Prototype になります。"),
+    ("メニューから部屋を作る",
+     "一番上のメニューバー(File・Edit・Assets… が並んでいるところ)に **BlindSpot** が増えています。`BlindSpot > ステップ1: テスト部屋とプレイヤーを作成` をクリックします。",
+     "Hierarchy に `Graybox_Room` と `Player` ができます。Console には「[BlindSpot] テスト部屋とプレイヤーを作成しました」と白い文字で出ます。Scene ビューに灰色の部屋と、色付きの床が見えます。"),
+    ("できたものを Inspector で確かめる",
+     "Hierarchy で `Player` をクリックし、Inspector を上から見ます。次に `Graybox_Room > Surfaces > Surface_Carpet` をクリックします。",
+     "Player の上部で Tag が **Player**、Layer が **Player** になっています。その下に Character Controller・Audio Source・Player Controller・Footstep Noise・Debug Hud が並び、Player Controller の Camera Root に CameraRoot が入っています。Surface_Carpet には Surface Material(Type: Carpet)が付いています。"),
+    ("シーンを保存する",
+     "Ctrl+S を押します。",
+     "Hierarchy の上部のシーン名に付いていた「*」(未保存の印)が消えます。"),
+    ("画面を並べる",
+     "**Game** タブをドラッグして、Scene ビューの右側に落とします。Scene ビュー右上の **Gizmos** ボタンを ON(青)にします。Game ビュー上部の解像度は「16:9 Aspect」などにしておきます。",
+     "左に Scene、右に Game が並んでいます。"),
+    ("再生する",
+     "上部中央の ▶ ボタン(Ctrl+P)を押し、**Game ビューを1回クリック**します。マウスが Game ビューに固定され、視点を動かせるようになります。",
+     "Game ビューの左上に「状態: Idle」などの情報が出ます。Esc を押すと、マウスが解放されます。"),
+    ("足音を確かめる",
+     "下の「期待される数値」の表を見ながら、それぞれの床で歩く・しゃがむ・走るを試し、左上の「最後の足音」の数値を見ます。",
+     "数値が表と同じで、Scene ビューに同じ大きさの円が出れば OK です。"),
+    ("しゃがみを確かめる",
+     "部屋の手前にある低い通路(天井の低いトンネル)に、Ctrl を押したまま入ります。中で Ctrl を離します。",
+     "中では立ち上がらず、しゃがんだまま進めます。通路を出ると自動で立ち上がります。"),
+    ("止めて、値を調整する",
+     "もう一度 ▶ を押して止めます。速度や足音の距離を変えたいときは、Player の Inspector で値を変えて、また再生します。",
+     "**注意**:再生中に Inspector で変えた値は、停止すると元に戻ります。再生中に試していい値が見つかったら、コンポーネント右上の「⋮」→ `Copy Component` を選び、停止後に「⋮」→ `Paste Component Values` で反映します。"),
+    ("完了の報告",
+     "全部確かめたら、ここに「できた」と送ってください。うまくいかないときは、Console の赤いエラーをクリックし、下の欄に出る全文を選んでコピーして、そのまま貼ってください。",
+     "ステップ2(怪物 AI)に進みます。"),
+]
+
+# 期待される数値 (足音の届く距離 = 基本距離 × 床の倍率)
+EXPECTED = {
+    "head": ["床", "倍率", "しゃがみ (1.5m)", "歩き (5m)", "走り (12m)"],
+    "rows": [
+        ["灰色(Default)", "1.0", "1.5", "5.0", "12.0"],
+        ["赤(Carpet)", "0.5", "0.75", "2.5", "6.0"],
+        ["水色(Glass)", "1.5", "2.25", "7.5", "18.0"],
+        ["紺(Water)", "1.3", "1.95", "6.5", "15.6"],
+        ["青灰(Metal)", "1.8", "2.7", "9.0", "21.6"],
+    ],
+    "note": "左上の表示は小数1桁に丸めるので、0.75 は 0.8 前後、1.95 は 2.0 前後に見えます。",
+}
+
+# よくあるエラー (エラー文に含まれる言葉, 原因, 直し方)
+TROUBLE = [
+    ("CS0246 … 'InputSystem' / 'InputAction' could not be found",
+     "Input System パッケージが入っていません。",
+     "`Window > Package Manager` → Unity Registry → Input System → Install。"),
+    ("CS0101 … already contains a definition for 'PlayerController'",
+     "同じ名前のクラスが2つあります。同じファイルを2回作ったか、アセットに同じ名前のクラスがあります。",
+     "Project ウィンドウの検索欄にクラス名を入れて探し、余分な方を削除します。"),
+    ("The script don't inherit a native class … / Script class cannot be found",
+     "ファイル名とクラス名が一致していません。",
+     "ファイル名を、コードの `public class ○○` の ○○ と同じにします(大文字・小文字も含めて)。"),
+    ("CS1513 } expected / CS1022 / CS1002",
+     "コピペのときに、最初か最後の数行が欠けています。",
+     "ファイルの中身を全部消して、ページの「コピー」からもう一度貼ります。"),
+    ("The type or namespace name 'UnityEditor' could not be found(ビルド時)",
+     "`GrayboxRoomBuilder` が Editor フォルダの外にあります。",
+     "`Assets/BlindSpot/Editor/` へ移動します。"),
+    ("メニューに BlindSpot が出ない",
+     "コンパイルエラーがあると、メニューは増えません。",
+     "Console の赤いエラーを先に直します。"),
+    ("再生しても動かない・マウスが効かない",
+     "Active Input Handling が古い方式(Input Manager (Old))になっているか、Game ビューをクリックしていません。",
+     "`Edit > Project Settings > Player > Other Settings` で Active Input Handling を「Input System Package (New)」か「Both」にします。再生後は Game ビューを1回クリックします。"),
+    ("足音の円が見えない",
+     "Scene ビューの Gizmos が OFF です。",
+     "Scene ビュー右上の Gizmos を ON にします。"),
+    ("しゃがむと立てなくなる",
+     "Obstacle Mask に Player が含まれていて、自分の体を天井と判定しています。",
+     "Player Controller の Obstacle Mask で `Player` のチェックを外します。"),
+    ("床の色が変わっても足音の数値が変わらない",
+     "床に Collider が無いか、Ground Mask にその床のレイヤーが含まれていません。",
+     "床に Box Collider があるか確認し、Footstep Noise の Ground Mask を確認します。"),
+    ("画面がピンク色",
+     "URP 用ではないマテリアルになっています。",
+     "`Assets/BlindSpot/Materials` を削除して、メニューをもう一度実行します。"),
+]
