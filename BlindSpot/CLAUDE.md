@@ -63,7 +63,17 @@
 - `PlayerController.cs`:CharacterController ベースの一人称操作。`State`(Idle/Crouch/Walk/Run)、`InputEnabled` などを公開
 - `FootstepNoise.cs`:歩いた距離ごとに足音を鳴らし NoiseSystem に通知。`OnStep` イベントあり
 - `DebugHud.cs`:試作用の状態表示(F1 で切替)
-- `Editor/GrayboxRoomBuilder.cs`:メニュー「BlindSpot > ステップ1: テスト部屋とプレイヤーを作成」
+- `Editor/GrayboxRoomBuilder.cs`:メニュー「Tools > BlindSpot > ステップ1: テスト部屋を作成」。StageLayout を読み、空の新規シーンに全部を生成・設定し、保存してビルド設定に登録する(何度押しても同じ結果)
+- `Editor/Stage/StageLayout.cs`:配置データ(Placement のリスト)と、Room / Wall / Floor / Patch / Pillar / Crate / LowPassage などのヘルパー
+- `Editor/Stage/PrototypeStage.cs`:テスト部屋のレイアウト。`static StageLayout Build()` と `ScenePath`
+
+## ステージの作り方(Tools メニュー1クリックで丸ごと自動配置)
+
+- 配置はすべて C# のレイアウトクラス(`Editor/Stage/〇〇Stage.cs` の `Build()`)に座標で書く。手でドラッグして置かない
+- ビルダーは空シーンを作り、レイアウトをループして生成、プレイヤー・カメラ・ライトもコードで作り、保存・ビルド設定登録まで行う
+- [SerializeField] の参照は SerializedObject 経由でセットする。オブジェクト同士の紐付けは名前(ビルダー内の `placed` 辞書)で行う
+- レイアウトを変えたら `python3 BlindSpot/tools/check_layout.py [ステージのクラス名]` で検査する(mono の mcs が必要。無ければ `apt-get install -y mono-mcs`)。スタート地点が埋まっていないか、素材の床にたどり着けるか、落ちる穴が無いか、しゃがみが必要な場所を BFS で調べる
+- 見た目が箱以外になったら、spec から OnEnable でメッシュとコライダーを作る [ExecuteAlways] 部品を検討する(今は CreatePrimitive の箱で足りている)
 - プレイヤーは `Player` レイヤー。床・天井判定のマスクから Player を外す前提
 
 ## コードの渡し方

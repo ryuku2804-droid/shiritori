@@ -24,7 +24,10 @@ BlindSpot/Assets/BlindSpot/
 │  └─ Debug/
 │     └─ DebugHud.cs         … 画面左上に状態を表示 (試作用)
 └─ Editor/
-   └─ GrayboxRoomBuilder.cs  … テスト部屋とプレイヤーを1クリックで作るメニュー
+   ├─ GrayboxRoomBuilder.cs  … Tools メニューから、レイアウトを読んでシーンを丸ごと作る
+   └─ Stage/
+      ├─ StageLayout.cs      … 「どこに何を置くか」のデータとヘルパー
+      └─ PrototypeStage.cs   … テスト部屋の座標
 ```
 
 ---
@@ -59,25 +62,11 @@ Unity 6 の URP テンプレートには、最初から新しい Input System �
 
 ## 3. テスト部屋を1クリックで作る
 
-1. `File > New Scene` →「Basic (URP)」などで新しいシーンを作ります。`Assets/Scenes/Prototype.unity` などの名前で保存してください。
-2. 上のメニューバーの **`BlindSpot > ステップ1: テスト部屋とプレイヤーを作成`** をクリックします。
+1. 上のメニューバーの **`Tools > BlindSpot > ステップ1: テスト部屋を作成`** をクリックします。
+2. 新しいシーン `Assets/BlindSpot/Scenes/Prototype.unity` が作られ、部屋・プレイヤー・ライトが置かれて保存され、ビルド設定にも登録されます。
 
-これだけで、次のものが自動で作られます。
-
-| 作られるもの | 内容 |
-|---|---|
-| `Player` レイヤー | 無ければ空いている User Layer に追加されます |
-| `Graybox_Room` | 20m 四方の部屋(床・壁・天井)、柱や箱、しゃがまないと通れない低い通路 |
-| 素材の違う床 | 赤=カーペット、水色=ガラス、紺=水、青灰=金属。それぞれ `SurfaceMaterial` 付き |
-| `Player` | CharacterController + `PlayerController` + `FootstepNoise` + `DebugHud`、子に `CameraRoot`(カメラ) |
-| マテリアル | `Assets/BlindSpot/Materials/GB_*.mat` |
-
-- シーンに元からあった **Main Camera は削除されます**(カメラが2つあると困るため)。Ctrl+Z で元に戻せます。
-- 各スクリプトの**レイヤーマスクは Player レイヤーを外した状態**で自動設定されます。自分の体を床や天井と誤判定しないためです。
-
-3. **シーンを保存**(Ctrl+S)します。
-
----
+- 配置の座標は `Editor/Stage/PrototypeStage.cs` に書いてあります。数字を変えてメニューを押し直すと、シーンが作り直されます(手で置いたものは消えます)。
+- 配置を変えたら、`python3 BlindSpot/tools/check_layout.py` で「スタートから全部の床に歩いて行けるか」「落ちる穴が無いか」を Unity を開かずに確かめられます(mono が必要)。
 
 ## 4. 遊んで確かめる
 

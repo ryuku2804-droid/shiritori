@@ -74,6 +74,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px soli
 .badge { display: inline-flex; align-items: center; font-size: 12px; font-weight: 700; line-height: 1; padding: 4px 7px; border-radius: 4px; letter-spacing: .05em; white-space: nowrap; font-family: var(--font-body); }
 .badge.new { color: var(--new-fg); background: var(--new-bg); }
 .badge.chg { color: var(--chg-fg); background: var(--chg-bg); }
+.badge.same { color: var(--muted); background: var(--alt-bg); border: 1px solid var(--line); }
 
 section.block { display: grid; gap: 16px; scroll-margin-top: 16px; }
 ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 12px; }
@@ -197,7 +198,7 @@ section.phase h2 .pn { font-family: var(--font-mono); color: var(--accent); font
     <div class="eyebrow">BLIND SPOT / SOURCE &amp; STUDY</div>
     <h1>{{STEP_TITLE}}</h1>
     <p class="lead">Unity を開くところから、スクリプトを貼り、オブジェクトに付けて、動かして確かめ、意味を説明できるようになるまでを、上から順に並べました。各手順の緑の枠「こうなっていれば OK」と同じになっているか確かめながら進めてください。</p>
-    <div class="counts"><span class="badge new">新規 {{NEW_COUNT}}</span><span class="badge chg">変更 {{CHANGED_COUNT}}</span></div>
+    <div class="counts"><span class="badge new">新規 {{NEW_COUNT}}</span><span class="badge chg">変更 {{CHANGED_COUNT}}</span><span class="badge same">変更なし {{SAME_COUNT}}</span></div>
   </header>
 
   <nav class="toc" aria-label="目次">
@@ -213,7 +214,7 @@ section.phase h2 .pn { font-family: var(--font-mono); color: var(--accent); font
 
   <section class="block" id="flow">
     <h2 class="sec">全体の流れ:W キーを押してから、音が怪物に届くまで</h2>
-    <p class="lead">6つのファイルが、どの順番でバトンを渡しているかの流れです。まずこれを説明できるようになると、各ファイルの役割が自然につながります。</p>
+    <p class="lead">ゲームを動かすファイルが、どの順番でバトンを渡しているかの流れです。まずこれを説明できるようになると、各ファイルの役割が自然につながります。</p>
     <ol class="flow" id="flow-list"></ol>
     <h3 class="sec3">学び方のおすすめ</h3>
     <ul class="tips" id="tips"></ul>
@@ -260,7 +261,7 @@ section.phase h2 .pn { font-family: var(--font-mono); color: var(--accent); font
   }
   function snip(code) { return code ? '<pre class="snip"><code>' + highlight(code) + '</code></pre>' : ''; }
   function anchorOf(name) { return name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]/g, ''); }
-  function badgeOf(f) { return '<span class="badge ' + (f.status === '変更' ? 'chg' : 'new') + '">' + esc(f.status) + '</span>'; }
+  function badgeOf(f) { return '<span class="badge ' + ({ '変更': 'chg', '新規': 'new' }[f.status] || 'same') + '">' + esc(f.status) + '</span>'; }
   function folderOf(path) { return path.replace(/\/[^/]+$/, '/'); }
 
   async function copyText(text, btn, codeEl) {

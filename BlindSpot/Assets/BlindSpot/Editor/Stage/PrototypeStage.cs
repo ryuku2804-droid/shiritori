@@ -1,0 +1,42 @@
+using UnityEngine;
+
+namespace BlindSpot.EditorTools
+{
+    /// <summary>
+    /// ステップ1のテスト部屋のレイアウト。座標を直したら、メニューを押し直すだけで反映される。
+    /// </summary>
+    public static class PrototypeStage
+    {
+        public const string ScenePath = "Assets/BlindSpot/Scenes/Prototype.unity";
+
+        public static StageLayout Build()
+        {
+            var layout = new StageLayout("Graybox_Room");
+            const float height = 3f; // 天井の高さ
+
+            // 20m 四方の部屋
+            layout.Room("Room", 0f, 0f, 20f, 20f, height);
+
+            // 素材の違う床
+            layout.Patch("Surface_Carpet", -6f, 5f, 5f, 5f, SurfaceType.Carpet);
+            layout.Patch("Surface_Glass", 6f, 5f, 4f, 4f, SurfaceType.Glass);
+            layout.Patch("Surface_Water", 6f, -3f, 4f, 3f, SurfaceType.Water);
+            layout.Patch("Surface_Metal", -6f, -3f, 3f, 6f, SurfaceType.Metal);
+
+            // 障害物
+            layout.Pillar("Pillar_1", -2f, 2f, 1f, height);
+            layout.Pillar("Pillar_2", 2f, -2f, 1f, height);
+            layout.Crate("Crate_1", 0f, 6f, new Vector3(2f, 1f, 1f));
+            layout.Crate("Crate_2", 3f, 8f, new Vector3(1.2f, 1.2f, 1.2f));
+            layout.Crate("Shelf", -8.5f, 0f, new Vector3(1f, 2f, 3f));
+
+            // しゃがまないと通れない低い通路 (天板の下 1.2m)
+            layout.LowPassage("LowPassage", 0f, -6f, 3f, 2f, 1.2f, height);
+
+            // プレイヤーの出発点 (低い通路の手前、北を向く)
+            layout.playerStart = new Vector3(0f, 0.05f, -8.5f);
+            layout.playerYaw = 0f;
+            return layout;
+        }
+    }
+}

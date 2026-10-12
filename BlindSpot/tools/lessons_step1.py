@@ -442,7 +442,7 @@ FILE_LESSONS = {
         ],
     },
     "GrayboxRoomBuilder.cs": {
-        "summary": "Unity エディタのメニューから、テスト部屋とプレイヤーを自動で組み立てるエディタ拡張です。ゲーム本体には含まれません。手作業の設定ミスを防ぐのが目的です。",
+        "summary": "レイアウトのデータ(`StageLayout`)を読んで、**新しいシーンを丸ごと**組み立てて保存するエディタ拡張です。ゲーム本体には含まれません。手でドラッグして配置する作業を無くし、何度押しても同じ結果にするのが目的です。",
         "lessons": [
             {
                 "title": "Editor フォルダと using UnityEditor",
@@ -456,20 +456,38 @@ FILE_LESSONS = {
             },
             {
                 "title": "MenuItem でメニューを足す",
-                "code": "[MenuItem(\"BlindSpot/ステップ1: テスト部屋とプレイヤーを作成\")]\npublic static void Build() { ... }",
-                "meaning": "static 関数にこの属性を付けると、上のメニューバーに項目が増え、クリックで関数が呼ばれます。",
-                "why": "何度でも同じ部屋を作り直せます。手順を説明するより、ボタン1つの方が確実です。",
+                "code": "[MenuItem(\"Tools/BlindSpot/ステップ1: テスト部屋を作成\")]\nstatic void BuildPrototype()\n{\n    BuildStage(PrototypeStage.Build(), PrototypeStage.ScenePath);\n}",
+                "meaning": "static 関数にこの属性を付けると、メニューに項目が増え、クリックで関数が呼ばれます。`Tools/` で始めると、Unity の **Tools** メニューの中に入ります。",
+                "why": "メニューの関数は「どのレイアウトを、どこに保存するか」を渡すだけにしています。ステージが増えても、この3行をコピーしてレイアウトの名前を変えるだけで済みます。",
+                "alts": [
+                    {"label": "一番上に独自のメニューを作る", "code": "[MenuItem(\"BlindSpot/ステップ1: テスト部屋を作成\")]",
+                     "why_not": "動きます。ただ、アセットを入れるたびにメニューバーが横に増えていきます。自作の道具は Tools の中にまとめるのが一般的です。"},
+                ],
+            },
+            {
+                "title": "空のシーンを新しく作る",
+                "code": "if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;\nScene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);",
+                "meaning": "今のシーンに未保存の変更があれば「保存しますか?」と聞き、そのあとで何も無い新しいシーンを開きます。",
+                "why": "毎回まっさらな状態から作るので、前に作ったものが残ったり、二重にできたりしません。**何度押しても同じ結果になる**のはこのためです。",
+                "alts": [
+                    {"label": "今開いているシーンに足す", "code": "var root = new GameObject(\"Graybox_Room\"); // 今のシーンに追加",
+                     "why_not": "前のバージョンはこの方法でした。2回押すと二重にできるので「消して作り直しますか?」の確認が必要で、元からあるカメラなどとの重複にも気を配る必要がありました。"},
+                ],
+            },
+            {
+                "title": "レイアウトのデータをループして置く",
+                "code": "foreach (Placement p in layout.blocks)\n{\n    placed[p.name] = Place(p, GetGroup(root.transform, groups, p.group));\n}",
+                "meaning": "レイアウトに書かれた箱を1つずつ取り出し、`Place` で実際の GameObject にします。作ったものは名前で引ける辞書(`placed`)にも入れます。",
+                "why": "「どこに何を置くか(データ)」と「どうやって作るか(ビルダー)」を分けています。座標を直すときはデータだけ、作り方を変えるときはビルダーだけを触れば済みます。"
+                       "名前の辞書は、ステップ2以降で「この扉とこのスイッチをつなぐ」のような紐付けに使います。",
                 "alts": [],
             },
             {
-                "title": "Undo に対応させる",
-                "code": "Undo.RegisterCreatedObjectUndo(root, \"Create Graybox Room\");\nUndo.DestroyObjectImmediate(oldRoot);",
-                "meaning": "作ったものや消したものを Undo の履歴に記録します。",
-                "why": "Ctrl+Z で元に戻せるようにするためです。エディタ拡張では大切なマナーです。",
-                "alts": [
-                    {"label": "DestroyImmediate", "code": "Object.DestroyImmediate(oldRoot);",
-                     "why_not": "消えますが、Ctrl+Z で戻せません。まちがって消したら終わりです。"},
-                ],
+                "title": "シーンを保存して、ビルド設定に登録する",
+                "code": "EditorSceneManager.SaveScene(scene, scenePath);\nAddToBuildSettings(scenePath);",
+                "meaning": "シーンをファイルとして保存し、ゲームをビルドしたときに含まれるシーンの一覧に追加します。",
+                "why": "保存し忘れや、ビルド設定への登録忘れ(ビルドしたゲームにシーンが入っていない事故)を防ぎます。",
+                "alts": [],
             },
             {
                 "title": "SerializedObject で private の設定を書き込む",
@@ -503,9 +521,68 @@ FILE_LESSONS = {
             },
         ],
         "next": [
-            ("ステップ2で拡張する", "メニューに「怪物を配置」を足し、怪物のカプセル・巡回ポイント・NavMesh(怪物が歩ける範囲)を自動で作ります。"),
-            ("自分だけの部屋ジェネレーター", "`Box(...)` の呼び出しを書き換えれば、部屋の形を自由に変えられます。病棟の廊下のような細長い部屋を作ってみましょう。"),
-            ("やってみよう", "`SurfacePatch` をもう1つ足して、部屋の真ん中に金属の床を置いてみましょう。"),
+            ("ステップ2で拡張する", "レイアウトに怪物の出発点と巡回ポイントを足し、ビルダーが怪物のカプセルと NavMesh(怪物が歩ける範囲)も作るようにします。"),
+            ("1章のマップ", "管理棟のレイアウトクラス(`Chapter1Stage`)を作り、メニューを1行足せば、同じビルダーで1章のシーンが作れます。"),
+        ],
+    },
+    "StageLayout.cs": {
+        "summary": "「どこに何を置くか」だけを持つデータのクラスです。Unity のオブジェクトは作りません。部屋・壁・床・柱などを1行で置ける**まとめ関数(ヘルパー)**も持っています。",
+        "lessons": [
+            {
+                "title": "Placement 構造体: 置くもの1つ分のメモ",
+                "code": "public struct Placement\n{\n    public string group, name;\n    public Vector3 position, size;\n    public float yaw;\n    public string material;\n    public SurfaceType surface;\n}",
+                "meaning": "箱1つについて「名前・位置・回転・大きさ・見た目・床の素材」を書き留めておく入れ物です。",
+                "why": "まだ GameObject を作らず、ただのデータにしておくのがポイントです。データなら Unity を開かなくても中身を調べられるので、`check_layout.py` で「歩いて回れるか」を自動チェックできます。",
+                "alts": [
+                    {"label": "最初から GameObject を作る", "code": "var wall = GameObject.CreatePrimitive(PrimitiveType.Cube);\nwall.transform.position = ...;",
+                     "why_not": "前のバージョンはこの方法でした。座標とオブジェクトを作る処理が混ざるので、座標だけを見渡したり、Unity の外でチェックしたりできません。"},
+                    {"label": "ScriptableObject にする", "code": "[CreateAssetMenu] public class StageLayoutAsset : ScriptableObject { public List<Placement> blocks; }",
+                     "why_not": "Inspector で座標を編集できるのが利点です。ただ、壁を100枚並べるような作業は、コードのループやヘルパーで書く方がずっと速いです。"},
+                ],
+            },
+            {
+                "title": "ヘルパー関数で「まとめて置く」",
+                "code": "public void Room(string name, float cx, float cz, float width, float depth, float height)\n{\n    Floor(...);\n    Box(\"Ceilings\", ...);\n    Wall(name + \"_Wall_N\", ...);  // 東西南北の4枚\n    ...\n}",
+                "meaning": "`Room` を1回呼ぶだけで、床・天井・四方の壁の6個の箱が追加されます。",
+                "why": "ステージのコードが「部屋を置く・柱を置く」のように、**やりたいことの言葉**で読めるようになります。壁の角のすき間のような細かい計算は、ヘルパーの中に一度書けば済みます。",
+                "alts": [],
+            },
+            {
+                "title": "Wall: 2点を指定すると、向きと長さを計算する",
+                "code": "Vector3 d = to - from;\nfloat length = new Vector2(d.x, d.z).magnitude;\nfloat yaw = Mathf.Atan2(d.x, d.z) * Mathf.Rad2Deg;",
+                "meaning": "始点と終点の差から、壁の長さ(距離)と向き(角度)を求めています。`Atan2` は、縦と横の長さから角度を出す関数です。",
+                "why": "「ここからここまで壁」と書くだけで、斜めの壁も置けます。中心の座標や回転を自分で計算する必要がありません。",
+                "alts": [
+                    {"label": "中心・大きさ・回転を直接書く", "code": "Box(\"Walls\", \"Wall_N\", new Vector3(0, 1.5f, 10.15f), new Vector3(20.6f, 3, 0.3f), \"Wall\");",
+                     "why_not": "これでも置けますが、壁を動かすたびに中心と長さを計算し直す必要があり、まちがえやすくなります。"},
+                ],
+            },
+        ],
+        "next": [
+            ("新しいヘルパーを作る", "廊下(`Corridor`)、ドアの開いた壁(`WallWithDoor`)、ロッカーの列など、よく使う形をヘルパーにしていくと、マップ作りがどんどん速くなります。"),
+            ("やってみよう", "`Wall` を使って、部屋の真ん中に斜めの壁を1枚置き、`check_layout.py` で全部の床にたどり着けるか調べてみましょう。"),
+        ],
+    },
+    "PrototypeStage.cs": {
+        "summary": "ステップ1のテスト部屋のレイアウトです。`StageLayout` のヘルパーを呼んで、部屋・素材の床・障害物・低い通路・プレイヤーの出発点を決めています。**座標を直したら、メニューを押し直すだけで反映されます。**",
+        "lessons": [
+            {
+                "title": "ステージごとに static な Build() を書く",
+                "code": "public static StageLayout Build()\n{\n    var layout = new StageLayout(\"Graybox_Room\");\n    layout.Room(\"Room\", 0f, 0f, 20f, 20f, height);\n    layout.Patch(\"Surface_Carpet\", -6f, 5f, 5f, 5f, SurfaceType.Carpet);\n    ...\n    return layout;\n}",
+                "meaning": "レイアウトを1つ作って中身を足していき、最後に返します。`static` なので、`PrototypeStage.Build()` とどこからでも呼べます。",
+                "why": "ステージ1つにつきファイル1つにすると、どのステージの座標がどこにあるか迷いません。ビルダーと `check_layout.py` の両方が、同じ `Build()` を呼びます。",
+                "alts": [],
+            },
+            {
+                "title": "保存先を定数にしておく",
+                "code": "public const string ScenePath = \"Assets/BlindSpot/Scenes/Prototype.unity\";",
+                "meaning": "このステージのシーンを保存する場所です。`const` は、あとから変わらない値という意味です。",
+                "why": "レイアウトと保存先をセットで1か所に置いておくと、ステージを追加するときに書き忘れがありません。",
+                "alts": [],
+            },
+        ],
+        "next": [
+            ("やってみよう", "`Surface_Metal` の座標を変えてメニューを押し直し、床の位置が変わることを確かめてみましょう。手でドラッグするより速く、何度でもやり直せます。"),
         ],
     },
 }
@@ -577,13 +654,32 @@ EXPLAIN = {
         ],
     },
     "GrayboxRoomBuilder.cs": {
-        "one": "メニューのボタン1つで、テスト部屋とプレイヤーを組み立てるエディタ専用の道具。",
-        "talk": "Unity のメニューに項目を足し、押すと部屋・素材付きの床・プレイヤー・レイヤー設定をまとめて作ります。"
-                "Editor フォルダに置くので、ゲーム本体には含まれません。"
-                "手作業の設定ミスを無くすことと、何度でも同じ状態を作り直せることが目的です。",
+        "one": "レイアウトのデータを読んで、シーンを丸ごと組み立てて保存するエディタ専用の道具。",
+        "talk": "Tools メニューから押すと、空のシーンを新しく作り、レイアウトに書かれた箱を全部置き、プレイヤーとライトを作り、シーンを保存してビルド設定に登録します。"
+                "毎回まっさらなシーンから作るので、何度押しても同じ結果になります。"
+                "座標はレイアウトのファイルに分けてあるので、配置を直すときはそちらだけを書き換えます。",
         "quiz": [
             ("このファイルを Editor フォルダの外に置くとどうなる?", "ゲームをビルドするときに「UnityEditor が見つからない」エラーになります。"),
             ("`~(1 << playerLayer)` は何を表している?", "「Player レイヤー以外の全部」というレイヤーマスクです。床を調べるときに、自分の体を除外するために使います。"),
+            ("メニューを2回押したら、部屋は2つになる?", "なりません。毎回新しい空のシーンから作り直して、同じ場所に保存し直すからです。"),
+        ],
+    },
+    "StageLayout.cs": {
+        "one": "「どこに何を置くか」を書き留めるメモ帳と、まとめて書くための便利な関数。",
+        "talk": "置く箱1つ分の情報を Placement という入れ物に入れ、リストにためていきます。この段階では、まだ Unity のオブジェクトは作りません。"
+                "Room や Wall のようなヘルパーを使うと、部屋1つや壁1枚を1行で書けます。"
+                "データだけなので、Unity を開かなくても、歩いて回れるかを自動でチェックできます。",
+        "quiz": [
+            ("StageLayout は GameObject を作る?", "作りません。置く場所のデータを持つだけです。作るのは GrayboxRoomBuilder です。"),
+            ("`layout.Room(...)` を1回呼ぶと、箱はいくつ増える?", "6つです。床・天井・東西南北の壁4枚です。"),
+        ],
+    },
+    "PrototypeStage.cs": {
+        "one": "テスト部屋の設計図。",
+        "talk": "StageLayout のヘルパーを使って、20m の部屋、4種類の素材の床、柱や箱、低い通路、プレイヤーの出発点を書いています。"
+                "座標を変えてメニューを押し直せば、シーンに反映されます。",
+        "quiz": [
+            ("金属の床を別の場所に動かしたい。どのファイルの何を変える?", "PrototypeStage.cs の `layout.Patch(\"Surface_Metal\", ...)` の座標を変えて、メニューを押し直します。"),
         ],
     },
 }
@@ -601,8 +697,11 @@ HIERARCHY = """Player                      ← Layer: Player / Tag: Player / 足
       [Camera]
       [AudioListener]
 
+Directional Light           [Light]
+
 Graybox_Room
-├─ Floor                    [BoxCollider]                     ← SurfaceMaterial なし = Default
+├─ Floors / Room_Floor      [BoxCollider]                     ← SurfaceMaterial なし = Default
+├─ Ceilings / Walls         [BoxCollider]
 ├─ Surfaces
 │  ├─ Surface_Carpet        [BoxCollider] [SurfaceMaterial: Carpet]
 │  ├─ Surface_Glass         [BoxCollider] [SurfaceMaterial: Glass]
@@ -611,7 +710,8 @@ Graybox_Room
 └─ Obstacles …              [BoxCollider]
 
 (どこにも付けない)  NoiseSystem … static class なので、シーンに置かなくても動く
-(どこにも付けない)  GrayboxRoomBuilder … エディタのメニュー用"""
+(どこにも付けない)  GrayboxRoomBuilder … Tools メニューの本体
+(どこにも付けない)  StageLayout / PrototypeStage … 配置のデータ"""
 
 # メニューを使わずに手で組み立てる手順
 MANUAL_STEPS = [
@@ -648,8 +748,16 @@ ATTACH = {
         "detail": "Player と Footsteps の欄が空なら、Awake で**同じオブジェクト**から探します。Player に付ければ設定は不要です。別のオブジェクトに付ける場合は、両方の欄に Player をドラッグします。製品版では外します。",
     },
     "GrayboxRoomBuilder.cs": {
-        "target": "どこにも付けない(メニューから使う)",
-        "detail": "エディタ用のスクリプトで、`Editor` フォルダに置くだけで、メニューに「BlindSpot」が出ます。上の組み立て図の「Player」と「Graybox_Room」を自動で作り、アタッチと設定までまとめて行います。",
+        "target": "どこにも付けない(Tools メニューから使う)",
+        "detail": "エディタ用のスクリプトで、`Editor` フォルダに置くだけで `Tools > BlindSpot` にメニューが出ます。組み立て図の形を新しいシーンに作り、アタッチと設定、シーンの保存まで行います。",
+    },
+    "StageLayout.cs": {
+        "target": "どこにも付けない(データのクラス)",
+        "detail": "MonoBehaviour ではないので、オブジェクトには付けられません。`Editor/Stage` フォルダに置き、ビルダーとレイアウトから使います。",
+    },
+    "PrototypeStage.cs": {
+        "target": "どこにも付けない(レイアウトのデータ)",
+        "detail": "テスト部屋の座標を書いたファイルです。配置を変えたいときは、このファイルの数字を書き換えて、メニューを押し直します。",
     },
 }
 
@@ -738,8 +846,8 @@ GUIDE = [
              "下の Project ウィンドウで `Assets` を選び、右側の空いているところで右クリック → `Create > Folder` を選び、名前を `BlindSpot` にします。",
              "Assets の中に BlindSpot フォルダがあります。"),
             ("中のフォルダを作る",
-             "BlindSpot を開き、同じ方法で `Scripts` と `Editor` を作ります。さらに Scripts を開いて `Noise`、`Player`、`Debug` を作ります。",
-             "`Assets/BlindSpot/Scripts/Noise`、`Scripts/Player`、`Scripts/Debug`、`Assets/BlindSpot/Editor` の4つがそろっています。"),
+             "BlindSpot を開き、同じ方法で `Scripts` と `Editor` を作ります。さらに Scripts を開いて `Noise`、`Player`、`Debug` を、Editor を開いて `Stage` を作ります。",
+             "`Assets/BlindSpot/Scripts/Noise`、`Scripts/Player`、`Scripts/Debug`、`Assets/BlindSpot/Editor/Stage` がそろっています。"),
             ("Editor の綴りを確認する",
              "`Editor` は大文字の E で始まり、一字一句この名前にします。Unity はこの名前のフォルダを「エディタ専用」と見なします。",
              "フォルダ名が `Editor` になっています(`editor` や `Editors` は不可)。"),
@@ -748,12 +856,12 @@ GUIDE = [
     {
         "id": "scripts",
         "title": "スクリプトを作って貼る",
-        "intro": "6つのファイルを入れます。**方法A: パッケージで一気に入れる**(おすすめ)か、**方法B: 1つずつ作って貼る**かを選びます。"
+        "intro": "8つのファイルを入れます。**方法A: パッケージで一気に入れる**(おすすめ)か、**方法B: 1つずつ作って貼る**かを選びます。"
                  "**スクリプトは入れただけでは何も起きません**。オブジェクトに付けて(アタッチして)はじめて動きます。付ける作業は次のフェーズで行います。",
         "steps": [
             ("方法A: パッケージで一気に入れる",
-             "チャットで送った `BlindSpot_Step1.unitypackage` を、Unity の Project ウィンドウへドラッグ&ドロップします(または `Assets > Import Package > Custom Package…` で選びます)。出てきた画面で全部にチェックが入っているのを確かめ、`Import` を押します。",
-             "`Assets/BlindSpot` の中に、6つのファイルが正しいフォルダ構成で入っています。方法A を使ったら、下の方法B の手順は飛ばして「エラーが無いか確認する」へ進みます。"),
+             "チャットで送った最新の `BlindSpot_Step1_v2.unitypackage` を、Unity の Project ウィンドウへドラッグ&ドロップします(または `Assets > Import Package > Custom Package…` で選びます)。出てきた画面で全部にチェックが入っているのを確かめ、`Import` を押します。",
+             "`Assets/BlindSpot` の中に、8つのファイルが正しいフォルダ構成で入っています。方法A を使ったら、下の方法B の手順は飛ばして「エラーが無いか確認する」へ進みます。"),
             ("方法A の注意: 前に手で作ったファイルがある場合",
              "同じ名前のファイルがすでにあると、`NoiseSystem 1.cs` のような重複ができて、エラーになります。**最初の1回だけ**、`Assets/BlindSpot` の `Scripts` と `Editor` の2つのフォルダを削除してからインポートします(`Materials` とシーンは残します)。そのあと、フェーズ4のメニューをもう一度実行して、部屋とプレイヤーを作り直します。",
              "Console に赤いエラーが無く、重複したファイル(名前に「 1」が付いたもの)もありません。次からは、新しいパッケージをインポートするだけで、変更されたファイルが上書きされます。"),
@@ -763,9 +871,9 @@ GUIDE = [
             ("中身を貼り替える",
              "作ったファイルをダブルクリックしてコードエディタで開きます。Ctrl+A で全部選んで Delete で消し、表の「コピー」を押してから Ctrl+V で貼り、Ctrl+S で保存します。",
              "エディタの中身が、ページのコードと同じになっています。"),
-            ("6つ全部くり返す",
-             "表の1から6の順に、同じことをくり返します。途中で Unity に戻ると赤いエラーが出ることがありますが、ほかのファイルがまだ無いせいなので、気にせず進めます。",
-             "6つのファイルが、表どおりのフォルダにそろっています。"),
+            ("全部くり返す",
+             "表の上から順に、同じことをくり返します。途中で Unity に戻ると赤いエラーが出ることがありますが、ほかのファイルがまだ無いせいなので、気にせず進めます。",
+             "表のファイルが全部、表どおりのフォルダにそろっています。"),
             ("エラーが無いか確認する",
              "Unity に戻り、画面右下のくるくる回るマーク(コンパイル中)が消えるのを待ちます。`Window > General > Console`(Ctrl+Shift+C)を開きます。",
              "**赤いエラーが 0 件**です。黄色の警告は気にしなくて構いません。赤が出たら、フェーズ5の「よくあるエラー」を見てください。"),
@@ -776,23 +884,25 @@ GUIDE = [
         "id": "assemble",
         "title": "シーンを組み立てる(アタッチと設定)",
         "intro": "スクリプトを付ける相手(プレイヤー・床・カメラ)を作り、スクリプトを付けて、Inspector で設定します。"
-                 "**方法A: メニューで1クリック**(おすすめ)と、**方法B: 手で組み立てる**(仕組みを理解したいとき)の2通りがあります。どちらでも結果は同じです。まず A で作り、余裕があれば別のシーンで B も試すと理解が深まります。",
+                 "**方法A: Tools メニューで1クリック**(おすすめ)と、**方法B: 手で組み立てる**(仕組みを理解したいとき)の2通りがあります。"
+                 "方法A では、配置の座標はすべて `PrototypeStage.cs` に書いてあり、手でドラッグして置くものはありません。",
         "steps": [
-            ("テスト用のシーンを作る",
-             "`File > New Scene` で「Basic (URP)」か「Standard (URP)」を選んで `Create` を押します。`File > Save As` で `Assets/Scenes` に `Prototype` という名前で保存します。",
-             "Hierarchy の一番上のシーン名が Prototype になっています。"),
-            ("方法A: メニューで組み立てる",
-             "一番上のメニューバー(File・Edit・Assets… が並ぶところ)に **BlindSpot** が増えています。`BlindSpot > ステップ1: テスト部屋とプレイヤーを作成` をクリックします。下の組み立て図の形が、アタッチと設定まで含めて自動で作られます。",
-             "Hierarchy に `Graybox_Room` と `Player` ができ、Console に「[BlindSpot] テスト部屋とプレイヤーを作成しました」と出ます。元からあった Main Camera は消えます(プレイヤーのカメラと2つになるのを防ぐためです)。"),
+            ("方法A: Tools メニューで組み立てる",
+             "一番上のメニューバーの `Tools > BlindSpot > ステップ1: テスト部屋を作成` をクリックします。今のシーンに未保存の変更があれば保存するか聞かれるので、答えます。"
+             "**新しいシーンが作られ**、部屋・プレイヤー・ライトが置かれ、`Assets/BlindSpot/Scenes/Prototype` に保存されます。",
+             "Hierarchy に `Directional Light`・`Graybox_Room`・`Player` があり、Console に「[BlindSpot] Assets/BlindSpot/Scenes/Prototype.unity を作成しました」と出ます。"),
+            ("何度押しても同じ",
+             "座標を変えたいときは `Editor/Stage/PrototypeStage.cs` の数字を書き換えて保存し、もう一度メニューを押します。シーンは毎回まっさらな状態から作り直されます。",
+             "**注意**:作り直すと、そのシーンで手で置いたものや変えた値は消えます。残したい変更は `PrototypeStage.cs` に書きます。"),
             ("Player を Inspector で確かめる",
              "Hierarchy で `Player` をクリックし、Inspector を上から見ます。",
              "上部の Tag が **Player**、Layer が **Player** です。その下に Character Controller・Audio Source・Player Controller・Footstep Noise・Debug Hud の5つが並んでいます。Player Controller の **Camera Root** に CameraRoot が入り、**Obstacle Mask** は「Mixed…」(Player だけ外れた状態)になっています。"),
             ("カメラと床も確かめる",
              "Player の左の ▶ を開いて `CameraRoot` をクリックします。次に `Graybox_Room > Surfaces > Surface_Carpet` をクリックします。",
              "CameraRoot には Camera と Audio Listener が付いています。Surface_Carpet には Box Collider と Surface Material(Type: Carpet)が付いています。"),
-            ("シーンを保存する",
-             "Ctrl+S を押します。",
-             "シーン名の横の「*」(未保存の印)が消えます。"),
+            ("ビルド設定に入ったことを確かめる",
+             "`File > Build Profiles`(古い Unity では `Build Settings`)を開き、Scene List を見ます。",
+             "`BlindSpot/Scenes/Prototype` にチェックが入って並んでいます。メニューが自動で登録しています。"),
         ],
         "extra": "assemble",
     },
@@ -829,7 +939,7 @@ GUIDE = [
         "steps": [
             ("全体の流れを読む",
              "下の「全体の流れ」で、W キーを押してから音が怪物に届くまでに、どのファイルがどの順番でバトンを渡すかをつかみます。",
-             "6つのファイルの役割を、それぞれ一言で言えます。"),
+             "各ファイルの役割を、それぞれ一言で言えます。"),
             ("C# と Unity の基礎を読む",
              "どのファイルにも出てくる書き方(namespace・Awake と Start・SerializeField・プロパティ)を先に読みます。",
              "`[SerializeField] private` と `public` の違いを説明できます。"),
