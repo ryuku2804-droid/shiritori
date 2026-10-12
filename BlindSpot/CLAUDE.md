@@ -45,10 +45,12 @@
 
 ## 開発の進め方(試作優先)
 
+**品質の方針**:フェーズ A(ステップ1〜4、グレーボックスの試作)は手軽さ優先。**フェーズ B(ステップ5、1章)以降は最高品質の作り方**に切り替える。具体的には ScriptableObject で調整値を分離 / Input Actions アセットとリバインド / AI Navigation の NavMeshSurface を事前ベイク / Cinemachine / UI Toolkit / Audio Mixer / Assembly Definition と Unity Test Framework の自動テスト / バージョン付きセーブ / Profiler で性能目標。試作で作った仕組みもこの時点で置き換える(ロードマップの QUALITY 参照)
+
 まずグレーボックスの1部屋で「足音を殺して怪物をやり過ごす」面白さを確認してから肉付けする。
 
 1. [済] プレイヤー操作と足音・音の仕組み
-2. [作業中] 怪物 AI(巡回・調査・追跡・捕獲)。仮モデルはカプセル。コードは渡し済み、作者の動作確認待ち
+2. [済] 怪物 AI(巡回・調査・追跡・捕獲)。仮モデルはカプセル
 3. [ ] 隠れる・投擲・息止め
 4. [ ] 実際に遊んで調整
 5. [ ] 1章のマップ、照明、怪物モデル、謎解き、セーブ…と肉付け
@@ -91,4 +93,5 @@
 - 変更したファイルは差分ではなく全文で渡す
 - ファイルの配置は `.unitypackage` で一括で渡すのが基本。`python3 BlindSpot/tools/make_unitypackage.py BlindSpot/dist/BlindSpot_StepN.unitypackage` で作り、SendUserFile で送る。GUID はパスから決まるので、次のステップのパッケージは同じファイルを上書きする
 - ロードマップは別の Artifact(https://claude.ai/artifact/22eYeWMwZR6LbSWtZNkH18、元ファイル `BlindSpot/docs/roadmap.html`)。ステップが終わるたびに「済 / 次 / 予定」を更新する
+- **1行ずつの解説ページ**(別の Artifact、https://claude.ai/artifact/9HGLkmQPfHnUAV3iVCpVwg)は `python3 BlindSpot/tools/make_line_page.py <出力.html>` で作る。説明は `tools/annotations/<クラス名>.py` の NOTES = {行番号: 説明}。コードを変えたら行番号がずれるので、必ず作り直して、エラー(説明の無い行)が出ないことを確かめる。新しいファイルは FILES に追加する
 - 以前の学習用ページの素材(`tools/lessons_step1.py`、`make_source_page.py`)は参考として残している

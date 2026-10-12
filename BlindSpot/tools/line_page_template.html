@@ -1,0 +1,148 @@
+<title>BLIND SPOT コード読解</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap">
+<style>
+/* レイアウト: ファイルのチップ → ファイルごとに「行番号 | コード | 意味」の対訳表。狭い画面ではコードの下に意味を置く */
+:root {
+  --bg: #eef0ee;
+  --surface: #ffffff;
+  --fg: #1a1f1e;
+  --muted: #6a7471;
+  --line: #dde2df;
+  --accent: #1d6f6d;
+  --accent-soft: #d8ebe9;
+  --code-bg: #14191a;
+  --code-fg: #d9e0dd;
+  --code-dim: #6f7c79;
+  --tok-comment: #7d958f;
+  --tok-string: #d9b77a;
+  --tok-keyword: #7fc6d6;
+  --tok-number: #c9a0dc;
+  --tok-pre: #e08a7a;
+  --inline-bg: #e3e8e5;
+  --font-body: "IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "Consolas", "Menlo", "MS Gothic", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101413; --surface: #181e1d; --fg: #e3e8e6; --muted: #8e9b97; --line: #27302e;
+    --accent: #5fbdb8; --accent-soft: #1d3332; --code-bg: #0b0f0f; --inline-bg: #26302e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101413; --surface: #181e1d; --fg: #e3e8e6; --muted: #8e9b97; --line: #27302e;
+  --accent: #5fbdb8; --accent-soft: #1d3332; --code-bg: #0b0f0f; --inline-bg: #26302e;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.7; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 24px 72px; display: grid; gap: 24px; }
+header { display: grid; gap: 6px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .16em; color: var(--accent); font-weight: 600; }
+h1 { margin: 0; font-size: 24px; line-height: 1.35; text-wrap: balance; }
+.lead { margin: 0; color: var(--muted); max-width: 70ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; font-size: 14px; }
+.controls label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+
+nav.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+nav.chips a { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--accent); text-decoration: none; font-family: var(--font-mono); font-size: 13.5px; font-weight: 500; }
+nav.chips a .ord { color: var(--muted); font-variant-numeric: tabular-nums; }
+nav.chips a:hover { border-color: var(--accent); background: var(--accent-soft); }
+a:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+section.file { display: grid; gap: 10px; scroll-margin-top: 16px; }
+.file-head { display: grid; gap: 2px; padding-top: 18px; border-top: 2px solid var(--line); }
+h2 { margin: 0; font-family: var(--font-mono); font-size: 20px; font-weight: 600; overflow-wrap: anywhere; }
+h2 .ord { color: var(--muted); font-weight: 500; margin-right: 6px; }
+.path { font-family: var(--font-mono); font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.role { margin: 0; }
+
+.rows { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.row { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.code { display: grid; grid-template-columns: 3.2em minmax(0, 1fr); background: var(--code-bg); color: var(--code-fg); font-family: var(--font-mono); font-size: 13px; line-height: 1.6; min-width: 0; }
+.code .no { color: var(--code-dim); text-align: right; padding: 7px 8px 7px 0; user-select: none; font-variant-numeric: tabular-nums; }
+.code pre { margin: 0; padding: 7px 12px 7px 4px; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4; }
+.note { padding: 7px 14px; font-size: 14.5px; line-height: 1.65; min-width: 0; }
+.row.auto .note { color: var(--muted); font-size: 13.5px; }
+.row.auto .code pre { opacity: .75; }
+body.hide-auto .row.auto { display: none; }
+.note code { font-family: var(--font-mono); font-size: .9em; background: var(--inline-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.t-c { color: var(--tok-comment); font-style: italic; }
+.t-s { color: var(--tok-string); }
+.t-k { color: var(--tok-keyword); }
+.t-n { color: var(--tok-number); }
+.t-p { color: var(--tok-pre); }
+
+@media (max-width: 760px) {
+  .row { grid-template-columns: minmax(0, 1fr); }
+  .note { padding: 6px 12px 10px; }
+  .code { font-size: 12.5px; }
+  h1 { font-size: 21px; }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">BLIND SPOT / LINE BY LINE</div>
+    <h1>コードを1行ずつ読む</h1>
+    <p class="lead">左がコード、右がその行の意味です。上から順に、仕組みの土台 → プレイヤー → 怪物 → ステージを作る道具の順に並べています。かっこやコメントなど決まった形の行は、薄い色で表示しています。</p>
+    <div class="controls"><label><input type="checkbox" id="hide-auto"> かっこ・コメントなどの行を隠す</label></div>
+  </header>
+  <nav class="chips" id="chips" aria-label="ファイル一覧"></nav>
+  <main id="files" style="display:grid;gap:28px"></main>
+</div>
+
+<script id="data" type="application/json">{{DATA}}</script>
+<script>
+(function () {
+  const files = JSON.parse(document.getElementById('data').textContent);
+  const KEYWORDS = new Set(('abstract as base bool break byte case catch char class const continue decimal default delegate do double else enum event explicit extern false finally fixed float for foreach get set goto if implicit in int interface internal is lock long namespace new null object operator out override params private protected public readonly ref return sbyte sealed short sizeof static string struct switch this throw true try typeof uint ulong unchecked unsafe ushort using var virtual void volatile while yield async await nameof value when where').split(' '));
+  const TOKEN = /(\/\/[^\n]*)|(\$?@?"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])')|(^[ \t]*#[^\n]*)|\b(\d+(?:\.\d+)?f?)\b|\b([A-Za-z_]\w*)\b/gm;
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function highlight(src) {
+    let out = '', last = 0, m;
+    TOKEN.lastIndex = 0;
+    while ((m = TOKEN.exec(src))) {
+      out += esc(src.slice(last, m.index));
+      const t = m[0];
+      if (m[1]) out += '<span class="t-c">' + esc(t) + '</span>';
+      else if (m[2]) out += '<span class="t-s">' + esc(t) + '</span>';
+      else if (m[3]) out += '<span class="t-p">' + esc(t) + '</span>';
+      else if (m[4]) out += '<span class="t-n">' + esc(t) + '</span>';
+      else if (KEYWORDS.has(t)) out += '<span class="t-k">' + t + '</span>';
+      else out += esc(t);
+      last = TOKEN.lastIndex;
+    }
+    return out + esc(src.slice(last));
+  }
+  function inline(s) { return esc(s).replace(/`([^`]+)`/g, '<code>$1</code>'); }
+  function anchorOf(name) { return name.replace(/\.[^.]+$/, '').replace(/[^A-Za-z0-9_-]/g, ''); }
+
+  const chips = document.getElementById('chips');
+  const main = document.getElementById('files');
+  files.forEach((f, i) => {
+    const id = anchorOf(f.name);
+    chips.insertAdjacentHTML('beforeend', '<a href="#' + id + '"><span class="ord">' + (i + 1) + '</span>' + esc(f.name) + '</a>');
+    // 行頭の共通の字下げを詰めて、狭い画面でも読みやすくする
+    const indent = Math.min(...f.rows.map(r => r[1].match(/^ */)[0].length));
+    const rows = f.rows.map(r =>
+      '<div class="row' + (r[3] ? ' auto' : '') + '">' +
+        '<div class="code"><span class="no">' + r[0] + '</span><pre>' + highlight(r[1].slice(indent)) + '</pre></div>' +
+        '<div class="note">' + inline(r[2]) + '</div>' +
+      '</div>').join('');
+    main.insertAdjacentHTML('beforeend',
+      '<section class="file" id="' + id + '">' +
+        '<div class="file-head"><h2><span class="ord">' + (i + 1) + '.</span>' + esc(f.name) + '</h2>' +
+        '<div class="path">' + esc(f.path) + '</div><p class="role">' + esc(f.role) + '</p></div>' +
+        '<div class="rows">' + rows + '</div>' +
+      '</section>');
+  });
+
+  const toggle = document.getElementById('hide-auto');
+  toggle.addEventListener('change', () => document.body.classList.toggle('hide-auto', toggle.checked));
+})();
+</script>

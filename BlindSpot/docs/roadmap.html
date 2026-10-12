@@ -69,6 +69,10 @@ li.next article.card { border-color: var(--next-fg); }
 dl.kv { margin: 0; display: grid; grid-template-columns: 11em minmax(0, 1fr); gap: 6px 14px; }
 dl.kv dt { font-size: 12.5px; font-weight: 700; color: var(--accent); letter-spacing: .04em; padding-top: 2px; }
 dl.kv dd { margin: 0; min-width: 0; }
+.qgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.qgrid .card h3 { margin: 0; font-size: 15.5px; }
+.qgrid .card p { margin: 0; font-size: 14px; }
+section.quality .phase-head .tag { color: var(--next-fg); }
 code { font-family: var(--font-mono); font-size: .9em; background: var(--todo-bg); padding: 1px 5px; border-radius: 4px; }
 
 @media (max-width: 600px) {
@@ -83,7 +87,7 @@ code { font-family: var(--font-mono); font-size: .9em; background: var(--todo-bg
     <div class="eyebrow">BLIND SPOT / ROADMAP</div>
     <h1>ゲーム完成までのロードマップ</h1>
     <p class="lead">まず1部屋で「足音を殺して怪物をやり過ごす」が面白いかを確かめ、面白ければ1章の体験版、本編、公開へと広げます。各ステップには、作るものと一緒に「説明できるようになること」を書いています。</p>
-    <div class="legend"><span class="st done">済</span>終わった <span class="st next">作業中 / 次</span>今やっている・次にやる <span class="st todo">予定</span>これから</div>
+    <div class="legend"><span class="st done">済</span>終わった <span class="st next">次</span>次にやる <span class="st todo">予定</span>これから</div>
   </header>
 
   <section class="phase">
@@ -101,16 +105,16 @@ code { font-family: var(--font-mono); font-size: .9em; background: var(--todo-bg
           <dt>完成の目安</dt><dd>しゃがむと足音の円が小さく、金属の床では大きくなる。</dd>
         </dl>
       </article></li>
-      <li class="next"><article class="card">
-        <div class="card-head"><span class="num">2</span><h3>怪物 AI(巡回・調査・追跡・捕獲)</h3><span class="st next">作業中</span></div>
+      <li class="done"><article class="card">
+        <div class="card-head"><span class="num">2</span><h3>怪物 AI(巡回・調査・追跡・捕獲)</h3><span class="st done">済</span></div>
         <dl class="kv">
           <dt>作るもの</dt><dd>カプセルの仮の怪物。巡回ポイントを回り、音が聞こえたらその場所を調べに行き、大きな音や至近距離で追いかけ、触れたら捕獲。怪物が歩ける範囲(NavMesh)と巡回ポイントも、Tools メニューで自動配置。自分の位置を知らせるクリック音。</dd>
           <dt>説明できるようになること</dt><dd>状態マシン(enum と switch で「今何をしているか」を切り替える)。NavMeshAgent で目的地まで歩かせる仕組み(NavMesh はゲーム開始時にコードで作る)。<code>NoiseSystem.OnNoise</code> を購読して音に反応する流れ。</dd>
           <dt>完成の目安</dt><dd>歩いて近づくと見つかり、しゃがんでゆっくり動けばやり過ごせる。</dd>
         </dl>
       </article></li>
-      <li class="todo"><article class="card">
-        <div class="card-head"><span class="num">3</span><h3>隠れる・投擲・息止め</h3><span class="st todo">予定</span></div>
+      <li class="next"><article class="card">
+        <div class="card-head"><span class="num">3</span><h3>隠れる・投擲・息止め</h3><span class="st next">次</span></div>
         <dl class="kv">
           <dt>作るもの</dt><dd>ロッカー・机の下・物陰に隠れる。石・ガラス瓶・空き缶を投げて気をそらす(最大5個)。息止めゲージ(怪物が近いほど速く減り、限界で咳き込む)。</dd>
           <dt>説明できるようになること</dt><dd>「調べる」操作の作り方(視線の先を Raycast で調べる)。Rigidbody で物を投げる仕組み。着地の音を同じ <code>NoiseSystem.Emit</code> で出せる理由。</dd>
@@ -126,6 +130,22 @@ code { font-family: var(--font-mono); font-size: .9em; background: var(--todo-bg
         </dl>
       </article></li>
     </ol>
+  </section>
+
+  <section class="phase quality">
+    <div class="phase-head">
+      <div class="tag">QUALITY</div>
+      <h2>試作のあとは、最高品質の作り方に切り替える</h2>
+      <p>フェーズ A は「面白いかを早く確かめる」ための手軽な作り方です。フェーズ B からは、長く作り続けても崩れない、製品として最高品質の作り方に置き換えます。</p>
+    </div>
+    <div class="qgrid">
+      <article class="card"><h3>調整値はデータに</h3><p>怪物・足音・床の数値を ScriptableObject(設定ファイル)に分け、コードを触らずに調整できるようにする。失敗作と本命の怪物も、設定ファイルの違いで作り分ける。</p></article>
+      <article class="card"><h3>入力とキーコンフィグ</h3><p>入力を Input Actions アセットに移し、キーの割り当て変更・ゲームパッド・感度をオプション画面から変えられるようにする。</p></article>
+      <article class="card"><h3>NavMesh とカメラ</h3><p>AI Navigation パッケージの NavMeshSurface で事前に焼き、扉や段差を Off-Mesh Link で正しく扱う。カメラの揺れや演出は Cinemachine で作る。</p></article>
+      <article class="card"><h3>UI と音</h3><p>UI は UI Toolkit で作り、解像度が変わっても崩れないようにする。音は Audio Mixer でまとめ、残響や音量のバランスを場所ごとに調整する。</p></article>
+      <article class="card"><h3>コードの構成とテスト</h3><p>Assembly Definition でコードを分け、コンパイルを速くして依存関係を整理する。音の届き方や AI の状態の切り替えを、自動テスト(Unity Test Framework)で確かめる。</p></article>
+      <article class="card"><h3>セーブ・性能・見た目</h3><p>セーブデータにバージョン番号を付け、壊れても復旧できるようにする。Profiler で性能の目標を決めて守る。URP のポストプロセスとライトで、暗さと見やすさを両立させる。</p></article>
+    </div>
   </section>
 
   <section class="phase">
