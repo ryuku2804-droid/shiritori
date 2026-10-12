@@ -78,10 +78,10 @@
 
 ## コードの渡し方
 
-- 毎回、変更したファイルは差分ではなく全文で渡し、ファイルごとに【新規】/【変更】を付ける
-- コピペ用ページは `python3 BlindSpot/tools/make_source_page.py <出力.html>` で作り、Artifact として公開する(ステップ1は https://claude.ai/artifact/6Ek4AtZMgD4P7qAwoWXzAL)。`FILES` の一覧と状態をステップごとに書き換える
-- 作者はコードを学びながら作っている。ファイルごとに「意味 / なぜこう書くか / 別の書き方と使わない理由 / 発展のさせ方・やってみよう」の解説を `BlindSpot/tools/lessons_stepN.py` に書き、同じページに載せる
-- 当面の目標は「自分で書ける」より先に「コードの意味と、なぜそう書いたかを説明できる」こと。全体の流れ(FLOW)と、ファイルごとの「一言でいうと / 30秒説明のお手本 / 確認の質問」(EXPLAIN)も毎ステップ用意する
-- スクリプトごとの「アタッチ先と Inspector の設定」(ATTACH)、シーンの組み立て図(HIERARCHY)、メニューを使わない手動手順(MANUAL_STEPS)も毎ステップ載せる
-- ページは PART 1「作って動かす」(GUIDE: フェーズごとの手順。各手順は やること + こうなっていれば OK。準備 → フォルダ → スクリプト → アタッチと設定 → 動作確認 → 理解)と PART 2「理解する」の2部構成。期待される数値(EXPECTED)とよくあるエラー(TROUBLE)も毎ステップ載せる。コード以外の Unity 操作も省略せずに書く
-- ファイルの配置は `.unitypackage` で一括で渡すのが基本。`python3 BlindSpot/tools/make_unitypackage.py BlindSpot/dist/BlindSpot_StepN.unitypackage` で作り、SendUserFile で送る。GUID はパスから決まるので、次のステップのパッケージは同じファイルを上書きする(作者はステップ1を手で作ったため、最初の1回だけ Scripts と Editor を消してから入れ直す必要がある)
+- **右のソースコード(Artifact)にはコードだけ**を出す。`python3 BlindSpot/tools/make_code_page.py <出力.html>` で作り、同じ URL(https://claude.ai/artifact/6Ek4AtZMgD4P7qAwoWXzAL)に上書き公開する。`FILES` の一覧と状態(新規 / 変更 / 変更なし)をステップごとに書き換える
+- **手順・アタッチ先・Inspector の設定・解説はチャット**に書く。短く、わかりやすく
+- 作者の目標は「書ける」より「コードを読んで、意味とこだわり(なぜそう書いたか)を自分で話せる」こと。ファイルごとに「役割 / 付ける場所 / こだわり(理由つき)」をチャットで伝える
+- 変更したファイルは差分ではなく全文で渡す
+- ファイルの配置は `.unitypackage` で一括で渡すのが基本。`python3 BlindSpot/tools/make_unitypackage.py BlindSpot/dist/BlindSpot_StepN.unitypackage` で作り、SendUserFile で送る。GUID はパスから決まるので、次のステップのパッケージは同じファイルを上書きする
+- ロードマップは別の Artifact(https://claude.ai/artifact/22eYeWMwZR6LbSWtZNkH18、元ファイル `BlindSpot/docs/roadmap.html`)。ステップが終わるたびに「済 / 次 / 予定」を更新する
+- 以前の学習用ページの素材(`tools/lessons_step1.py`、`make_source_page.py`)は参考として残している

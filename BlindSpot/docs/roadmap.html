@@ -1,0 +1,248 @@
+<title>BLIND SPOT ロードマップ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap">
+<style>
+/* レイアウト: フェーズ(大きな区切り) → ステップのカードを縦の線でつなぐタイムライン。各カードは 作るもの / 説明できるようになること / 完成の目安 */
+:root {
+  --bg: #eef0ee;
+  --surface: #ffffff;
+  --fg: #1a1f1e;
+  --muted: #5b6562;
+  --line: #d5dad7;
+  --accent: #1d6f6d;
+  --accent-soft: #d8ebe9;
+  --done-fg: #1d6b3a;
+  --done-bg: #dcefe2;
+  --next-fg: #8a5a00;
+  --next-bg: #f6e8c8;
+  --todo-fg: #5b6562;
+  --todo-bg: #e6e9e7;
+  --font-body: "IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "Consolas", "Menlo", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101413; --surface: #181e1d; --fg: #e3e8e6; --muted: #95a29e; --line: #2b3432;
+    --accent: #5fbdb8; --accent-soft: #1d3332;
+    --done-fg: #8fdca8; --done-bg: #1b3524; --next-fg: #f0c46a; --next-bg: #3a2e12; --todo-fg: #95a29e; --todo-bg: #232b29;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101413; --surface: #181e1d; --fg: #e3e8e6; --muted: #95a29e; --line: #2b3432;
+  --accent: #5fbdb8; --accent-soft: #1d3332;
+  --done-fg: #8fdca8; --done-bg: #1b3524; --next-fg: #f0c46a; --next-bg: #3a2e12; --todo-fg: #95a29e; --todo-bg: #232b29;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.7; }
+.wrap { max-width: 900px; margin: 0 auto; padding-inline: 20px; padding-block: 28px 72px; display: grid; gap: 32px; }
+header { display: grid; gap: 8px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .16em; color: var(--accent); font-weight: 600; }
+h1 { margin: 0; font-size: 26px; line-height: 1.35; text-wrap: balance; }
+.lead { margin: 0; color: var(--muted); max-width: 64ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+
+.st { display: inline-flex; align-items: center; font-size: 12px; font-weight: 700; line-height: 1; padding: 4px 8px; border-radius: 4px; letter-spacing: .05em; white-space: nowrap; }
+.st.done { color: var(--done-fg); background: var(--done-bg); }
+.st.next { color: var(--next-fg); background: var(--next-bg); }
+.st.todo { color: var(--todo-fg); background: var(--todo-bg); }
+
+section.phase { display: grid; gap: 14px; }
+.phase-head { display: grid; gap: 4px; }
+.phase-head .tag { font-family: var(--font-mono); font-size: 12px; letter-spacing: .14em; color: var(--accent); font-weight: 600; }
+.phase-head h2 { margin: 0; font-size: 20px; text-wrap: balance; }
+.phase-head p { margin: 0; color: var(--muted); max-width: 66ch; }
+
+ol.steps { list-style: none; margin: 0; padding: 0 0 0 22px; border-left: 2px solid var(--line); display: grid; gap: 14px; }
+ol.steps > li { position: relative; }
+ol.steps > li::before { content: ""; position: absolute; left: -29px; top: 20px; width: 12px; height: 12px; border-radius: 50%; background: var(--bg); border: 2px solid var(--line); }
+ol.steps > li.done::before { background: var(--done-fg); border-color: var(--done-fg); }
+ol.steps > li.next::before { background: var(--next-fg); border-color: var(--next-fg); }
+
+article.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; display: grid; gap: 10px; min-width: 0; }
+li.next article.card { border-color: var(--next-fg); }
+.card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.card-head .num { font-family: var(--font-mono); font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.card-head h3 { margin: 0; font-size: 17px; text-wrap: balance; }
+dl.kv { margin: 0; display: grid; grid-template-columns: 11em minmax(0, 1fr); gap: 6px 14px; }
+dl.kv dt { font-size: 12.5px; font-weight: 700; color: var(--accent); letter-spacing: .04em; padding-top: 2px; }
+dl.kv dd { margin: 0; min-width: 0; }
+code { font-family: var(--font-mono); font-size: .9em; background: var(--todo-bg); padding: 1px 5px; border-radius: 4px; }
+
+@media (max-width: 600px) {
+  h1 { font-size: 22px; }
+  dl.kv { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  dl.kv dd + dt { margin-top: 8px; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">BLIND SPOT / ROADMAP</div>
+    <h1>ゲーム完成までのロードマップ</h1>
+    <p class="lead">まず1部屋で「足音を殺して怪物をやり過ごす」が面白いかを確かめ、面白ければ1章の体験版、本編、公開へと広げます。各ステップには、作るものと一緒に「説明できるようになること」を書いています。</p>
+    <div class="legend"><span class="st done">済</span>終わった <span class="st next">次</span>次にやる <span class="st todo">予定</span>これから</div>
+  </header>
+
+  <section class="phase">
+    <div class="phase-head">
+      <div class="tag">PHASE A</div>
+      <h2>試作:1部屋で面白さを確かめる</h2>
+      <p>見た目は灰色の箱のまま、遊びの芯だけを作ります。ここで面白くなければ、絵や音を作り込む前に仕様を見直せます。</p>
+    </div>
+    <ol class="steps">
+      <li class="done"><article class="card">
+        <div class="card-head"><span class="num">1</span><h3>プレイヤー操作と足音・音の仕組み</h3><span class="st done">済</span></div>
+        <dl class="kv">
+          <dt>作るもの</dt><dd>歩く・走る・しゃがむ。床の素材で変わる足音。音を配る <code>NoiseSystem</code>。Tools メニュー1クリックでテスト部屋を丸ごと作る仕組み。</dd>
+          <dt>説明できるようになること</dt><dd>音を event で配る理由。足音を時間ではなく距離で鳴らす理由。「配置のデータ」と「作る処理」を分ける理由。</dd>
+          <dt>完成の目安</dt><dd>しゃがむと足音の円が小さく、金属の床では大きくなる。</dd>
+        </dl>
+      </article></li>
+      <li class="next"><article class="card">
+        <div class="card-head"><span class="num">2</span><h3>怪物 AI(巡回・調査・追跡・捕獲)</h3><span class="st next">次</span></div>
+        <dl class="kv">
+          <dt>作るもの</dt><dd>カプセルの仮の怪物。巡回ポイントを回り、音が聞こえたらその場所を調べに行き、大きな音や至近距離で追いかけ、触れたら捕獲。怪物が歩ける範囲(NavMesh)と巡回ポイントも、Tools メニューで自動配置。自分の位置を知らせるクリック音。</dd>
+          <dt>説明できるようになること</dt><dd>状態マシン(enum と switch で「今何をしているか」を切り替える)。NavMeshAgent で目的地まで歩かせる仕組み。<code>NoiseSystem.OnNoise</code> を購読して音に反応する流れ。</dd>
+          <dt>完成の目安</dt><dd>歩いて近づくと見つかり、しゃがんでゆっくり動けばやり過ごせる。</dd>
+        </dl>
+      </article></li>
+      <li class="todo"><article class="card">
+        <div class="card-head"><span class="num">3</span><h3>隠れる・投擲・息止め</h3><span class="st todo">予定</span></div>
+        <dl class="kv">
+          <dt>作るもの</dt><dd>ロッカー・机の下・物陰に隠れる。石・ガラス瓶・空き缶を投げて気をそらす(最大5個)。息止めゲージ(怪物が近いほど速く減り、限界で咳き込む)。</dd>
+          <dt>説明できるようになること</dt><dd>「調べる」操作の作り方(視線の先を Raycast で調べる)。Rigidbody で物を投げる仕組み。着地の音を同じ <code>NoiseSystem.Emit</code> で出せる理由。</dd>
+          <dt>完成の目安</dt><dd>追われても、隠れるか物を投げれば逃げ切れる。</dd>
+        </dl>
+      </article></li>
+      <li class="todo"><article class="card">
+        <div class="card-head"><span class="num">4</span><h3>遊んで調整する</h3><span class="st todo">予定</span></div>
+        <dl class="kv">
+          <dt>作るもの</dt><dd>画面下の音の波紋 UI。足音の距離・怪物の聴力・速さなどの数値調整。</dd>
+          <dt>説明できるようになること</dt><dd>どの数値が手触りのどこに効くか。Inspector で値を変えながら試すやり方。</dd>
+          <dt>完成の目安</dt><dd>1部屋で5分、緊張しながら遊べる。<b>ここで面白さを判断します。</b></dd>
+        </dl>
+      </article></li>
+    </ol>
+  </section>
+
+  <section class="phase">
+    <div class="phase-head">
+      <div class="tag">PHASE B</div>
+      <h2>1章の体験版:管理棟を最初から最後まで遊べるようにする</h2>
+      <p>1章だけを、見た目・音・謎解き・セーブまでそろえた「完成品の一部」として作ります。itch.io で人に遊んでもらい、反応を見ます。</p>
+    </div>
+    <ol class="steps">
+      <li class="todo"><article class="card">
+        <div class="card-head"><span class="num">5</span><h3>1章 管理棟のマップと照明</h3><span class="st todo">予定</span></div>
+        <dl class="kv">
+          <dt>作るもの</dt><dd>廊下・部屋・扉のある管理棟を、レイアウトのコード(<code>Chapter1Stage</code>)で作る。暗い照明と、バッテリー制の懐中電灯。</dd>
+          <dt>説明できるようになること</dt><dd>ヘルパーを足してマップを速く作る方法。<code>check_layout.py</code> で行き止まりや穴を見つける方法。URP の照明の基本。</dd>
+          <dt>完成の目安</dt><dd>スタートから出口まで、迷いながらも歩いて行ける。</dd>
+        </dl>
+      </article></li>
+      <li class="todo"><article class="card">
+        <div class="card-head"><span class="num">6</span><h3>謎解き(IDカードと番号錠)</h3><span class="st todo">予定</span></div>
+        <dl class="kv">
+          <dt>作るもの</dt><dd>IDカードの権限レベルで開く扉。メモに答えが書かれた番号錠(押すと音が出て、まちがえるとブザーが鳴る)。</dd>
+          <dt>説明できるようになること</dt><dd>オブジェクト同士を名前で紐付ける方法(この扉とこのカード)。ScriptableObject でアイテムのデータを作る方法。謎解きの音も怪物に聞こえるという、このゲームならではの緊張の作り方。</dd>
+          <dt>完成の目安</dt><dd>カードを拾い、番号を調べて、出口の扉を開けられる。</dd>
+        </dl>
+      </article></li>
+      <li class="todo"><article class="card">
+        <div class="card-head"><span class="num">7</span><h3>捕まったときの演出とセーブ</h3><span class="st todo">予定</span></div>
+        <dl class="kv">
+          <dt>作るもの</dt><dd>捕まると怪物の顔が迫る短い演出。守衛室の端末で手動セーブし、捕まったらそこから再開。</dd>
+          <dt>説明できるようになること</dt><dd>ゲームの状態を JSON でファイルに保存して読み戻す仕組み。演出中に操作を止める方法(<code>InputEnabled</code>)。</dd>
+          <dt>完成の目安</dt><dd>捕まってもセーブした場所から、拾ったアイテムを持ったまま再開できる。</dd>
+        </dl>
+      </article></li>
+      <li class="todo"><article class="card">
+        <div class="card-head"><span class="num">8</span><h3>見た目と音</h3><span class="st todo">予定</span></div>
+        <dl class="kv">
+          <dt>作るもの</dt><dd>無料アセットで、失敗作の怪物のモデルと研究所の内装を作る。環境音、足音、怪物の不器用なクリック音。</dd>
+          <dt>説明できるようになること</dt><dd>箱の見た目をモデルに差し替えても、当たり判定と仕組みはそのまま使える理由。3D サウンド(距離で音量が変わる)の設定。</dd>
+          <dt>完成の目安</dt><dd>灰色の箱が無くなり、音だけで怪物の位置が想像できる。</dd>
+        </dl>
+      </article></li>
+      <li class="todo"><article class="card">
+        <div class="card-head"><span class="num">9</span><h3>タイトル・オプション・体験版の公開</h3><span class="st todo">予定</span></div>
+        <dl class="kv">
+          <dt>作るもの</dt><dd>タイトル画面。オプション(マウス感度、音の波紋の表示切替、音量)。PC 向けのビルド。itch.io に1章の体験版を公開。</dd>
+          <dt>説明できるようになること</dt><dd>シーンの切り替え。設定を保存する方法(PlayerPrefs)。ビルドして配布するまでの流れ。</dd>
+          <dt>完成の目安</dt><dd>知らない人が遊んで、感想をもらえる。</dd>
+        </dl>
+      </article></li>
+    </ol>
+  </section>
+
+  <section class="phase">
+    <div class="phase-head">
+      <div class="tag">PHASE C</div>
+      <h2>本編:2章から結末まで</h2>
+      <p>体験版の感想を反映しながら、残りの章と物語の山場を作ります。ここまでで作った仕組みを使い回せるので、1章より速く進みます。</p>
+    </div>
+    <ol class="steps">
+      <li class="todo"><article class="card">
+        <div class="card-head"><span class="num">10</span><h3>2章 病棟と、本命の怪物</h3><span class="st todo">予定</span></div>
+        <dl class="kv">
+          <dt>作るもの</dt><dd>病棟のマップ。本命の怪物(背が高く、上手すぎるクリック音)。失敗作との違いを、動きと音で見せる。</dd>
+          <dt>説明できるようになること</dt><dd>同じ AI を数値と音の違いで別の怪物にする方法(設定データを分ける)。</dd>
+          <dt>完成の目安</dt><dd>2体の怪物が、音だけで聞き分けられる。</dd>
+        </dl>
+      </article></li>
+      <li class="todo"><article class="card">
+        <div class="card-head"><span class="num">11</span><h3>3〜5章(実験区画・地下と電源区画・隔離棟)</h3><span class="st todo">予定</span></div>
+        <dl class="kv">
+          <dt>作るもの</dt><dd>各章のマップと、章ごとに1つの新しい仕掛け(電源を入れると照明がつく、など)。物語の伏線になる日誌。</dd>
+          <dt>説明できるようになること</dt><dd>今ある仕組みに、新しい仕掛けを小さく足していく作り方。</dd>
+          <dt>完成の目安</dt><dd>隔離棟の最後の扉まで、通して遊べる。</dd>
+        </dl>
+      </article></li>
+      <li class="todo"><article class="card">
+        <div class="card-head"><span class="num">12</span><h3>真相判明と全力逃走</h3><span class="st todo">予定</span></div>
+        <dl class="kv">
+          <dt>作るもの</dt><dd>怪物が見えていたと明かされる場面。そこから怪物はクリック音を出さず、隠れる・投げるが効かず、懐中電灯の光を嫌がるようになる。地上から駐車場への逃走と、車のキー連打。</dd>
+          <dt>説明できるようになること</dt><dd>台本どおりに動かす場面と AI の切り替え。ゲーム全体のルールを途中で変える方法。</dd>
+          <dt>完成の目安</dt><dd>それまでの「隠れて待つ」が通じない怖さが出ている。</dd>
+        </dl>
+      </article></li>
+      <li class="todo"><article class="card">
+        <div class="card-head"><span class="num">13</span><h3>エンディング3種</h3><span class="st todo">予定</span></div>
+        <dl class="kv">
+          <dt>作るもの</dt><dd>トゥルー(脱出。怪物も外へ)、贖罪(日誌を全部集め、最後の扉を開けない)、バッド(真相判明後に隠れ続ける)。</dd>
+          <dt>説明できるようになること</dt><dd>プレイヤーの行動を記録して、結末を分ける条件の書き方。</dd>
+          <dt>完成の目安</dt><dd>3つの結末に、それぞれ狙ってたどり着ける。</dd>
+        </dl>
+      </article></li>
+    </ol>
+  </section>
+
+  <section class="phase">
+    <div class="phase-head">
+      <div class="tag">PHASE D</div>
+      <h2>仕上げと公開</h2>
+      <p>人に遊んでもらって直し、itch.io で正式に公開します。</p>
+    </div>
+    <ol class="steps">
+      <li class="todo"><article class="card">
+        <div class="card-head"><span class="num">14</span><h3>テストプレイと仕上げ</h3><span class="st todo">予定</span></div>
+        <dl class="kv">
+          <dt>作るもの</dt><dd>通しのテストプレイ、難しさの調整、バグ修正、重い場所の最適化。</dd>
+          <dt>説明できるようになること</dt><dd>Profiler で重い処理を探す方法。バグを再現して直す手順。</dd>
+          <dt>完成の目安</dt><dd>初めての人が、詰まらずに最後まで遊べる。</dd>
+        </dl>
+      </article></li>
+      <li class="todo"><article class="card">
+        <div class="card-head"><span class="num">15</span><h3>itch.io で公開</h3><span class="st todo">予定</span></div>
+        <dl class="kv">
+          <dt>作るもの</dt><dd>ストアページ、スクリーンショット、短いトレーラー、無料素材のクレジット一覧。</dd>
+          <dt>説明できるようになること</dt><dd>素材のライセンスの確認方法(CC0 とクレジットが必要なもの)。</dd>
+          <dt>完成の目安</dt><dd>公開ボタンを押す。</dd>
+        </dl>
+      </article></li>
+    </ol>
+  </section>
+</div>
