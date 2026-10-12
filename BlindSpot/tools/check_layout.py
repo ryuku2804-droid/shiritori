@@ -11,6 +11,7 @@
      - 素材の床 (SurfaceMaterial 付き) にすべてたどり着けるか
      - 歩ける場所のとなりに、床の無い穴 (落ちる場所) がないか
      - しゃがまないと通れない場所がどこにあるか
+     - 怪物の出発点と巡回ポイントが、立って歩ける場所にあるか
      を表示する。問題があれば終了コード 1。
 """
 import json
@@ -81,6 +82,8 @@ public static class Dump {
       sb.Append("{\"name\":\"" + p.name + "\",\"group\":\"" + p.group + "\",\"pos\":" + V(p.position) +
                 ",\"size\":" + V(p.size) + ",\"yaw\":" + F(p.yaw) + ",\"surface\":\"" + p.surface + "\"}");
     }
+    sb.Append("],\"monster\":" + V(L.monsterStart) + ",\"patrol\":[");
+    for (int i = 0; i < L.patrolPoints.Count; i++) { if (i > 0) sb.Append(","); sb.Append(V(L.patrolPoints[i])); }
     sb.Append("]}");
     Console.WriteLine(sb.ToString());
   }
@@ -186,6 +189,18 @@ def main(stage):
         print(f"  {'OK ' if ok else 'NG '} {b.name} ({b.surface}) に{'たどり着ける' if ok else 'たどり着けない'}")
         if not ok:
             problems.append(f"{b.name} にたどり着けません。")
+
+    # 怪物の出発点と巡回ポイント: プレイヤーが立って行ける場所にあるか (怪物はしゃがめない)
+    for label, (px, py, pz) in ([("怪物の出発点", layout["monster"])] if layout["patrol"] else []) + \
+            [(f"巡回ポイント {k}", p) for k, p in enumerate(layout["patrol"])]:
+        c = (int((px - x0) / CELL), int((pz - z0) / CELL))
+        ok = c in reached and floor[c][0] == "stand"
+        print(f"  {'OK ' if ok else 'NG '} {label} ({px:g}, {pz:g})")
+        if not ok:
+            problems.append(f"{label} ({px:g}, {pz:g}) が、立って歩ける場所にありません。")
+    if layout["patrol"]:
+        d = min(math.dist((sx, sz), (p[0], p[2])) for p in layout["patrol"])
+        print(f"  プレイヤーの出発点から一番近い巡回ポイントまで: {d:.1f} m")
 
     # 落ちる穴: 歩ける場所のとなりに、床の無いマスがある
     holes = set()

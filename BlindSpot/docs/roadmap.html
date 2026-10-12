@@ -83,7 +83,7 @@ code { font-family: var(--font-mono); font-size: .9em; background: var(--todo-bg
     <div class="eyebrow">BLIND SPOT / ROADMAP</div>
     <h1>ゲーム完成までのロードマップ</h1>
     <p class="lead">まず1部屋で「足音を殺して怪物をやり過ごす」が面白いかを確かめ、面白ければ1章の体験版、本編、公開へと広げます。各ステップには、作るものと一緒に「説明できるようになること」を書いています。</p>
-    <div class="legend"><span class="st done">済</span>終わった <span class="st next">次</span>次にやる <span class="st todo">予定</span>これから</div>
+    <div class="legend"><span class="st done">済</span>終わった <span class="st next">作業中 / 次</span>今やっている・次にやる <span class="st todo">予定</span>これから</div>
   </header>
 
   <section class="phase">
@@ -102,10 +102,10 @@ code { font-family: var(--font-mono); font-size: .9em; background: var(--todo-bg
         </dl>
       </article></li>
       <li class="next"><article class="card">
-        <div class="card-head"><span class="num">2</span><h3>怪物 AI(巡回・調査・追跡・捕獲)</h3><span class="st next">次</span></div>
+        <div class="card-head"><span class="num">2</span><h3>怪物 AI(巡回・調査・追跡・捕獲)</h3><span class="st next">作業中</span></div>
         <dl class="kv">
           <dt>作るもの</dt><dd>カプセルの仮の怪物。巡回ポイントを回り、音が聞こえたらその場所を調べに行き、大きな音や至近距離で追いかけ、触れたら捕獲。怪物が歩ける範囲(NavMesh)と巡回ポイントも、Tools メニューで自動配置。自分の位置を知らせるクリック音。</dd>
-          <dt>説明できるようになること</dt><dd>状態マシン(enum と switch で「今何をしているか」を切り替える)。NavMeshAgent で目的地まで歩かせる仕組み。<code>NoiseSystem.OnNoise</code> を購読して音に反応する流れ。</dd>
+          <dt>説明できるようになること</dt><dd>状態マシン(enum と switch で「今何をしているか」を切り替える)。NavMeshAgent で目的地まで歩かせる仕組み(NavMesh はゲーム開始時にコードで作る)。<code>NoiseSystem.OnNoise</code> を購読して音に反応する流れ。</dd>
           <dt>完成の目安</dt><dd>歩いて近づくと見つかり、しゃがんでゆっくり動けばやり過ごせる。</dd>
         </dl>
       </article></li>

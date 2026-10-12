@@ -26,12 +26,24 @@ namespace BlindSpot.EditorTools
         public float playerYaw;
         public readonly List<Placement> blocks = new List<Placement>();
 
+        // 怪物 (patrolPoints が空なら怪物は置かない)
+        public Vector3 monsterStart;
+        public readonly List<Vector3> patrolPoints = new List<Vector3>();
+
         public StageLayout(string name)
         {
             this.name = name;
         }
 
         // ---------------- まとめて置くヘルパー ----------------
+
+        /// <summary>怪物の出発点と、巡回ポイント (この順に回り、最後まで行ったら最初に戻る)。</summary>
+        public void Monster(Vector3 start, params Vector3[] patrol)
+        {
+            monsterStart = start;
+            patrolPoints.Clear();
+            patrolPoints.AddRange(patrol);
+        }
 
         /// <summary>箱を1つ置く。基本の関数で、ほかのヘルパーはすべてこれを呼ぶ。</summary>
         public void Box(string group, string name, Vector3 center, Vector3 size, string material,

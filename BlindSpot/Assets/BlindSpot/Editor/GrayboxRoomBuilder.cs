@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.SceneManagement;
 
 namespace BlindSpot.EditorTools
@@ -13,6 +14,7 @@ namespace BlindSpot.EditorTools
     public static class GrayboxRoomBuilder
     {
         const string PlayerLayerName = "Player";
+        const string MonsterLayerName = "Monster";
         const string MaterialFolder = "Assets/BlindSpot/Materials";
 
         // 見た目の名前 → 色。StageLayout の material にはここの名前を書く
@@ -25,9 +27,10 @@ namespace BlindSpot.EditorTools
             { "Glass", new Color(0.6f, 0.9f, 0.95f) },
             { "Water", new Color(0.1f, 0.25f, 0.5f) },
             { "Metal", new Color(0.35f, 0.45f, 0.55f) },
+            { "Monster", new Color(0.55f, 0.15f, 0.12f) },
         };
 
-        [MenuItem("Tools/BlindSpot/ステップ1: テスト部屋を作成")]
+        [MenuItem("Tools/BlindSpot/テスト部屋を作成")]
         static void BuildPrototype()
         {
             BuildStage(PrototypeStage.Build(), PrototypeStage.ScenePath);
@@ -40,10 +43,11 @@ namespace BlindSpot.EditorTools
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
 
             int playerLayer = EnsureLayer(PlayerLayerName);
-            if (playerLayer < 0)
+            int monsterLayer = EnsureLayer(MonsterLayerName);
+            if (playerLayer < 0 || monsterLayer < 0)
             {
                 EditorUtility.DisplayDialog("BlindSpot",
-                    "空いているレイヤーが無いため Player レイヤーを作れませんでした。\n" +
+                    "空いているレイヤーが無いため Player / Monster レイヤーを作れませんでした。\n" +
                     "Project Settings > Tags and Layers で空きを作ってから再実行してください。", "OK");
                 return;
             }
@@ -63,6 +67,14 @@ namespace BlindSpot.EditorTools
             }
 
             BuildPlayer(playerLayer, layout.playerStart, layout.playerYaw);
+
+            // 動くもの (プレイヤーと怪物) は NavMesh の障害物にしない
+            int staticMask = ~((1 << playerLayer) | (1 << monsterLayer));
+            if (layout.patrolPoints.Count > 0)
+            {
+                BuildNavMesh(staticMask);
+                BuildMonster(monsterLayer, layout);
+            }
 
             EnsureFolder(System.IO.Path.GetDirectoryName(scenePath).Replace('\\', '/'));
             EditorSceneManager.SaveScene(scene, scenePath);
@@ -162,6 +174,68 @@ namespace BlindSpot.EditorTools
             so.ApplyModifiedPropertiesWithoutUndo();
 
             return player;
+        }
+
+        // ---------------- 怪物 ----------------
+
+        static void BuildNavMesh(int includeLayers)
+        {
+            var go = new GameObject("NavMesh");
+            var nav = go.AddComponent<RuntimeNavMesh>();
+            var so = new SerializedObject(nav);
+            so.FindProperty("includeLayers").intValue = includeLayers;
+            so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        static void BuildMonster(int monsterLayer, StageLayout layout)
+        {
+            // 巡回ポイント (空のオブジェクト)
+            var pointsRoot = new GameObject("PatrolPoints").transform;
+            var points = new Transform[layout.patrolPoints.Count];
+            for (int i = 0; i < points.Length; i++)
+            {
+                points[i] = new GameObject("Point_" + i).transform;
+                points[i].SetParent(pointsRoot, false);
+                points[i].position = layout.patrolPoints[i];
+            }
+
+            // 仮の体はカプセル (高さ 2.2m・半径 0.4m)。カプセルの原点は真ん中なので、足元が床に来るよう持ち上げる
+            const float height = 2.2f;
+            var monster = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            monster.name = "Monster";
+            monster.layer = monsterLayer;
+            monster.transform.position = layout.monsterStart + Vector3.up * (height / 2f);
+            monster.transform.localScale = new Vector3(0.8f, height / 2f, 0.8f);
+            monster.GetComponent<MeshRenderer>().sharedMaterial = GetMaterial("Monster");
+
+            var agent = monster.AddComponent<NavMeshAgent>();
+            // エージェントの大きさはスケール前の値で指定する (実際の大きさ = 値 × スケール)
+            agent.baseOffset = 1f; // カプセルの半分の高さ。足元を NavMesh に合わせる
+            agent.radius = 0.5f;   // × 0.8 = 0.4m
+            agent.height = 2f;     // × 1.1 = 2.2m
+            agent.angularSpeed = 240f;
+            agent.acceleration = 12f;
+            agent.stoppingDistance = 0.3f;
+            agent.enabled = false; // NavMesh はゲーム開始時に作るので、MonsterAI の Start で有効にする
+
+            var ai = monster.AddComponent<MonsterAI>();
+            var so = new SerializedObject(ai);
+            var list = so.FindProperty("patrolPoints");
+            list.arraySize = points.Length;
+            for (int i = 0; i < points.Length; i++) list.GetArrayElementAtIndex(i).objectReferenceValue = points[i];
+            so.ApplyModifiedPropertiesWithoutUndo();
+
+            // クリック音は 3D (近いほど大きく、方向もわかる)
+            var audio = monster.AddComponent<AudioSource>();
+            audio.playOnAwake = false;
+            audio.spatialBlend = 1f;
+            audio.rolloffMode = AudioRolloffMode.Linear;
+            audio.minDistance = 1f;
+            audio.maxDistance = 25f;
+            var clicker = monster.AddComponent<MonsterClicker>();
+            so = new SerializedObject(clicker);
+            so.FindProperty("monster").objectReferenceValue = ai;
+            so.ApplyModifiedPropertiesWithoutUndo();
         }
 
         // ---------------- 補助 ----------------

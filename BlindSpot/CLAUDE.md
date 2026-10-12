@@ -48,7 +48,7 @@
 まずグレーボックスの1部屋で「足音を殺して怪物をやり過ごす」面白さを確認してから肉付けする。
 
 1. [済] プレイヤー操作と足音・音の仕組み
-2. [ ] 怪物 AI(巡回・調査・追跡・捕獲)。仮モデルはカプセルで可
+2. [作業中] 怪物 AI(巡回・調査・追跡・捕獲)。仮モデルはカプセル。コードは渡し済み、作者の動作確認待ち
 3. [ ] 隠れる・投擲・息止め
 4. [ ] 実際に遊んで調整
 5. [ ] 1章のマップ、照明、怪物モデル、謎解き、セーブ…と肉付け
@@ -63,7 +63,7 @@
 - `PlayerController.cs`:CharacterController ベースの一人称操作。`State`(Idle/Crouch/Walk/Run)、`InputEnabled` などを公開
 - `FootstepNoise.cs`:歩いた距離ごとに足音を鳴らし NoiseSystem に通知。`OnStep` イベントあり
 - `DebugHud.cs`:試作用の状態表示(F1 で切替)
-- `Editor/GrayboxRoomBuilder.cs`:メニュー「Tools > BlindSpot > ステップ1: テスト部屋を作成」。StageLayout を読み、空の新規シーンに全部を生成・設定し、保存してビルド設定に登録する(何度押しても同じ結果)
+- `Editor/GrayboxRoomBuilder.cs`:メニュー「Tools > BlindSpot > テスト部屋を作成」。StageLayout を読み、空の新規シーンに全部を生成・設定し、保存してビルド設定に登録する(何度押しても同じ結果)
 - `Editor/Stage/StageLayout.cs`:配置データ(Placement のリスト)と、Room / Wall / Floor / Patch / Pillar / Crate / LowPassage などのヘルパー
 - `Editor/Stage/PrototypeStage.cs`:テスト部屋のレイアウト。`static StageLayout Build()` と `ScenePath`
 
@@ -74,7 +74,14 @@
 - [SerializeField] の参照は SerializedObject 経由でセットする。オブジェクト同士の紐付けは名前(ビルダー内の `placed` 辞書)で行う
 - レイアウトを変えたら `python3 BlindSpot/tools/check_layout.py [ステージのクラス名]` で検査する(mono の mcs が必要。無ければ `apt-get install -y mono-mcs`)。スタート地点が埋まっていないか、素材の床にたどり着けるか、落ちる穴が無いか、しゃがみが必要な場所を BFS で調べる
 - 見た目が箱以外になったら、spec から OnEnable でメッシュとコライダーを作る [ExecuteAlways] 部品を検討する(今は CreatePrimitive の箱で足りている)
-- プレイヤーは `Player` レイヤー。床・天井判定のマスクから Player を外す前提
+- プレイヤーは `Player` レイヤー、怪物は `Monster` レイヤー。床・天井判定のマスクから Player を外し、NavMesh の材料から Player と Monster を外す
+
+## 怪物 AI(ステップ2)
+
+- `Scripts/Monster/MonsterAI.cs`:状態 Patrol / Investigate / Chase / Caught。`NoiseSystem.OnNoise` を購読し、届く距離 10m 以上の大きな音か 3m 以内の音で追跡、それ以外は調査。追跡中は最後の音の位置へ向かい、2m 以内は気配で追う。4 秒音が無ければ最後の音の場所を調査。1.1m で捕獲 → 2.5 秒後にシーン再読み込み(本番の演出とセーブはステップ7)
+- `Scripts/Monster/MonsterClicker.cs`:位置を知らせるクリック音(3D)。素材が無ければコードで音を作る。NoiseSystem には流さない
+- `Scripts/Monster/RuntimeNavMesh.cs`:AI Navigation パッケージを使わず、Awake で NavMeshBuilder から NavMesh を作る([DefaultExecutionOrder(-1000)])。NavMeshAgent はビルダーで無効にしておき、MonsterAI.Start で有効にする
+- 標準エージェント(高さ 2m)は天井 1.2m の低い通路に入れない = しゃがみ通路は安全地帯
 
 ## コードの渡し方
 

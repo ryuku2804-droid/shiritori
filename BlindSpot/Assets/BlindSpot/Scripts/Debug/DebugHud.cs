@@ -4,13 +4,14 @@ using UnityEngine.InputSystem;
 namespace BlindSpot
 {
     /// <summary>
-    /// 試作用の情報表示。画面左上に移動状態・床・足音の距離などを出す。
+    /// 試作用の情報表示。画面左上に移動状態・床・足音の距離・怪物の状態などを出す。
     /// F1 キーで表示を切り替える。本番では外してよい。
     /// </summary>
     public class DebugHud : MonoBehaviour
     {
         [SerializeField] PlayerController player;
         [SerializeField] FootstepNoise footsteps;
+        [SerializeField] MonsterAI monster;
         [SerializeField] bool visible = true;
 
         GUIStyle style;
@@ -19,6 +20,11 @@ namespace BlindSpot
         {
             if (player == null) player = GetComponent<PlayerController>();
             if (footsteps == null) footsteps = GetComponent<FootstepNoise>();
+        }
+
+        void Start()
+        {
+            if (monster == null) monster = FindFirstObjectByType<MonsterAI>();
         }
 
         void Update()
@@ -42,13 +48,16 @@ namespace BlindSpot
                 (footsteps != null
                     ? $"床: {footsteps.CurrentSurface}\n最後の足音: {footsteps.LastStepRadius:F1} m\n"
                     : "") +
+                (monster != null
+                    ? $"怪物: {monster.State} ({Vector3.Distance(monster.transform.position, player.transform.position):F1} m)\n"
+                    : "") +
                 (NoiseSystem.LastNoise is NoiseEvent n
                     ? $"最後の音: {n.Type} / {n.Radius:F1} m ({Time.time - n.Time:F1} 秒前)\n"
                     : "") +
                 "\n[WASD] 移動  [Shift] 走る  [Ctrl / C] しゃがむ\n[Esc] カーソル解放  [F1] この表示";
 
-            GUI.Box(new Rect(10, 10, 360, 190), GUIContent.none);
-            GUI.Label(new Rect(20, 15, 350, 185), text, style);
+            GUI.Box(new Rect(10, 10, 380, 215), GUIContent.none);
+            GUI.Label(new Rect(20, 15, 370, 210), text, style);
         }
     }
 }

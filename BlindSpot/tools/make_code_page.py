@@ -13,18 +13,21 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent  # BlindSpot/
 
-STEP_TITLE = "ステップ1:プレイヤー操作と足音・音の仕組み"
+STEP_TITLE = "ステップ2:怪物 AI(巡回・調査・追跡・捕獲)"
 
 # (Assets からのパス, 状態, 一言の説明)
 FILES = [
-    ("Assets/BlindSpot/Scripts/Noise/NoiseSystem.cs", "新規", "音を集めて、聞きたい相手に配る放送局"),
-    ("Assets/BlindSpot/Scripts/Noise/SurfaceMaterial.cs", "新規", "床の素材の名札 (足音の倍率)"),
-    ("Assets/BlindSpot/Scripts/Player/PlayerController.cs", "新規", "歩く・走る・しゃがむ・視点"),
-    ("Assets/BlindSpot/Scripts/Player/FootstepNoise.cs", "新規", "歩いた距離ごとに足音を出して、NoiseSystem に知らせる"),
-    ("Assets/BlindSpot/Scripts/Debug/DebugHud.cs", "新規", "試作用の状態表示 (F1 で切替)"),
-    ("Assets/BlindSpot/Editor/Stage/StageLayout.cs", "新規", "「どこに何を置くか」のデータと、まとめて置くヘルパー"),
-    ("Assets/BlindSpot/Editor/Stage/PrototypeStage.cs", "新規", "テスト部屋の座標"),
-    ("Assets/BlindSpot/Editor/GrayboxRoomBuilder.cs", "新規", "Tools メニューで、レイアウトからシーンを丸ごと作る"),
+    ("Assets/BlindSpot/Scripts/Monster/MonsterAI.cs", "新規", "音だけを頼りに動く怪物の頭脳 (巡回・調査・追跡・捕獲)"),
+    ("Assets/BlindSpot/Scripts/Monster/MonsterClicker.cs", "新規", "怪物のクリック音。怪物の位置をプレイヤーに知らせる"),
+    ("Assets/BlindSpot/Scripts/Monster/RuntimeNavMesh.cs", "新規", "ゲーム開始時に、怪物が歩ける範囲 (NavMesh) を作る"),
+    ("Assets/BlindSpot/Editor/GrayboxRoomBuilder.cs", "変更", "怪物・巡回ポイント・NavMesh も作るようにした"),
+    ("Assets/BlindSpot/Editor/Stage/StageLayout.cs", "変更", "怪物の出発点と巡回ポイントを書けるようにした"),
+    ("Assets/BlindSpot/Editor/Stage/PrototypeStage.cs", "変更", "テスト部屋に怪物と巡回ルートを追加"),
+    ("Assets/BlindSpot/Scripts/Debug/DebugHud.cs", "変更", "怪物の状態と距離を表示"),
+    ("Assets/BlindSpot/Scripts/Noise/NoiseSystem.cs", "変更なし", "音を集めて、聞きたい相手に配る放送局"),
+    ("Assets/BlindSpot/Scripts/Noise/SurfaceMaterial.cs", "変更なし", "床の素材の名札 (足音の倍率)"),
+    ("Assets/BlindSpot/Scripts/Player/PlayerController.cs", "変更なし", "歩く・走る・しゃがむ・視点"),
+    ("Assets/BlindSpot/Scripts/Player/FootstepNoise.cs", "変更なし", "歩いた距離ごとに足音を出して、NoiseSystem に知らせる"),
 ]
 
 BADGE = {"新規": "new", "変更": "chg", "変更なし": "same"}

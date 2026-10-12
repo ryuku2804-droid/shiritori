@@ -3,7 +3,7 @@ using UnityEngine;
 namespace BlindSpot.EditorTools
 {
     /// <summary>
-    /// ステップ1のテスト部屋のレイアウト。座標を直したら、メニューを押し直すだけで反映される。
+    /// テスト部屋のレイアウト。座標を直したら、メニューを押し直すだけで反映される。
     /// </summary>
     public static class PrototypeStage
     {
@@ -32,6 +32,14 @@ namespace BlindSpot.EditorTools
 
             // しゃがまないと通れない低い通路 (天板の下 1.2m)
             layout.LowPassage("LowPassage", 0f, -6f, 3f, 2f, 1.2f, height);
+
+            // 怪物: 部屋の奥から出発し、部屋の中ほどを時計回りに巡回する
+            // (南側はプレイヤーの出発点から 4.5m 離す。歩くと聞こえるが、しゃがめば聞こえない距離)
+            layout.Monster(new Vector3(7.5f, 0f, 8f),
+                new Vector3(7.5f, 0f, 8f),
+                new Vector3(7.5f, 0f, -4f),
+                new Vector3(-6.5f, 0f, -4f),
+                new Vector3(-6.5f, 0f, 8f));
 
             // プレイヤーの出発点 (低い通路の手前、北を向く)
             layout.playerStart = new Vector3(0f, 0.05f, -8.5f);
