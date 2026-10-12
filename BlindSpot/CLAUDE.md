@@ -74,3 +74,4 @@
 - 当面の目標は「自分で書ける」より先に「コードの意味と、なぜそう書いたかを説明できる」こと。全体の流れ(FLOW)と、ファイルごとの「一言でいうと / 30秒説明のお手本 / 確認の質問」(EXPLAIN)も毎ステップ用意する
 - スクリプトごとの「アタッチ先と Inspector の設定」(ATTACH)、シーンの組み立て図(HIERARCHY)、メニューを使わない手動手順(MANUAL_STEPS)も毎ステップ載せる
 - ページは PART 1「作って動かす」(GUIDE: フェーズごとの手順。各手順は やること + こうなっていれば OK。準備 → フォルダ → スクリプト → アタッチと設定 → 動作確認 → 理解)と PART 2「理解する」の2部構成。期待される数値(EXPECTED)とよくあるエラー(TROUBLE)も毎ステップ載せる。コード以外の Unity 操作も省略せずに書く
+- ファイルの配置は `.unitypackage` で一括で渡すのが基本。`python3 BlindSpot/tools/make_unitypackage.py BlindSpot/dist/BlindSpot_StepN.unitypackage` で作り、SendUserFile で送る。GUID はパスから決まるので、次のステップのパッケージは同じファイルを上書きする(作者はステップ1を手で作ったため、最初の1回だけ Scripts と Editor を消してから入れ直す必要がある)
