@@ -55,8 +55,26 @@ namespace BlindSpot
         /// <summary>現在の移動状態。</summary>
         public MoveState State { get; private set; } = MoveState.Idle;
 
-        /// <summary>false にすると移動・視点の入力を受け付けない (隠れる演出や死亡アニメ中など)。</summary>
+        /// <summary>false にすると移動・視点の入力を受け付けない (捕まったときなど)。</summary>
         public bool InputEnabled { get; set; } = true;
+
+        /// <summary>
+        /// false にすると体を固定する (ロッカーの中など)。視点だけは動かせる。
+        /// 固定中は CharacterController も止めるので、重力や壁との当たり判定も働かない。
+        /// </summary>
+        public bool MovementEnabled
+        {
+            get => movementEnabled;
+            set
+            {
+                movementEnabled = value;
+                if (controller != null) controller.enabled = value;
+                if (!value) horizontalVelocity = Vector3.zero;
+            }
+        }
+
+        /// <summary>隠れているか (ロッカーの中・机の下でしゃがんでいるなど)。怪物はこの間、捕まえられない。</summary>
+        public bool IsHidden => hideCount > 0;
 
         public bool IsCrouching { get; private set; }
         public bool IsGrounded => controller.isGrounded;
@@ -71,6 +89,8 @@ namespace BlindSpot
         float pitch;
         float currentHeight;
         bool crouchToggled;
+        bool movementEnabled = true;
+        int hideCount; // 隠れる理由の数 (机の下とロッカーが重なっても正しく数えるため)
 
         InputAction moveAction, mouseLookAction, padLookAction, runAction, crouchAction;
 
@@ -139,10 +159,17 @@ namespace BlindSpot
         {
             UpdateCursorLock();
 
+            if (InputEnabled && Cursor.lockState == CursorLockMode.Locked) UpdateLook();
+
+            // 体が固定されている間は、視点以外は何もしない
+            if (!MovementEnabled)
+            {
+                State = IsCrouching ? MoveState.Crouch : MoveState.Idle;
+                return;
+            }
+
             bool canInput = InputEnabled;
             Vector2 moveInput = canInput ? Vector2.ClampMagnitude(moveAction.ReadValue<Vector2>(), 1f) : Vector2.zero;
-
-            if (canInput && Cursor.lockState == CursorLockMode.Locked) UpdateLook();
             UpdateCrouch(canInput);
 
             // 走りは「前進入力あり・しゃがんでいない」ときだけ
@@ -164,6 +191,26 @@ namespace BlindSpot
             else if (!moving) State = MoveState.Idle;
             else if (running) State = MoveState.Run;
             else State = MoveState.Walk;
+        }
+
+        /// <summary>
+        /// 隠れる理由を1つ足す (true) か、1つ減らす (false)。
+        /// 机の下とロッカーのように、隠れる理由が重なっても正しく数えられる。
+        /// </summary>
+        public void SetHidden(bool hidden)
+        {
+            hideCount = Mathf.Max(0, hideCount + (hidden ? 1 : -1));
+        }
+
+        /// <summary>指定した位置と向きへ、瞬間移動させる。</summary>
+        public void Teleport(Vector3 position, float yaw)
+        {
+            // CharacterController が有効なままだと位置を書き換えても戻されるので、いったん止める
+            controller.enabled = false;
+            transform.SetPositionAndRotation(position, Quaternion.Euler(0f, yaw, 0f));
+            horizontalVelocity = Vector3.zero;
+            verticalVelocity = 0f;
+            controller.enabled = MovementEnabled;
         }
 
         void UpdateLook()

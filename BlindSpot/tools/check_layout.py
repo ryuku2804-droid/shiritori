@@ -12,6 +12,7 @@
      - 歩ける場所のとなりに、床の無い穴 (落ちる場所) がないか
      - しゃがまないと通れない場所がどこにあるか
      - 怪物の出発点と巡回ポイントが、立って歩ける場所にあるか
+     - ロッカーの出口に立てるか、机の下にしゃがんで入れるか、落ちている物を拾いに行けるか
      を表示する。問題があれば終了コード 1。
 """
 import json
@@ -26,6 +27,7 @@ from collections import deque
 ROOT = pathlib.Path(__file__).resolve().parent.parent  # BlindSpot/
 STAGE_DIR = ROOT / "Assets/BlindSpot/Editor/Stage"
 SURFACE_CS = ROOT / "Assets/BlindSpot/Scripts/Noise/SurfaceMaterial.cs"
+THROWABLES_CS = ROOT / "Assets/BlindSpot/Scripts/Throwing/Throwables.cs"
 
 RADIUS = 0.35
 STAND_HEIGHT = 1.8
@@ -56,6 +58,8 @@ namespace UnityEngine {
     public const float Rad2Deg = 57.29578f;
     public const float Deg2Rad = 0.01745329f;
     public static float Atan2(float y, float x) { return (float)System.Math.Atan2(y, x); }
+    public static float Sin(float f) { return (float)System.Math.Sin(f); }
+    public static float Cos(float f) { return (float)System.Math.Cos(f); }
     public static float Sqrt(float f) { return (float)System.Math.Sqrt(f); }
     public static float Abs(float f) { return System.Math.Abs(f); }
     public static float Max(float a, float b) { return System.Math.Max(a, b); }
@@ -84,6 +88,12 @@ public static class Dump {
     }
     sb.Append("],\"monster\":" + V(L.monsterStart) + ",\"patrol\":[");
     for (int i = 0; i < L.patrolPoints.Count; i++) { if (i > 0) sb.Append(","); sb.Append(V(L.patrolPoints[i])); }
+    sb.Append("],\"lockers\":[");
+    for (int i = 0; i < L.lockers.Count; i++) { if (i > 0) sb.Append(","); var f = L.lockers[i]; sb.Append("{\"name\":\"" + f.name + "\",\"exit\":" + V(f.exit) + "}"); }
+    sb.Append("],\"desks\":[");
+    for (int i = 0; i < L.desks.Count; i++) { if (i > 0) sb.Append(","); var f = L.desks[i]; sb.Append("{\"name\":\"" + f.name + "\",\"pos\":" + V(f.position) + "}"); }
+    sb.Append("],\"items\":[");
+    for (int i = 0; i < L.items.Count; i++) { if (i > 0) sb.Append(","); var it = L.items[i]; sb.Append("{\"type\":\"" + it.type + "\",\"pos\":" + V(it.position) + "}"); }
     sb.Append("]}");
     Console.WriteLine(sb.ToString());
   }
@@ -92,9 +102,12 @@ public static class Dump {
 
 
 def surface_enum_stub():
-    src = SURFACE_CS.read_text(encoding="utf-8")
-    enum = re.search(r"public enum SurfaceType\s*\{.*?\}", src, re.S).group(0)
-    return "namespace BlindSpot {\n" + enum + "\n}\n"
+    """レイアウトが使う enum (SurfaceType・ThrowableType) を本物のファイルから抜き出す。"""
+    enums = []
+    for path, name in ((SURFACE_CS, "SurfaceType"), (THROWABLES_CS, "ThrowableType")):
+        src = path.read_text(encoding="utf-8")
+        enums.append(re.search(r"public enum " + name + r"\s*\{.*?\}", src, re.S).group(0))
+    return "namespace BlindSpot {\n" + "\n".join(enums) + "\n}\n"
 
 
 def build_layout(stage):
@@ -201,6 +214,31 @@ def main(stage):
     if layout["patrol"]:
         d = min(math.dist((sx, sz), (p[0], p[2])) for p in layout["patrol"])
         print(f"  プレイヤーの出発点から一番近い巡回ポイントまで: {d:.1f} m")
+
+    # ロッカーの出口・机の下・落ちている物: 行ける場所にあるか
+    def cell_of(x, z):
+        return (int((x - x0) / CELL), int((z - z0) / CELL))
+
+    for lk in layout["lockers"]:
+        ex, _, ez = lk["exit"]
+        ok = cell_of(ex, ez) in reached and floor[cell_of(ex, ez)][0] == "stand"
+        print(f"  {'OK ' if ok else 'NG '} {lk['name']} の出口 ({ex:.1f}, {ez:.1f})")
+        if not ok:
+            problems.append(f"{lk['name']} から出た場所が、立って歩ける場所にありません。")
+    for dk in layout["desks"]:
+        dx, _, dz = dk["pos"]
+        c = cell_of(dx, dz)
+        ok = c in reached and floor[c][0] == "crouch"
+        print(f"  {'OK ' if ok else 'NG '} {dk['name']} の下に、しゃがんで入れる")
+        if not ok:
+            problems.append(f"{dk['name']} の下に、しゃがんで入れません。")
+    for it in layout["items"]:
+        ix, _, iz = it["pos"]
+        # 物の上には立てないので、まわり 0.5m 以内に行ける場所があれば拾える
+        ok = any(cell_of(ix + ox, iz + oz) in reached for ox in (-0.5, 0, 0.5) for oz in (-0.5, 0, 0.5))
+        print(f"  {'OK ' if ok else 'NG '} {it['type']} ({ix:g}, {iz:g}) を拾いに行ける")
+        if not ok:
+            problems.append(f"{it['type']} ({ix:g}, {iz:g}) を拾いに行けません。")
 
     # 落ちる穴: 歩ける場所のとなりに、床の無いマスがある
     holes = set()

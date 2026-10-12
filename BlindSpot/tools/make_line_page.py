@@ -23,7 +23,16 @@ FILES = [
     ("Assets/BlindSpot/Scripts/Noise/SurfaceMaterial.cs", "床の素材の名札"),
     ("Assets/BlindSpot/Scripts/Player/PlayerController.cs", "歩く・走る・しゃがむ・視点"),
     ("Assets/BlindSpot/Scripts/Player/FootstepNoise.cs", "歩いた距離ごとに足音を出す"),
-    ("Assets/BlindSpot/Scripts/Debug/DebugHud.cs", "試作用の状態表示"),
+    ("Assets/BlindSpot/Scripts/Player/BreathHold.cs", "呼吸の音と息止め・心拍"),
+    ("Assets/BlindSpot/Scripts/Interaction/IInteractable.cs", "「調べられるもの」の約束ごと"),
+    ("Assets/BlindSpot/Scripts/Interaction/PlayerInteractor.cs", "視線の先を調べる (E キー)"),
+    ("Assets/BlindSpot/Scripts/Interaction/HidingSpot.cs", "ロッカーに隠れる"),
+    ("Assets/BlindSpot/Scripts/Interaction/HideZone.cs", "机の下にしゃがんで隠れる"),
+    ("Assets/BlindSpot/Scripts/Throwing/Throwables.cs", "投擲物の種類と性質"),
+    ("Assets/BlindSpot/Scripts/Throwing/ItemPickup.cs", "床に落ちている物を拾う"),
+    ("Assets/BlindSpot/Scripts/Throwing/PlayerThrower.cs", "持っている物を投げる"),
+    ("Assets/BlindSpot/Scripts/Throwing/ThrownObject.cs", "投げた物がぶつかって音を出す"),
+    ("Assets/BlindSpot/Scripts/Debug/DebugHud.cs", "試作用の画面表示"),
     ("Assets/BlindSpot/Scripts/Monster/RuntimeNavMesh.cs", "怪物が歩ける範囲を作る"),
     ("Assets/BlindSpot/Scripts/Monster/MonsterAI.cs", "音だけを頼りに動く怪物の頭脳"),
     ("Assets/BlindSpot/Scripts/Monster/MonsterClicker.cs", "怪物のクリック音"),
@@ -76,6 +85,8 @@ def auto_note(line):
 
 def load_notes(name):
     path = NOTES_DIR / f"{name}.py"
+    if not path.exists():
+        return {}
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

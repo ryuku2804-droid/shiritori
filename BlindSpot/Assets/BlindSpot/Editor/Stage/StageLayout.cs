@@ -15,6 +15,24 @@ namespace BlindSpot.EditorTools
         public SurfaceType surface; // 床の素材。Default 以外なら SurfaceMaterial を付ける
     }
 
+    /// <summary>ロッカーや机のように、箱をいくつか組み合わせた家具1つ分のデータ。</summary>
+    public struct FixtureSpec
+    {
+        public string name;       // 家具の名前。部品の箱は「名前_〇〇」になる
+        public Vector3 position;  // 家具の足元の中心
+        public float yaw;         // 向き (度)。家具の正面 (扉の側) がこの向きを向く
+        public Vector3 inside;    // ロッカー: 隠れているときのプレイヤーの位置
+        public Vector3 exit;      // ロッカー: 出たときのプレイヤーの位置
+        public Vector3 zoneSize;  // 机: 下に隠れられる範囲の大きさ
+    }
+
+    /// <summary>床に落ちている投擲物1つ分のデータ。</summary>
+    public struct ItemSpec
+    {
+        public ThrowableType type;
+        public Vector3 position;
+    }
+
     /// <summary>
     /// 「どこに何を置くか」だけを持つデータ。Unity のオブジェクトは作らない。
     /// 実際に作るのは GrayboxRoomBuilder の仕事。
@@ -29,6 +47,11 @@ namespace BlindSpot.EditorTools
         // 怪物 (patrolPoints が空なら怪物は置かない)
         public Vector3 monsterStart;
         public readonly List<Vector3> patrolPoints = new List<Vector3>();
+
+        // 隠れる場所と落ちている物
+        public readonly List<FixtureSpec> lockers = new List<FixtureSpec>();
+        public readonly List<FixtureSpec> desks = new List<FixtureSpec>();
+        public readonly List<ItemSpec> items = new List<ItemSpec>();
 
         public StageLayout(string name)
         {
@@ -126,6 +149,79 @@ namespace BlindSpot.EditorTools
             Box("Obstacles", name + "_Side_R", new Vector3(x + width / 2f + side / 2f, sideHeight / 2f, z), new Vector3(side, sideHeight, depth), "Obstacle");
             float upper = roomHeight - sideHeight;
             Box("Obstacles", name + "_Upper", new Vector3(x, sideHeight + upper / 2f, z), new Vector3(width + side * 2f, upper, 0.2f), "Obstacle");
+        }
+
+        /// <summary>
+        /// 中に隠れられるロッカー。(x, z) は足元の中心、yaw は扉の向き (0 で +Z、90 で +X を向く)。
+        /// 扉には目の高さにすき間があり、中から外をのぞける。
+        /// </summary>
+        public void Locker(string name, float x, float z, float yaw)
+        {
+            const float w = 0.9f, h = 2f, d = 0.7f, t = 0.04f; // 幅・高さ・奥行き・板の厚さ
+            const float slitBottom = 1.55f, slitTop = 1.7f;    // のぞき穴の高さ
+            var origin = new Vector3(x, 0f, z);
+
+            LocalBox(name + "_Back", origin, yaw, new Vector3(0f, h / 2f, -d / 2f + t / 2f), new Vector3(w, h, t));
+            LocalBox(name + "_Left", origin, yaw, new Vector3(-w / 2f + t / 2f, h / 2f, 0f), new Vector3(t, h, d));
+            LocalBox(name + "_Right", origin, yaw, new Vector3(w / 2f - t / 2f, h / 2f, 0f), new Vector3(t, h, d));
+            LocalBox(name + "_Top", origin, yaw, new Vector3(0f, h - t / 2f, 0f), new Vector3(w, t, d));
+            LocalBox(name + "_Bottom", origin, yaw, new Vector3(0f, t / 2f, 0f), new Vector3(w, t, d));
+            // 扉はのぞき穴の上と下の2枚に分ける
+            LocalBox(name + "_DoorLow", origin, yaw, new Vector3(0f, (t + slitBottom) / 2f, d / 2f - t / 2f), new Vector3(w, slitBottom - t, t));
+            LocalBox(name + "_DoorHigh", origin, yaw, new Vector3(0f, (slitTop + h - t) / 2f, d / 2f - t / 2f), new Vector3(w, h - t - slitTop, t));
+
+            lockers.Add(new FixtureSpec
+            {
+                name = name,
+                position = origin,
+                yaw = yaw,
+                inside = origin + Rotate(new Vector3(0f, t, -0.05f), yaw),
+                exit = origin + Rotate(new Vector3(0f, 0.05f, d / 2f + 0.6f), yaw),
+            });
+        }
+
+        /// <summary>下にしゃがんで隠れられる机。天板の下は clearance (m) の高さ。</summary>
+        public void Desk(string name, float x, float z, float yaw, float width = 1.6f, float depth = 0.9f, float clearance = 1.1f)
+        {
+            const float top = 0.05f, leg = 0.06f;
+            var origin = new Vector3(x, 0f, z);
+
+            LocalBox(name + "_Top", origin, yaw, new Vector3(0f, clearance + top / 2f, 0f), new Vector3(width, top, depth));
+            float lx = width / 2f - leg / 2f;
+            float lz = depth / 2f - leg / 2f;
+            LocalBox(name + "_Leg1", origin, yaw, new Vector3(-lx, clearance / 2f, -lz), new Vector3(leg, clearance, leg));
+            LocalBox(name + "_Leg2", origin, yaw, new Vector3(lx, clearance / 2f, -lz), new Vector3(leg, clearance, leg));
+            LocalBox(name + "_Leg3", origin, yaw, new Vector3(-lx, clearance / 2f, lz), new Vector3(leg, clearance, leg));
+            LocalBox(name + "_Leg4", origin, yaw, new Vector3(lx, clearance / 2f, lz), new Vector3(leg, clearance, leg));
+
+            desks.Add(new FixtureSpec
+            {
+                name = name,
+                position = origin,
+                yaw = yaw,
+                zoneSize = new Vector3(width - 0.1f, 1.2f, depth - 0.1f),
+            });
+        }
+
+        /// <summary>床に投擲物を置く。</summary>
+        public void Item(ThrowableType type, float x, float z)
+        {
+            items.Add(new ItemSpec { type = type, position = new Vector3(x, 0f, z) });
+        }
+
+        /// <summary>家具の部品を置く。local は家具の中での位置 (家具と一緒に yaw だけ回る)。</summary>
+        void LocalBox(string name, Vector3 origin, float yaw, Vector3 local, Vector3 size)
+        {
+            Box("Furniture", name, origin + Rotate(local, yaw), size, "Furniture", yaw);
+        }
+
+        /// <summary>ベクトルを Y 軸まわりに yaw 度回す (Unity の Quaternion.Euler(0, yaw, 0) と同じ向き)。</summary>
+        public static Vector3 Rotate(Vector3 v, float yaw)
+        {
+            float r = yaw * Mathf.Deg2Rad;
+            float c = Mathf.Cos(r);
+            float s = Mathf.Sin(r);
+            return new Vector3(v.x * c + v.z * s, v.y, -v.x * s + v.z * c);
         }
     }
 }

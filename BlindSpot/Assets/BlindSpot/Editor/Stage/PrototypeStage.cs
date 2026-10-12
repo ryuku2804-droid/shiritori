@@ -33,6 +33,20 @@ namespace BlindSpot.EditorTools
             // しゃがまないと通れない低い通路 (天板の下 1.2m)
             layout.LowPassage("LowPassage", 0f, -6f, 3f, 2f, 1.2f, height);
 
+            // 隠れる場所: ロッカー2つ (背中を壁につけて置く) と机1つ
+            layout.Locker("Locker_1", -9.65f, 4.5f, 90f);  // 西の壁ぎわ、扉は東向き
+            layout.Locker("Locker_2", 9.65f, -6.5f, -90f); // 東の壁ぎわ、扉は西向き (怪物の巡回ルートの近く)
+            layout.Desk("Desk_1", 4.5f, 1.5f, 0f);
+
+            // 投げる物: スタート地点の近くに少し、部屋のあちこちに少し
+            layout.Item(ThrowableType.Stone, 1.5f, -8.5f);
+            layout.Item(ThrowableType.Stone, -1.5f, -8.2f);
+            layout.Item(ThrowableType.Bottle, 4.5f, -8f);
+            layout.Item(ThrowableType.Can, -4.5f, -8.5f);
+            layout.Item(ThrowableType.Stone, 8f, 2f);
+            layout.Item(ThrowableType.Bottle, -3f, 6.5f);
+            layout.Item(ThrowableType.Can, 2f, 4f);
+
             // 怪物: 部屋の奥から出発し、部屋の中ほどを時計回りに巡回する
             // (南側はプレイヤーの出発点から 4.5m 離す。歩くと聞こえるが、しゃがめば聞こえない距離)
             layout.Monster(new Vector3(7.5f, 0f, 8f),

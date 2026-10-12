@@ -87,7 +87,7 @@ code { font-family: var(--font-mono); font-size: .9em; background: var(--todo-bg
     <div class="eyebrow">BLIND SPOT / ROADMAP</div>
     <h1>ゲーム完成までのロードマップ</h1>
     <p class="lead">まず1部屋で「足音を殺して怪物をやり過ごす」が面白いかを確かめ、面白ければ1章の体験版、本編、公開へと広げます。各ステップには、作るものと一緒に「説明できるようになること」を書いています。</p>
-    <div class="legend"><span class="st done">済</span>終わった <span class="st next">次</span>次にやる <span class="st todo">予定</span>これから</div>
+    <div class="legend"><span class="st done">済</span>終わった <span class="st next">作業中 / 次</span>今やっている・次にやる <span class="st todo">予定</span>これから</div>
   </header>
 
   <section class="phase">
@@ -114,10 +114,10 @@ code { font-family: var(--font-mono); font-size: .9em; background: var(--todo-bg
         </dl>
       </article></li>
       <li class="next"><article class="card">
-        <div class="card-head"><span class="num">3</span><h3>隠れる・投擲・息止め</h3><span class="st next">次</span></div>
+        <div class="card-head"><span class="num">3</span><h3>隠れる・投擲・息止め</h3><span class="st next">作業中</span></div>
         <dl class="kv">
           <dt>作るもの</dt><dd>ロッカー・机の下・物陰に隠れる。石・ガラス瓶・空き缶を投げて気をそらす(最大5個)。息止めゲージ(怪物が近いほど速く減り、限界で咳き込む)。</dd>
-          <dt>説明できるようになること</dt><dd>「調べる」操作の作り方(視線の先を Raycast で調べる)。Rigidbody で物を投げる仕組み。着地の音を同じ <code>NoiseSystem.Emit</code> で出せる理由。</dd>
+          <dt>説明できるようになること</dt><dd>「調べる」操作の作り方(視線の先を Raycast で調べる)。Rigidbody で物を投げる仕組み。着地の音を同じ <code>NoiseSystem.Emit</code> で出せる理由。呼吸も音として流し、息を止めれば見つからない仕組み。</dd>
           <dt>完成の目安</dt><dd>追われても、隠れるか物を投げれば逃げ切れる。</dd>
         </dl>
       </article></li>

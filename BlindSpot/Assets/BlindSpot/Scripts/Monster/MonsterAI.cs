@@ -45,11 +45,11 @@ namespace BlindSpot
         [SerializeField] float chaseSpeed = 4f;
         [Tooltip("この秒数、新しい音が聞こえなければ追跡をやめ、最後の音の場所を調べる")]
         [SerializeField] float loseInterestTime = 4f;
-        [Tooltip("この距離まで近づくと、音がしなくても気配でプレイヤーの居場所がわかる")]
-        [SerializeField] float senseDistance = 2f;
 
         [Header("捕獲")]
         [SerializeField] float catchDistance = 1.1f;
+        [Tooltip("隠れているプレイヤーでも、この秒数以内にすぐそばで音を聞いていれば見つけて捕まえる")]
+        [SerializeField] float foundHiddenTime = 1f;
         [Tooltip("捕まえてからシーンを読み込み直すまでの秒数")]
         [SerializeField] float restartDelay = 2.5f;
 
@@ -67,6 +67,7 @@ namespace BlindSpot
         int patrolIndex;
         float timer;         // 待ち時間・見回し時間・捕獲後の時間に使う
         float lastHeardTime;
+        bool lastNoiseFromPlayer; // 最後に聞いた音が、プレイヤー自身の出した音か
 
         void Awake()
         {
@@ -108,7 +109,8 @@ namespace BlindSpot
                 case MonsterState.Caught: UpdateCaught(); break;
             }
 
-            if (State != MonsterState.Caught && player != null && FlatDistance(player.transform.position) <= catchDistance)
+            if (State != MonsterState.Caught && player != null &&
+                FlatDistance(player.transform.position) <= catchDistance && CanCatchPlayer())
             {
                 Catch();
             }
@@ -123,6 +125,7 @@ namespace BlindSpot
 
             LastNoisePosition = e.Position;
             lastHeardTime = Time.time;
+            lastNoiseFromPlayer = player != null && e.Source == player.gameObject;
 
             bool loud = e.Radius >= loudNoiseRadius;
             bool close = FlatDistance(e.Position) <= closeNoiseDistance;
@@ -177,16 +180,21 @@ namespace BlindSpot
 
         void UpdateChase()
         {
-            // すぐ近くなら、音がしなくても気配でわかる
-            if (player != null && FlatDistance(player.transform.position) <= senseDistance)
-            {
-                LastNoisePosition = player.transform.position;
-                lastHeardTime = Time.time;
-            }
-
+            // 追いかける先は、プレイヤーではなく「最後に音がした場所」
+            // (すぐそばにいても、息を止めて静かにしていれば見失う)
             agent.SetDestination(LastNoisePosition);
 
             if (Time.time - lastHeardTime > loseInterestTime) EnterInvestigate(LastNoisePosition);
+        }
+
+        /// <summary>
+        /// 捕まえられるか。隠れていなければ捕まえられる。
+        /// 隠れていても、追跡中にすぐそばでプレイヤーの音 (呼吸など) を聞いた直後なら見つかる。
+        /// </summary>
+        bool CanCatchPlayer()
+        {
+            if (!player.IsHidden) return true;
+            return State == MonsterState.Chase && lastNoiseFromPlayer && Time.time - lastHeardTime <= foundHiddenTime;
         }
 
         void Catch()

@@ -51,7 +51,7 @@
 
 1. [済] プレイヤー操作と足音・音の仕組み
 2. [済] 怪物 AI(巡回・調査・追跡・捕獲)。仮モデルはカプセル
-3. [ ] 隠れる・投擲・息止め
+3. [作業中] 隠れる・投擲・息止め。コードは渡し済み、作者の動作確認待ち
 4. [ ] 実際に遊んで調整
 5. [ ] 1章のマップ、照明、怪物モデル、謎解き、セーブ…と肉付け
 
@@ -80,10 +80,20 @@
 
 ## 怪物 AI(ステップ2)
 
-- `Scripts/Monster/MonsterAI.cs`:状態 Patrol / Investigate / Chase / Caught。`NoiseSystem.OnNoise` を購読し、届く距離 10m 以上の大きな音か 3m 以内の音で追跡、それ以外は調査。追跡中は最後の音の位置へ向かい、2m 以内は気配で追う。4 秒音が無ければ最後の音の場所を調査。1.1m で捕獲 → 2.5 秒後にシーン再読み込み(本番の演出とセーブはステップ7)
+- `Scripts/Monster/MonsterAI.cs`:状態 Patrol / Investigate / Chase / Caught。`NoiseSystem.OnNoise` を購読し、届く距離 10m 以上の大きな音か 3m 以内の音で追跡、それ以外は調査。追跡中は最後の音の位置へ向かう(ステップ3で「気配」は廃止し、呼吸音で見つける)。隠れているプレイヤーは、追跡中に1秒以内にプレイヤーの音を聞いた場合だけ捕まえる。4 秒音が無ければ最後の音の場所を調査。1.1m で捕獲 → 2.5 秒後にシーン再読み込み(本番の演出とセーブはステップ7)
 - `Scripts/Monster/MonsterClicker.cs`:位置を知らせるクリック音(3D)。素材が無ければコードで音を作る。NoiseSystem には流さない
 - `Scripts/Monster/RuntimeNavMesh.cs`:AI Navigation パッケージを使わず、Awake で NavMeshBuilder から NavMesh を作る([DefaultExecutionOrder(-1000)])。NavMeshAgent はビルダーで無効にしておき、MonsterAI.Start で有効にする
 - 標準エージェント(高さ 2m)は天井 1.2m の低い通路に入れない = しゃがみ通路は安全地帯
+
+## 隠れる・投擲・息止め(ステップ3)
+
+- 方針:全部を音で考える。呼吸も `NoiseType.Breath` として 0.8 秒ごとに出す(1m〜2.2m、怪物が近いほど大きい)。息を止めれば出ない。怪物の「3m 以内の音で追跡」に引っかかるので、すぐそばでは息を止める必要がある
+- `Scripts/Player/BreathHold.cs`:Space 長押しで息止め。ゲージ 8 秒、怪物が近いほど最大 3 倍速く減る。尽きると咳(12m)
+- `Scripts/Interaction/`:`IInteractable`(GetPrompt / Interact)、`PlayerInteractor`(視線の SphereCast、E キー)、`HidingSpot`(ロッカー。体を固定して中へ瞬間移動、扉の音 2.5m)、`HideZone`(机の下。範囲内でしゃがむと隠れる)
+- `PlayerController`:`MovementEnabled`(false で CharacterController ごと停止、視点は動く)、`IsHidden` と `SetHidden(bool)`(理由の数で数える)、`Teleport`
+- `Scripts/Throwing/`:`ThrowableDefs`(石 8m / 瓶 14m で割れる / 缶 6m で転がる間も鳴る、最大 5 個)、`PlayerThrower`(左クリックで投げる、Q とホイールで切替)、`ThrownObject`(衝突で音、止まると `ItemPickup` に戻る)、`ItemPickup`
+- レイアウト:`Locker` / `Desk` / `Item` ヘルパー。家具の部品は「名前_〇〇」で置き、ビルダーが名前で1つの家具にまとめる
+- 解説ページの説明は、コードを変えたら `tools/remap_annotations.py`(変わっていない行の説明を移す)と `tools/add_notes.py`(説明を足す)で更新する
 
 ## コードの渡し方
 

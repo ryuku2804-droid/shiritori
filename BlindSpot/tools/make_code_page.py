@@ -13,21 +13,30 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent  # BlindSpot/
 
-STEP_TITLE = "ステップ2:怪物 AI(巡回・調査・追跡・捕獲)"
+STEP_TITLE = "ステップ3:隠れる・投擲・息止め"
 
 # (Assets からのパス, 状態, 一言の説明)
 FILES = [
-    ("Assets/BlindSpot/Scripts/Monster/MonsterAI.cs", "新規", "音だけを頼りに動く怪物の頭脳 (巡回・調査・追跡・捕獲)"),
-    ("Assets/BlindSpot/Scripts/Monster/MonsterClicker.cs", "新規", "怪物のクリック音。怪物の位置をプレイヤーに知らせる"),
-    ("Assets/BlindSpot/Scripts/Monster/RuntimeNavMesh.cs", "新規", "ゲーム開始時に、怪物が歩ける範囲 (NavMesh) を作る"),
-    ("Assets/BlindSpot/Editor/GrayboxRoomBuilder.cs", "変更", "怪物・巡回ポイント・NavMesh も作るようにした"),
-    ("Assets/BlindSpot/Editor/Stage/StageLayout.cs", "変更", "怪物の出発点と巡回ポイントを書けるようにした"),
-    ("Assets/BlindSpot/Editor/Stage/PrototypeStage.cs", "変更", "テスト部屋に怪物と巡回ルートを追加"),
-    ("Assets/BlindSpot/Scripts/Debug/DebugHud.cs", "変更", "怪物の状態と距離を表示"),
-    ("Assets/BlindSpot/Scripts/Noise/NoiseSystem.cs", "変更なし", "音を集めて、聞きたい相手に配る放送局"),
-    ("Assets/BlindSpot/Scripts/Noise/SurfaceMaterial.cs", "変更なし", "床の素材の名札 (足音の倍率)"),
-    ("Assets/BlindSpot/Scripts/Player/PlayerController.cs", "変更なし", "歩く・走る・しゃがむ・視点"),
-    ("Assets/BlindSpot/Scripts/Player/FootstepNoise.cs", "変更なし", "歩いた距離ごとに足音を出して、NoiseSystem に知らせる"),
+    ("Assets/BlindSpot/Scripts/Player/BreathHold.cs", "新規", "呼吸の音と息止め。ゲージの減る速さは心拍 (怪物との距離) で変わる"),
+    ("Assets/BlindSpot/Scripts/Interaction/IInteractable.cs", "新規", "「E で調べられるもの」の約束ごと"),
+    ("Assets/BlindSpot/Scripts/Interaction/PlayerInteractor.cs", "新規", "視線の先を調べる (E キー)"),
+    ("Assets/BlindSpot/Scripts/Interaction/HidingSpot.cs", "新規", "ロッカーに隠れる・出る"),
+    ("Assets/BlindSpot/Scripts/Interaction/HideZone.cs", "新規", "机の下でしゃがむと隠れられる範囲"),
+    ("Assets/BlindSpot/Scripts/Throwing/Throwables.cs", "新規", "投擲物の種類 (石・瓶・缶) と性質"),
+    ("Assets/BlindSpot/Scripts/Throwing/ItemPickup.cs", "新規", "床に落ちている物を拾う"),
+    ("Assets/BlindSpot/Scripts/Throwing/PlayerThrower.cs", "新規", "持っている物を選んで投げる"),
+    ("Assets/BlindSpot/Scripts/Throwing/ThrownObject.cs", "新規", "投げた物がぶつかって音を出し、止まったらまた拾える"),
+    ("Assets/BlindSpot/Scripts/Player/PlayerController.cs", "変更", "体の固定 (ロッカー用)・隠れている状態・瞬間移動を追加"),
+    ("Assets/BlindSpot/Scripts/Player/FootstepNoise.cs", "変更", "瞬間移動を足音として数えないようにした"),
+    ("Assets/BlindSpot/Scripts/Noise/NoiseSystem.cs", "変更", "音の種類に「呼吸」を追加"),
+    ("Assets/BlindSpot/Scripts/Monster/MonsterAI.cs", "変更", "「気配」をやめて呼吸の音で見つけるように。隠れている相手は捕まえない"),
+    ("Assets/BlindSpot/Scripts/Debug/DebugHud.cs", "変更", "照準・調べる説明・息止めゲージ・持ち物を表示"),
+    ("Assets/BlindSpot/Editor/Stage/StageLayout.cs", "変更", "ロッカー・机・落ちている物を書けるようにした"),
+    ("Assets/BlindSpot/Editor/Stage/PrototypeStage.cs", "変更", "テスト部屋にロッカー2つ・机1つ・投擲物7個を追加"),
+    ("Assets/BlindSpot/Editor/GrayboxRoomBuilder.cs", "変更", "家具の組み立て・物の配置・プレイヤーの新しい部品を追加"),
+    ("Assets/BlindSpot/Scripts/Noise/SurfaceMaterial.cs", "変更なし", "床の素材の名札"),
+    ("Assets/BlindSpot/Scripts/Monster/MonsterClicker.cs", "変更なし", "怪物のクリック音"),
+    ("Assets/BlindSpot/Scripts/Monster/RuntimeNavMesh.cs", "変更なし", "怪物が歩ける範囲を作る"),
 ]
 
 BADGE = {"新規": "new", "変更": "chg", "変更なし": "same"}

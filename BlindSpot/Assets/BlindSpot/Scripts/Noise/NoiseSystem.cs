@@ -11,6 +11,7 @@ namespace BlindSpot
         GlassBreak, // ガラスが割れる音
         Cough,      // 息止め限界の咳き込み
         Device,     // 番号錠の押下音・ブザーなど
+        Breath,     // 呼吸 (息を止めていない間、小さく出続ける)
         Other,
     }
 
@@ -93,6 +94,7 @@ namespace BlindSpot
                 case NoiseType.GlassBreak: return new Color(1f, 0.5f, 0f);
                 case NoiseType.Cough: return Color.red;
                 case NoiseType.Device: return Color.magenta;
+                case NoiseType.Breath: return new Color(0.6f, 0.6f, 0.6f, 0.5f);
                 default: return Color.white;
             }
         }

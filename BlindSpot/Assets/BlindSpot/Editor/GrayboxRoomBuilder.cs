@@ -28,6 +28,10 @@ namespace BlindSpot.EditorTools
             { "Water", new Color(0.1f, 0.25f, 0.5f) },
             { "Metal", new Color(0.35f, 0.45f, 0.55f) },
             { "Monster", new Color(0.55f, 0.15f, 0.12f) },
+            { "Furniture", new Color(0.38f, 0.42f, 0.36f) },
+            { "Stone", new Color(0.5f, 0.5f, 0.48f) },
+            { "Bottle", new Color(0.2f, 0.5f, 0.3f) },
+            { "Can", new Color(0.75f, 0.75f, 0.78f) },
         };
 
         [MenuItem("Tools/BlindSpot/テスト部屋を作成")]
@@ -65,6 +69,11 @@ namespace BlindSpot.EditorTools
             {
                 placed[p.name] = Place(p, GetGroup(root.transform, groups, p.group));
             }
+
+            // 家具の部品を、名前でまとめて1つの家具にする (オブジェクト同士を名前でつなぐ例)
+            BuildLockers(layout, placed, GetGroup(root.transform, groups, "Furniture"));
+            BuildDesks(layout, placed, GetGroup(root.transform, groups, "Furniture"));
+            BuildItems(layout, GetGroup(root.transform, groups, "Items"));
 
             BuildPlayer(playerLayer, layout.playerStart, layout.playerYaw);
 
@@ -109,6 +118,73 @@ namespace BlindSpot.EditorTools
             if (p.surface != SurfaceType.Default) go.AddComponent<SurfaceMaterial>().type = p.surface;
             GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
             return go;
+        }
+
+        /// <summary>名前が「prefix_」で始まる箱を全部、parent の子にする。</summary>
+        static void Adopt(Dictionary<string, GameObject> placed, string prefix, Transform parent)
+        {
+            foreach (KeyValuePair<string, GameObject> pair in placed)
+            {
+                if (pair.Key.StartsWith(prefix + "_")) pair.Value.transform.SetParent(parent, true);
+            }
+        }
+
+        static void BuildLockers(StageLayout layout, Dictionary<string, GameObject> placed, Transform group)
+        {
+            foreach (FixtureSpec spec in layout.lockers)
+            {
+                var locker = new GameObject(spec.name).transform;
+                locker.SetParent(group, false);
+                locker.SetPositionAndRotation(spec.position, Quaternion.Euler(0f, spec.yaw, 0f));
+                Adopt(placed, spec.name, locker);
+
+                // 中の位置は扉の向き、出口は扉の向きのまま外へ
+                var inside = new GameObject("InsidePoint").transform;
+                inside.SetParent(locker, false);
+                inside.SetPositionAndRotation(spec.inside, Quaternion.Euler(0f, spec.yaw, 0f));
+                var exit = new GameObject("ExitPoint").transform;
+                exit.SetParent(locker, false);
+                exit.SetPositionAndRotation(spec.exit, Quaternion.Euler(0f, spec.yaw, 0f));
+
+                var spot = locker.gameObject.AddComponent<HidingSpot>();
+                var so = new SerializedObject(spot);
+                so.FindProperty("insidePoint").objectReferenceValue = inside;
+                so.FindProperty("exitPoint").objectReferenceValue = exit;
+                so.ApplyModifiedPropertiesWithoutUndo();
+            }
+        }
+
+        static void BuildDesks(StageLayout layout, Dictionary<string, GameObject> placed, Transform group)
+        {
+            foreach (FixtureSpec spec in layout.desks)
+            {
+                var desk = new GameObject(spec.name).transform;
+                desk.SetParent(group, false);
+                desk.SetPositionAndRotation(spec.position, Quaternion.Euler(0f, spec.yaw, 0f));
+                Adopt(placed, spec.name, desk);
+
+                // 机の下の、しゃがめば隠れられる範囲 (中心は床から高さの半分)
+                var zone = new GameObject("HideZone").transform;
+                zone.SetParent(desk, false);
+                zone.localPosition = new Vector3(0f, spec.zoneSize.y / 2f, 0f);
+                var hide = zone.gameObject.AddComponent<HideZone>();
+                var so = new SerializedObject(hide);
+                so.FindProperty("size").vector3Value = spec.zoneSize;
+                so.ApplyModifiedPropertiesWithoutUndo();
+            }
+        }
+
+        static void BuildItems(StageLayout layout, Transform group)
+        {
+            for (int i = 0; i < layout.items.Count; i++)
+            {
+                ItemSpec spec = layout.items[i];
+                GameObject go = ThrowableDefs.CreateObject(spec.type, GetMaterial(spec.type.ToString()));
+                go.name = $"{spec.type}_{i}";
+                go.transform.SetParent(group, false);
+                go.transform.position = spec.position + Vector3.up * ThrowableDefs.HalfHeight(spec.type);
+                go.AddComponent<ItemPickup>().Setup(spec.type);
+            }
         }
 
         static void CreateLight()
@@ -167,10 +243,21 @@ namespace BlindSpot.EditorTools
             so.FindProperty("audioSource").objectReferenceValue = audio;
             so.ApplyModifiedPropertiesWithoutUndo();
 
+            // 隠れる・投げる・息を止める
+            var interactor = player.AddComponent<PlayerInteractor>();
+            so = new SerializedObject(interactor);
+            so.FindProperty("mask").intValue = maskWithoutPlayer;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            var thrower = player.AddComponent<PlayerThrower>();
+            var breath = player.AddComponent<BreathHold>();
+
             var hud = player.AddComponent<DebugHud>();
             so = new SerializedObject(hud);
             so.FindProperty("player").objectReferenceValue = pc;
             so.FindProperty("footsteps").objectReferenceValue = fs;
+            so.FindProperty("interactor").objectReferenceValue = interactor;
+            so.FindProperty("thrower").objectReferenceValue = thrower;
+            so.FindProperty("breath").objectReferenceValue = breath;
             so.ApplyModifiedPropertiesWithoutUndo();
 
             return player;

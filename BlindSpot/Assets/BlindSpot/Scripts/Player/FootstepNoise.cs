@@ -93,6 +93,7 @@ namespace BlindSpot
             delta.y = 0f;
             float moved = delta.magnitude;
             if (moved < 0.0001f) return;
+            if (moved > 0.5f) return; // 1フレームでこれ以上動いたのは瞬間移動 (ロッカーの出入りなど)。足音にしない
 
             distanceSinceStep += moved;
             StepSetting setting = GetSetting(player.State);
