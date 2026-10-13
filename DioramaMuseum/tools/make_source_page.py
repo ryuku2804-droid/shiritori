@@ -16,20 +16,21 @@ STEP_LABEL = "STEP 1"
 STEP_TITLE = "段階1:館の骨組みを作って、中を歩く"
 
 # 貼る順に並べる。(Assets からのパス, 状態, 説明)
+# 状態: "新規" = この回で初めて作るファイル / "変更" = 前回から書き換えたファイル / "そのまま" = 前回から変わっていない (貼り直さなくてよい)
 FILES = [
     ("Assets/NightShards/Museum/Shaders/MuseumSurface.shader", "変更",
      "壁・床・天井の質感 (URP 用)。打ち放しコンクリート・木・石・漆喰を、画像なしでノイズから作る"),
-    ("Assets/NightShards/Museum/Scripts/MuseumLayout.cs", "新規",
+    ("Assets/NightShards/Museum/Scripts/MuseumLayout.cs", "そのまま",
      "館の設計図 (部屋の数・大きさ・向き・作品)。ここを変えると館の形が変わる"),
     ("Assets/NightShards/Museum/Scripts/MuseumMaterials.cs", "変更",
      "館で使うマテリアル7種のまとめと、その初期の色"),
-    ("Assets/NightShards/Museum/Scripts/MuseumGeometry.cs", "新規",
+    ("Assets/NightShards/Museum/Scripts/MuseumGeometry.cs", "そのまま",
      "床・壁・天井を Cube で組む道具。壁に出入口の穴をあける"),
-    ("Assets/NightShards/Museum/Scripts/MuseumInput.cs", "新規",
+    ("Assets/NightShards/Museum/Scripts/MuseumInput.cs", "そのまま",
      "キーとマウスの読み取り。旧 Input Manager と新 Input System の両方に対応"),
-    ("Assets/NightShards/Museum/Scripts/FirstPersonController.cs", "新規",
+    ("Assets/NightShards/Museum/Scripts/FirstPersonController.cs", "そのまま",
      "一人称で歩く・走る・跳ぶ・見回す。壁はすり抜けない"),
-    ("Assets/NightShards/Museum/Scripts/MuseumHUD.cs", "新規",
+    ("Assets/NightShards/Museum/Scripts/MuseumHUD.cs", "そのまま",
      "画面中央の照準の点と、起動時の操作説明"),
     ("Assets/NightShards/Museum/Scripts/MuseumBuilder.cs", "変更",
      "設計図を読んで館を組み立てる本体。再生時にプレイヤーと画面表示も作る"),

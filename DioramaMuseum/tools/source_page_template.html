@@ -85,6 +85,7 @@ ol.flow .who { font-family: var(--font-mono); font-size: 13px; font-weight: 500;
 .notice h2 { font-size: 18px; }
 .notice #notice { display: grid; gap: 8px; }
 .cap .no .st.chg { color: var(--accent); }
+.cap .no .st.same { color: var(--muted); font-weight: 400; }
 ul.see { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
 
 ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 18px; }
@@ -197,7 +198,7 @@ button.copy.done { background: var(--ok-fg); }
 
     <section>
       <h2>ファイル</h2>
-      <p class="lead">カードを押すと、右のコード台にそのファイルが出ます。</p>
+      <p class="lead">カードを押すと、右のコード台にそのファイルが出ます。<b>新規</b> はこの回で初めて作るファイル、<b>変更</b> は前回から書き換えたファイルです。<b>そのまま</b> のファイルは前回から変わっていないので、貼り直さなくてかまいません (右のタブでは、貼る必要のあるファイルに ● が付きます)。</p>
       <div class="captions" id="caps"></div>
     </section>
 
@@ -291,7 +292,8 @@ button.copy.done { background: var(--ok-fg); }
     const tab = document.createElement('button');
     tab.type = 'button';
     tab.setAttribute('role', 'tab');
-    tab.textContent = f.name;
+    tab.textContent = (f.status === 'そのまま' ? '' : '● ') + f.name;
+    tab.title = f.status;
     tab.addEventListener('click', () => show(i));
     tabs.appendChild(tab);
   });
