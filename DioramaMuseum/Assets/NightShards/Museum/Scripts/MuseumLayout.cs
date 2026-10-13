@@ -4,20 +4,24 @@ using UnityEngine;
 
 namespace NightShards.Museum
 {
-    // 中央ホールから見て、展示室をどの方向に伸ばすか
+    // 壁の面の向き (長方形の部屋の4つの壁を区別するのに使う)
     public enum RoomDirection { North, East, South, West }
 
-    // 展示室ごとの作品テーマ。段階3で、部屋ごとの床・壁・光のアートをこれで切り替える
-    public enum RoomTheme { Moon, Fire, Dusk, Sea }
+    // 展示室のテーマ。床・壁の質感と、部屋のアートをこれで選ぶ
+    //   自然の部屋: Moon 月 / Fire 火 / Dusk 夕 / Sea 海
+    //   世界の部屋: Asia アジア / Europe ヨーロッパ / Desert 砂漠と塩 / Andes アンデス
+    public enum RoomTheme { Moon, Fire, Dusk, Sea, Asia, Europe, Desert, Andes }
 
     // ジオラマ1点分の設定
     [Serializable]
     public class ExhibitSpec
     {
         public string title = "無題";
+        [Tooltip("キャプションの2行目に出す場所の名前")]
+        public string place = "";
         [TextArea(2, 4)] public string description = "";
-        [Tooltip("0 アルプス月夜 / 1 火山島 / 2 日本の夕焼け / 3 南国の島")]
-        [Range(0, 3)] public int biome = 0;
+        [Tooltip("ジオラマの描き方。0 雪山 / 1 火山 / 2 日本 / 3 南の海。-1 はまだ作っていない作品 (仮の箱を置く)")]
+        [Range(-1, 3)] public int biome = 0;
     }
 
     // 展示室1つ分の設定
@@ -26,7 +30,8 @@ namespace NightShards.Museum
     {
         public string name = "展示室";
         public RoomTheme theme = RoomTheme.Moon;
-        public RoomDirection direction = RoomDirection.North;
+        [Tooltip("ドームのまわりの位置。0 が正面 (北)、そこから時計回りに 45° ずつ 1〜7")]
+        [Range(0, 7)] public int slot = 0;
         [Tooltip("部屋の幅 (通路と直角の向き、m)")] public float width = 12f;
         [Tooltip("部屋の奥行き (通路の向き、m)")] public float depth = 10f;
         [Tooltip("天井の高さ (m)")] public float height = 6f;
@@ -39,12 +44,18 @@ namespace NightShards.Museum
     [Serializable]
     public class MuseumLayout
     {
-        [Header("中央ホール")]
-        [Tooltip("x: 幅 / y: 天井の高さ / z: 奥行き (m)")]
-        public Vector3 hallSize = new Vector3(14f, 7f, 14f);
+        public const int SlotCount = 8;
+
+        [Header("中央のドーム")]
+        [Tooltip("ドームの内側の半径 (m)")]
+        public float domeRadius = 13f;
+        [Tooltip("ドームの丸い天井が始まるまでの、まっすぐな壁の高さ (m)")]
+        public float drumHeight = 4.5f;
+        [Tooltip("天井のてっぺんの丸い天窓の半径 (m)")]
+        public float oculusRadius = 1.6f;
 
         [Header("通路")]
-        public float corridorLength = 6f;
+        public float corridorLength = 5f;
         public float corridorWidth = 3f;
         public float corridorHeight = 3.2f;
 
@@ -53,34 +64,49 @@ namespace NightShards.Museum
         [Tooltip("台座の上に当てるスポットライトに影を付けるか (重さに効く)")]
         public bool spotShadows = true;
 
-        [Header("展示室 (1方向に1室まで)")]
+        [Header("展示室 (ドームのまわりの 8 か所に1室ずつ)")]
         public List<RoomSpec> rooms = new List<RoomSpec>();
 
-        // 初期設定。4つのバイオームを、それぞれの部屋に2点ずつ置く
+        // スロットの番号から、ドームの中心から見た向き (度)。0 = 北 (+z)、時計回り
+        public static float SlotAngle(int slot) => slot * (360f / SlotCount);
+
+        // 初期設定: 自然の部屋と世界の部屋を交互に、雰囲気の近いもの同士が隣になるように並べる
         public static MuseumLayout CreateDefault()
         {
             var layout = new MuseumLayout();
-            layout.rooms.Add(MakeRoom("月の間", RoomTheme.Moon, RoomDirection.North, new Color(0.55f, 0.68f, 1f), 0,
-                ("アルプス月夜", "雪をかぶった峰々を、満月が青く照らす夜。"),
-                ("月下の谷", "山あいの小さな村に、月の光だけが届いている。")));
-            layout.rooms.Add(MakeRoom("火の間", RoomTheme.Fire, RoomDirection.East, new Color(1f, 0.45f, 0.2f), 1,
-                ("火山島", "海の上にそびえる火山。山頂から溶岩が流れ落ちる。"),
-                ("噴煙", "灰の雲の下で、島はまだ赤く脈打っている。")));
-            layout.rooms.Add(MakeRoom("夕の間", RoomTheme.Dusk, RoomDirection.West, new Color(1f, 0.62f, 0.35f), 2,
-                ("日本の夕焼け", "瓦屋根と鳥居を、沈む夕日が茜色に染める。"),
-                ("帰り道", "一日の終わり、町に最初の明かりがともる。")));
-            layout.rooms.Add(MakeRoom("海の間", RoomTheme.Sea, RoomDirection.South, new Color(0.35f, 0.9f, 0.85f), 3,
-                ("南国の島", "透きとおる浅瀬に囲まれた、椰子の島。"),
-                ("潮だまり", "真昼の光が、珊瑚の海の底まで届く。")));
+            layout.rooms.Add(MakeRoom("月の間", RoomTheme.Moon, 0, new Color(0.55f, 0.68f, 1f),
+                ("月下の氷河", "スイス・アルプス", "稜線から月が昇り、氷河と雪の峰が青白く輝く。湖に一本の光の道。", 0),
+                ("オーロラの夜", "北極圏", "凍った湖の上で、オーロラが空いっぱいに揺れる。", 0)));
+            layout.rooms.Add(MakeRoom("ヨーロッパの間", RoomTheme.Europe, 1, new Color(0.95f, 0.8f, 0.55f),
+                ("夜のパリ", "フランス・パリ", "凱旋門からのびる光の通りの先で、エッフェル塔がきらめく。", -1),
+                ("ピサの斜塔", "イタリア・ピサ", "奇跡の広場の大聖堂と斜塔。鐘が鳴ると、鳩が一斉に飛び立つ。", -1)));
+            layout.rooms.Add(MakeRoom("火の間", RoomTheme.Fire, 2, new Color(1f, 0.45f, 0.2f),
+                ("大噴火", "火山島", "噴煙の柱の中で火山雷が光り、溶岩が海に流れ込む。", 1),
+                ("青い火の火口湖", "火口湖", "夜の火口湖のほとりで、硫黄の青い炎が燃え上がる。", 1)));
+            layout.rooms.Add(MakeRoom("砂漠と塩の間", RoomTheme.Desert, 3, new Color(1f, 0.75f, 0.45f),
+                ("ギザのピラミッド", "エジプト・ギザ", "砂嵐が過ぎると満天の星。三つ星がピラミッドの並びと重なる。", -1),
+                ("死海", "ヨルダン・イスラエル", "白い塩の結晶の岸と青緑の水。時が流れ、塩の結晶が育つ。", -1)));
+            layout.rooms.Add(MakeRoom("海の間", RoomTheme.Sea, 4, new Color(0.35f, 0.9f, 0.85f),
+                ("環礁", "南太平洋", "ターコイズの浅瀬に雲の影が流れる。潮が引くと砂州の道が現れる。", 3),
+                ("海の断面", "珊瑚の海", "水面の上は小さな島、下は珊瑚と魚の群れ。クジラの影が横切る。", 3)));
+            layout.rooms.Add(MakeRoom("アンデスの間", RoomTheme.Andes, 5, new Color(0.7f, 0.85f, 1f),
+                ("ウユニ塩湖", "ボリビア", "雨が来ると水が張り、空が完全に映って、空の中に浮かぶ。", -1),
+                ("マチュピチュ", "ペルー", "雲海が引いて、山の上の遺跡を朝日が照らし出す。", -1)));
+            layout.rooms.Add(MakeRoom("夕の間", RoomTheme.Dusk, 6, new Color(1f, 0.62f, 0.35f),
+                ("黄昏の棚田", "日本の里山", "夕日を映す棚田。日が沈むと家々に灯がともり、蛍が舞う。", 2),
+                ("千本鳥居の山", "霧の参道", "霧の山を、朱の鳥居の参道がどこまでも登っていく。", 2)));
+            layout.rooms.Add(MakeRoom("アジアの間", RoomTheme.Asia, 7, new Color(0.95f, 0.45f, 0.35f),
+                ("万里の長城", "中国", "雲海の上の尾根を城壁が縫う。烽火台に次々と火がともる。", -1),
+                ("日本の庭", "日本", "もみじと五重塔、朱の太鼓橋と池の鯉。風が吹くと、もみじが舞う。", -1)));
             return layout;
         }
 
-        static RoomSpec MakeRoom(string name, RoomTheme theme, RoomDirection dir, Color accent, int biome,
-            params (string title, string desc)[] works)
+        static RoomSpec MakeRoom(string name, RoomTheme theme, int slot, Color accent,
+            params (string title, string place, string desc, int biome)[] works)
         {
-            var room = new RoomSpec { name = name, theme = theme, direction = dir, accent = accent };
+            var room = new RoomSpec { name = name, theme = theme, slot = slot, accent = accent };
             foreach (var w in works)
-                room.exhibits.Add(new ExhibitSpec { title = w.title, description = w.desc, biome = biome });
+                room.exhibits.Add(new ExhibitSpec { title = w.title, place = w.place, description = w.desc, biome = w.biome });
             return room;
         }
     }

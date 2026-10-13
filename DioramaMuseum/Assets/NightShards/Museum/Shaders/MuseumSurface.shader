@@ -1,12 +1,13 @@
 // 美術館の床・壁・天井・台座の質感 (URP 用)。テクスチャ画像は使わず、ワールド座標からノイズで模様を作る。
 // _Kind で種類を切り替える: 0 打ち放しコンクリート / 1 木の床 / 2 石 (研ぎ出し) / 3 漆喰
 //                           4 黒曜石と溶岩のひび / 5 水盤 / 6 揺れる水の光 (コースティクス) の映る漆喰
+//                           7 ドームの格天井 (メッシュの uv を使う) / 8 ドームの床の方位盤 (メッシュの中心からの位置を使う)
 // 光の計算は URP の UniversalFragmentPBR (URP/Lit と同じ) に任せるので、スポットライト・影・霧・環境光がそのまま効く
 Shader "NightShards/MuseumSurface"
 {
     Properties
     {
-        [Enum(Concrete,0,Wood,1,Stone,2,Plaster,3,Obsidian,4,Water,5,Caustic,6)] _Kind ("Kind", Float) = 0
+        [Enum(Concrete,0,Wood,1,Stone,2,Plaster,3,Obsidian,4,Water,5,Caustic,6,Coffer,7,Compass,8)] _Kind ("Kind", Float) = 0
         _ColorA ("Color A", Color) = (0.46, 0.45, 0.43, 1)
         _ColorB ("Color B", Color) = (0.34, 0.33, 0.32, 1)
         _Smoothness ("Smoothness", Range(0, 1)) = 0.2
@@ -165,6 +166,7 @@ Shader "NightShards/MuseumSurface"
             {
                 float4 positionOS : POSITION;
                 float3 normalOS : NORMAL;
+                float2 uv : TEXCOORD0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -174,6 +176,8 @@ Shader "NightShards/MuseumSurface"
                 float3 positionWS : TEXCOORD0;
                 float3 normalWS : TEXCOORD1;
                 half fogFactor : TEXCOORD2;
+                float2 uv : TEXCOORD3;          // メッシュの uv (格天井で使う)
+                float3 positionOS : TEXCOORD4;  // 物の中心から見た位置 (方位盤で使う)
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
@@ -277,6 +281,72 @@ Shader "NightShards/MuseumSurface"
                 emission = _EmissionColor.rgb * pulse * (crack + heat * 0.18);
             }
 
+            // 格天井: ローマのパンテオンのような、段になった四角いくぼみが並ぶ天井。
+            // uv.x が一周 (0〜1)、uv.y が下の縁 0 から天窓の縁 1。上へ行くほどくぼみは自然に小さくなる
+            void Coffer(float2 uv, out float3 albedo, out float gloss, out float occ)
+            {
+                const float columns = 32.0;
+                const float rows = 5.0;
+                const float top = 0.74;  // くぼみがあるのは、この高さまで。その上はなめらかな面
+                float3 plaster = lerp(_ColorB.rgb, _ColorA.rgb, Fbm(uv * float2(60.0, 12.0)));
+                albedo = plaster;
+                gloss = _Smoothness;
+                occ = 1.0;
+                if (uv.y < top)
+                {
+                    float2 c = frac(float2(uv.x * columns, uv.y / top * rows));
+                    float d = min(min(c.x, 1.0 - c.x), min(c.y, 1.0 - c.y)); // くぼみの縁からの近さ
+                    float shade = 1.0;                       // 縁の太い梁
+                    if (d > 0.11) shade = 0.82;              // 1段目
+                    if (d > 0.18) shade = 0.68;              // 2段目
+                    if (d > 0.24) shade = 0.58 + 0.1 * smoothstep(0.24, 0.5, d); // いちばん奥の面
+                    occ = shade;
+                    albedo *= lerp(0.85, 1.0, shade);
+                }
+                // 天窓の縁は、暗い帯で締める
+                float rim = smoothstep(0.955, 0.975, uv.y);
+                albedo *= 1.0 - rim * 0.7;
+            }
+
+            // 方位盤の床: 黒い石に、真鍮の線で 8 方向の筋・円・中央の八芒星を象眼する。
+            // p は床の中心からの位置 (m)。真鍮の所は metal = 1 を返す
+            void Compass(float2 p, float px, out float3 albedo, out float gloss, out float occ, out float metal)
+            {
+                float2 uv = p / max(_Scale, 1e-3);
+                Stone(uv, px, albedo, gloss, occ);
+                metal = 0.0;
+
+                float r = length(p);
+                float a = atan2(p.x, p.y);                     // 北 (+z) が 0
+                const float sector = 0.785398;                 // 45°
+                float aMain = a - round(a / sector) * sector;  // いちばん近い 8 方向の筋からの角度
+                float aMinor = a - (round(a / sector - 0.5) + 0.5) * sector;
+                float rayMain = r * abs(sin(aMain));           // 筋までの距離 (m)
+                float rayMinor = r * abs(sin(aMinor));
+
+                float brass = 0.0;
+                brass = max(brass, LineMask(abs(r - 1.25), 0.02, px));
+                brass = max(brass, LineMask(abs(r - 1.4), 0.01, px));
+                brass = max(brass, LineMask(abs(r - 5.6), 0.02, px));
+                brass = max(brass, LineMask(abs(r - 5.75), 0.01, px));
+                brass = max(brass, LineMask(abs(r - 10.4), 0.025, px));
+                brass = max(brass, LineMask(abs(r - 10.6), 0.012, px));
+                brass = max(brass, LineMask(rayMain, 0.022, px) * step(1.4, r) * step(r, 10.4));
+                brass = max(brass, LineMask(rayMinor, 0.01, px) * step(5.75, r) * step(r, 10.4));
+
+                // 中央の八芒星: 角度によって半径が 1.15 と 0.5 のあいだを行き来する
+                float tri = abs(frac(a / sector) - 0.5) * 2.0;  // 筋の上で 1、筋のあいだで 0
+                float starR = lerp(0.5, 1.15, tri * tri);
+                float star = 1.0 - smoothstep(starR - px, starR + px, r);
+                float hole = 1.0 - smoothstep(0.18 - px, 0.18 + px, r);
+                brass = max(brass, star * (1.0 - hole));
+
+                float3 brassColor = float3(0.78, 0.6, 0.32);
+                albedo = lerp(albedo, brassColor, brass);
+                gloss = lerp(gloss, 0.72, brass);
+                metal = brass;
+            }
+
             // 水盤の高さ (さざ波)。法線を傾けるのに使う
             float Ripple(float2 p, float t)
             {
@@ -297,6 +367,8 @@ Shader "NightShards/MuseumSurface"
                 output.positionWS = pos.positionWS;
                 output.normalWS = nrm.normalWS;
                 output.fogFactor = ComputeFogFactor(pos.positionCS.z);
+                output.uv = input.uv;
+                output.positionOS = input.positionOS.xyz;
                 return output;
             }
 
@@ -317,7 +389,15 @@ Shader "NightShards/MuseumSurface"
                 float gloss;
                 float occ;
                 float3 emission = 0;
-                if (_Kind < 0.5)      Concrete(uv, px, albedo, gloss, occ);
+                float metal = 0.0;
+                // 方位盤は物の中心からの位置で線を引くので、その位置での1ピクセルの大きさも分岐の外で測っておく
+                float pxOS = length(fwidth(input.positionOS.xz));
+                if (_Kind > 6.5)
+                {
+                    if (_Kind < 7.5) Coffer(input.uv, albedo, gloss, occ);
+                    else             Compass(input.positionOS.xz, pxOS, albedo, gloss, occ, metal);
+                }
+                else if (_Kind < 0.5) Concrete(uv, px, albedo, gloss, occ);
                 else if (_Kind < 1.5) Wood(uv, px, albedo, gloss, occ);
                 else if (_Kind < 2.5) Stone(uv, px, albedo, gloss, occ);
                 else if (_Kind < 3.5) Plaster(uv, px, albedo, gloss, occ);
@@ -358,7 +438,7 @@ Shader "NightShards/MuseumSurface"
 
                 SurfaceData surface = (SurfaceData)0;
                 surface.albedo = albedo;
-                surface.metallic = 0;
+                surface.metallic = metal;
                 surface.specular = 0;
                 surface.smoothness = saturate(gloss);
                 surface.occlusion = saturate(occ);

@@ -29,23 +29,39 @@ namespace NightShards.Museum.EditorTools
             BuildInScene();
         }
 
+        // 設計図を初期設定 (ドームと 8 部屋・16 作品) に戻してから組み立てる。古い設計図から作り直すとき用
+        [MenuItem(Menu + "設計図を初期設定に戻して組み立てる", priority = 2)]
+        static void ResetAndBuild()
+        {
+            var builder = FindOrCreateBuilder();
+            if (!EditorUtility.DisplayDialog("Diorama Museum",
+                    "部屋と作品の一覧を初期設定 (ドームと 8 部屋・16 作品) に戻して、組み立て直します。\n" +
+                    "Inspector で変えた部屋の名前や作品の説明は元に戻ります (Ctrl+Z で取り消せます)。", "戻して組み立てる", "やめる"))
+                return;
+            Undo.RecordObject(builder, "設計図を初期設定に戻す");
+            builder.ResetLayout();
+            EditorUtility.SetDirty(builder);
+            Build(builder);
+            Selection.activeGameObject = builder.gameObject;
+            FrameInSceneView(builder);
+        }
+
         [MenuItem(Menu + "展示室を1つ追加する", priority = 20)]
         static void AddRoom()
         {
             var builder = FindOrCreateBuilder();
             var layout = builder.Layout;
 
-            // まだ使っていない方向を探す
-            RoomDirection? free = null;
-            for (int d = 0; d < 4; d++)
+            // まだ使っていないスロット (ドームのまわりの位置) を探す
+            int free = -1;
+            for (int slot = 0; slot < MuseumLayout.SlotCount; slot++)
             {
-                var dir = (RoomDirection)d;
-                if (!layout.rooms.Exists(r => r.direction == dir)) { free = dir; break; }
+                if (!layout.rooms.Exists(r => r.slot == slot)) { free = slot; break; }
             }
-            if (free == null)
+            if (free < 0)
             {
                 EditorUtility.DisplayDialog("Diorama Museum",
-                    "4つの方向すべてに展示室があります。部屋を増やすには、Inspector の Rooms から1つ消してください。", "OK");
+                    "8 か所すべてに展示室があります。部屋を増やすには、Inspector の Rooms から1つ消してください。", "OK");
                 return;
             }
 
@@ -53,7 +69,7 @@ namespace NightShards.Museum.EditorTools
             layout.rooms.Add(new RoomSpec
             {
                 name = "新しい展示室",
-                direction = free.Value,
+                slot = free,
                 accent = new Color(0.9f, 0.9f, 0.85f),
                 exhibits = { new ExhibitSpec { title = "新しい作品" } },
             });

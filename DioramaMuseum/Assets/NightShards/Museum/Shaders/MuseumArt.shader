@@ -1,12 +1,13 @@
 // 展示室のアート (光るもの) 用の URP シェーダー。光は受けず、自分で光る。ブルームがあればにじんで見える。
 // _Mode で種類を切り替える:
 //   0 月の円盤 / 1 天井から下がる光の糸 / 2 夕日の透ける障子 / 3 火の粉 (パーティクル) / 4 天井の光のスリット
+//   5 ドームの天窓から見える夜空 / 6 天窓から落ちる光の柱
 // 重ね方は _SrcBlend / _DstBlend で決める (光るものは足し算、障子は不透明)。MuseumBuilder がマテリアルごとに設定する
 Shader "NightShards/MuseumArt"
 {
     Properties
     {
-        [Enum(Moon,0,Thread,1,Shoji,2,Ember,3,Slit,4)] _Mode ("Mode", Float) = 0
+        [Enum(Moon,0,Thread,1,Shoji,2,Ember,3,Slit,4,Oculus,5,Shaft,6)] _Mode ("Mode", Float) = 0
         [HDR] _Color ("Color", Color) = (1, 1, 1, 1)
         [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Src Blend", Float) = 1
         [Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("Dst Blend", Float) = 1
@@ -241,6 +242,29 @@ Shader "NightShards/MuseumArt"
                 return pow(saturate(across), 3.0) * ends;
             }
 
+            // 天窓の夜空: 板の中心ほど明るい濃紺の空に、星が瞬く。uv は板の 0〜1
+            float3 OculusSky(float2 uv, float t)
+            {
+                float2 p = uv - 0.5;
+                float r = length(p) * 2.0;
+                float3 sky = lerp(float3(0.25, 0.35, 0.6), float3(0.04, 0.06, 0.16), saturate(r));
+                float2 cell = floor(uv * 90.0);
+                float star = step(0.985, Hash21(cell)) * (0.6 + 0.4 * sin(t * 2.0 + Hash21(cell + 3.0) * 30.0));
+                return sky + star * 1.5;
+            }
+
+            // 光の柱: 筒の縁 (横から見て端) ほど薄く、上ほど明るい。中をほこりの粒がゆっくり漂う
+            float3 Shaft(float2 uv, float3 positionWS, float3 normalWS, float t)
+            {
+                float3 v = normalize(GetCameraPositionWS() - positionWS);
+                float facing = abs(dot(normalize(normalWS), v));      // 筒を正面から見る所ほど 1
+                float edge = pow(facing, 2.5);
+                float fall = lerp(1.0, 0.35, uv.y) * smoothstep(1.0, 0.92, uv.y);
+                float dust = ValueNoise(positionWS.xz * 6.0 + float2(0.0, positionWS.y * 2.0 - t * 0.15));
+                dust = smoothstep(0.75, 0.95, dust) * 0.6;
+                return (0.12 + dust) * edge * fall;
+            }
+
             half4 Frag(Varyings input) : SV_Target
             {
                 float t = _Time.y;
@@ -253,7 +277,9 @@ Shader "NightShards/MuseumArt"
                 else if (_Mode < 1.5) col = Thread(input.uv, input.color, t);
                 else if (_Mode < 2.5) col = Shoji(planar, px, input.uv, t);
                 else if (_Mode < 3.5) col = Ember(input.uv, input.color);
-                else                  col = Slit(input.uv);
+                else if (_Mode < 4.5) col = Slit(input.uv);
+                else if (_Mode < 5.5) col = OculusSky(input.uv, t);
+                else                  col = Shaft(input.uv, input.positionWS, input.normalWS, t);
                 col *= _Color.rgb;
 
                 // 足し算で重ねるものは、霧の中では黒へ消える。不透明の障子は霧の色に溶ける

@@ -21,9 +21,14 @@ namespace NightShards.Museum
         public Material basaltWall;     // 火の間の壁
         public Material causticWall;    // 海の間の壁と天井 (水の光)
         public Material causticFloor;   // 海の間の床
+        public Material plasterWall;    // 世界の部屋の白い漆喰の壁
+        public Material sandstone;      // 砂漠と塩の間の床
+        public Material marble;         // ヨーロッパの間の床
+        public Material domeFloor;      // ドームの床 (方位盤)
+        public Material domeCoffer;     // ドームの格天井と壁
 
         // マテリアル1つ分の初期値。kind は MuseumSurface の種類
-        // (0 コンクリート / 1 木 / 2 石 / 3 漆喰 / 4 黒曜石と溶岩 / 5 水盤 / 6 水の光の映る漆喰)
+        // (0 コンクリート / 1 木 / 2 石 / 3 漆喰 / 4 黒曜石と溶岩 / 5 水盤 / 6 水の光の映る漆喰 / 7 格天井 / 8 方位盤)
         public struct Spec
         {
             public string name;
@@ -61,6 +66,11 @@ namespace NightShards.Museum
             new Spec("Basalt Wall", 0, new Color(0.14f, 0.12f, 0.11f), new Color(0.08f, 0.07f, 0.07f), 0.2f),
             new Spec("Caustic Wall", 6, new Color(0.82f, 0.86f, 0.86f), new Color(0.74f, 0.79f, 0.8f), 0.15f, new Color(0.4f, 0.9f, 0.95f)),
             new Spec("Caustic Floor", 6, new Color(0.55f, 0.75f, 0.78f), new Color(0.45f, 0.65f, 0.7f), 0.7f, new Color(0.6f, 1.2f, 1.25f)),
+            new Spec("Plaster Wall", 3, new Color(0.72f, 0.69f, 0.64f), new Color(0.66f, 0.63f, 0.58f), 0.08f),
+            new Spec("Sandstone", 2, new Color(0.62f, 0.5f, 0.36f), new Color(0.52f, 0.41f, 0.29f), 0.3f),
+            new Spec("Marble", 2, new Color(0.78f, 0.77f, 0.74f), new Color(0.6f, 0.6f, 0.6f), 0.85f),
+            new Spec("Dome Floor", 8, new Color(0.05f, 0.05f, 0.06f), new Color(0.1f, 0.1f, 0.11f), 0.82f),
+            new Spec("Dome Coffer", 7, new Color(0.62f, 0.6f, 0.56f), new Color(0.5f, 0.48f, 0.45f), 0.1f),
         };
 
         public Material Get(int i)
@@ -78,7 +88,12 @@ namespace NightShards.Museum
                 case 8: return obsidian;
                 case 9: return basaltWall;
                 case 10: return causticWall;
-                default: return causticFloor;
+                case 11: return causticFloor;
+                case 12: return plasterWall;
+                case 13: return sandstone;
+                case 14: return marble;
+                case 15: return domeFloor;
+                default: return domeCoffer;
             }
         }
 
@@ -97,7 +112,12 @@ namespace NightShards.Museum
                 case 8: obsidian = m; break;
                 case 9: basaltWall = m; break;
                 case 10: causticWall = m; break;
-                default: causticFloor = m; break;
+                case 11: causticFloor = m; break;
+                case 12: plasterWall = m; break;
+                case 13: sandstone = m; break;
+                case 14: marble = m; break;
+                case 15: domeFloor = m; break;
+                default: domeCoffer = m; break;
             }
         }
 

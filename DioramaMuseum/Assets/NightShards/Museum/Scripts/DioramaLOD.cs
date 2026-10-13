@@ -13,7 +13,7 @@ namespace NightShards.Museum
         [Tooltip("この距離 (m) より遠いと、いちばん粗く描く")]
         [SerializeField] float farDistance = 12f;
         [Tooltip("この距離 (m) より遠いジオラマは描かない (別の部屋のものなど)")]
-        [SerializeField] float hideDistance = 22f;
+        [SerializeField] float hideDistance = 30f;
         [Tooltip("レイを進める回数 (近い / 遠い)")]
         [SerializeField] Vector2Int steps = new Vector2Int(110, 40);
         [Tooltip("影を調べる回数 (近い / 遠い)")]

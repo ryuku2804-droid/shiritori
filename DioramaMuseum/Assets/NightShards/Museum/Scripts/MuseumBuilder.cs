@@ -43,10 +43,11 @@ namespace NightShards.Museum
         [SerializeField] Color ambient = new Color(0.06f, 0.06f, 0.07f);
         // URP のライトは距離の2乗で暗くなるので、高めの値になる
         [Tooltip("台座の真上のスポットライト")] [SerializeField] float spotIntensity = 60f;
-        [Tooltip("ホールの天井のライト")] [SerializeField] float hallIntensity = 40f;
+        [Tooltip("ドームの天窓から床へ落ちる光")] [SerializeField] float hallIntensity = 600f;
         [Tooltip("通路の奥の色の光")] [SerializeField] float glowIntensity = 12f;
         [Tooltip("展示室全体のほのかな光")] [SerializeField] float fillIntensity = 10f;
-        [Tooltip("ホールの壁を上から照らす光")] [SerializeField] float washIntensity = 18f;
+        [Tooltip("ドームの壁を上から照らす光")] [SerializeField] float washIntensity = 18f;
+        [Tooltip("ドームの格天井を下から照らし上げる光")] [SerializeField] float domeUpIntensity = 90f;
 
         [Header("霧")]
         [SerializeField] Color fogColor = new Color(0.01f, 0.01f, 0.012f);
@@ -63,6 +64,7 @@ namespace NightShards.Museum
         [SerializeField, HideInInspector] List<Light> glowLights = new List<Light>();
         [SerializeField, HideInInspector] List<Light> fillLights = new List<Light>();
         [SerializeField, HideInInspector] List<Light> washLights = new List<Light>();
+        [SerializeField, HideInInspector] List<Light> domeUpLights = new List<Light>();
         // 展示室のアートのライト。作ったときの明るさを覚えておき、Brightness をかける
         [SerializeField, HideInInspector] List<Light> artLights = new List<Light>();
         [SerializeField, HideInInspector] List<float> artLightBase = new List<float>();
@@ -82,6 +84,12 @@ namespace NightShards.Museum
         public const string RootName = "Museum (Generated)";
 
         void Reset()
+        {
+            layout = MuseumLayout.CreateDefault();
+        }
+
+        // 館の設計図 (部屋と作品の一覧) を初期設定に戻す。マテリアルや明るさの設定はそのまま
+        public void ResetLayout()
         {
             layout = MuseumLayout.CreateDefault();
         }
@@ -146,6 +154,7 @@ namespace NightShards.Museum
             glowLights.Clear();
             fillLights.Clear();
             washLights.Clear();
+            domeUpLights.Clear();
             artLights.Clear();
             artLightBase.Clear();
         }
@@ -174,6 +183,7 @@ namespace NightShards.Museum
             SetIntensity(glowLights, glowIntensity);
             SetIntensity(fillLights, fillIntensity);
             SetIntensity(washLights, washIntensity);
+            SetIntensity(domeUpLights, domeUpIntensity);
             for (int i = 0; i < artLights.Count && i < artLightBase.Count; i++)
                 if (artLights[i] != null) artLights[i].intensity = artLightBase[i] * brightness;
 
@@ -209,7 +219,11 @@ namespace NightShards.Museum
                 case RoomTheme.Moon: return materials.water;
                 case RoomTheme.Fire: return materials.obsidian;
                 case RoomTheme.Dusk: return materials.wood;
-                default: return materials.causticFloor;
+                case RoomTheme.Sea: return materials.causticFloor;
+                case RoomTheme.Asia: return materials.wood;
+                case RoomTheme.Europe: return materials.marble;
+                case RoomTheme.Desert: return materials.sandstone;
+                default: return materials.darkStone;
             }
         }
 
@@ -219,6 +233,9 @@ namespace NightShards.Museum
             {
                 case RoomTheme.Fire: return materials.basaltWall;
                 case RoomTheme.Sea: return materials.causticWall;
+                case RoomTheme.Asia:
+                case RoomTheme.Europe:
+                case RoomTheme.Desert: return materials.plasterWall;
                 default: return materials.concreteWall;
             }
         }
@@ -230,92 +247,105 @@ namespace NightShards.Museum
 
         // ---------------------------------------------------------------- 建物
 
-        void BuildHallAndRooms()
+        // 1つのスロットに1室まで。重なった部屋は飛ばす
+        List<RoomSpec> ValidRooms()
         {
-            float t = layout.wallThickness;
-            float cw = layout.corridorWidth, ch = layout.corridorHeight, cl = layout.corridorLength;
-            Vector3 hall = layout.hallSize;
-
-            if (cl < 2f * t + 0.5f) Debug.LogWarning("[Museum] 通路が短すぎます。corridorLength を壁の厚さの2倍より長くしてください。");
-
-            // 1方向に1室まで。重なった部屋は飛ばす
-            var used = new HashSet<RoomDirection>();
+            var used = new HashSet<int>();
             var rooms = new List<RoomSpec>();
             foreach (var room in layout.rooms)
             {
-                if (!used.Add(room.direction))
+                int slot = Mathf.Clamp(room.slot, 0, MuseumLayout.SlotCount - 1);
+                if (!used.Add(slot))
                 {
-                    Debug.LogWarning($"[Museum] 「{room.name}」は {room.direction} 向きが重なっているので置きません。");
+                    Debug.LogWarning($"[Museum] 「{room.name}」はスロット {slot} が重なっているので置きません。");
                     continue;
                 }
                 rooms.Add(room);
             }
-
-            // 中央ホール。部屋のある面に出入口をあける
-            var hallDoors = new Dictionary<RoomDirection, List<float>>();
-            foreach (var room in rooms) hallDoors[room.direction] = new List<float> { 0f };
-            MuseumGeometry.Room(root, "Hall", Vector3.zero, hall.x, hall.z, hall.y, t, hallDoors, cw, ch,
-                materials.darkStone, materials.concreteWall, materials.concreteCeiling);
-            hallLights.Add(AddLight(root, "Hall Light", new Vector3(0f, hall.y - 0.2f, 0f), LightType.Spot,
-                new Color(0.8f, 0.86f, 1f), hallIntensity, hall.y + 3f, 75f, false));
-
-            foreach (var room in rooms) BuildWing(room, hall, t, cw, ch, cl);
-            BuildHallDecor(rooms, hall, ch);
+            return rooms;
         }
 
-        // ホールの空間デザイン: 壁を照らす光・天井の光のスリット・各入口の上の部屋の名前
-        void BuildHallDecor(List<RoomSpec> rooms, Vector3 hall, float ch)
+        // スロットの向き (ドームの中心から部屋へ向かう水平の向き)
+        static Vector3 SlotDirection(int slot)
         {
-            var decor = new GameObject("Hall Decor").transform;
-            decor.SetParent(root, false);
+            float a = MuseumLayout.SlotAngle(slot) * Mathf.Deg2Rad;
+            return new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a));
+        }
 
-            // 壁を照らす光: 各面に2つずつ、天井近くから壁に沿って下へ流す。コンクリートの継ぎ目とセパ穴が浮かび上がる
-            for (int d = 0; d < 4; d++)
-            {
-                Vector3 f = MuseumGeometry.Forward((RoomDirection)d);
-                Vector3 r = new Vector3(f.z, 0f, -f.x);
-                float half = Mathf.Abs(f.x) > 0.5f ? hall.x * 0.5f : hall.z * 0.5f;
-                float along = (Mathf.Abs(f.x) > 0.5f ? hall.z : hall.x) * 0.25f; // 出入口の両わき
-                foreach (float side in new[] { -1f, 1f })
-                {
-                    Vector3 pos = f * (half - 0.7f) + r * (side * along) + Vector3.up * (hall.y - 0.3f);
-                    var l = AddLight(decor, "Wall Wash", pos, LightType.Spot, new Color(1f, 0.95f, 0.88f),
-                        washIntensity, hall.y + 2f, 60f, false);
-                    l.transform.rotation = Quaternion.LookRotation(Vector3.down * 0.85f + f * 0.5f); // 真下から少し壁へ
-                    washLights.Add(l);
-                }
-            }
+        void BuildHallAndRooms()
+        {
+            float t = layout.wallThickness;
+            float cw = layout.corridorWidth, ch = layout.corridorHeight, cl = layout.corridorLength;
+            if (cl < 2f * t + 0.5f) Debug.LogWarning("[Museum] 通路が短すぎます。corridorLength を壁の厚さの2倍より長くしてください。");
 
-            // 天井の光のスリット: 中心から各部屋の入口へ向かう光の線。歩く向きへ目を導く
+            var rooms = ValidRooms();
+            BuildDome(rooms, cw, ch);
+            foreach (var room in rooms) BuildWing(room, t, cw, ch, cl);
+        }
+
+        // 中央の半球のドーム: 方位盤の床・まわりの壁 (出入口つき)・格天井・天窓と光の柱・照明・入口の上のサイン
+        void BuildDome(List<RoomSpec> rooms, float cw, float ch)
+        {
+            float R = layout.domeRadius;
+            float drum = layout.drumHeight;
+            float apex = drum + Mathf.Sqrt(Mathf.Max(0f, R * R - layout.oculusRadius * layout.oculusRadius));
+            var dome = new GameObject("Dome").transform;
+            dome.SetParent(root, false);
+
+            // 床と壁 (どちらも当たり判定つき)
+            // 床は通路の床よりわずかに高くして、重なる所のちらつきを防ぐ
+            MuseumDome.Place(dome, "Floor", MuseumDome.Disc(R + 0.05f, 128), materials.domeFloor, Vector3.up * 0.003f, true);
+            var doorAngles = new List<float>();
+            foreach (var room in rooms) doorAngles.Add(MuseumLayout.SlotAngle(room.slot));
+            MuseumDome.Place(dome, "Wall", MuseumDome.Drum(R, drum, doorAngles, cw, ch, 160), materials.domeCoffer, Vector3.zero, true);
+            MuseumDome.Place(dome, "Ceiling", MuseumDome.Dome(R, drum, layout.oculusRadius, 160, 48), materials.domeCoffer, Vector3.zero, false);
+
+            // 天窓: 穴の上に夜空の板を張り、そこから床へ光の柱と、強いスポットライトを落とす
             Shader art = artShader != null ? artShader : Shader.Find("NightShards/MuseumArt");
             if (art != null)
             {
-                var slitMat = RoomArt.MakeArt(art, "Ceiling Slit", 4, new Color(1.5f, 1.42f, 1.3f), additive: true);
-                foreach (var room in rooms)
-                {
-                    Vector3 f = MuseumGeometry.Forward(room.direction);
-                    Vector3 r = new Vector3(f.z, 0f, -f.x);
-                    float half = Mathf.Abs(f.x) > 0.5f ? hall.x * 0.5f : hall.z * 0.5f;
-                    float len = half - 0.9f;
-                    var slit = RoomArt.Panel(decor, "Ceiling Slit", f * (0.5f + len * 0.5f) + Vector3.up * (hall.y - 0.02f),
-                        Vector3.up, new Vector2(len, 0.14f), slitMat);
-                    slit.transform.localRotation = Quaternion.LookRotation(Vector3.up, r); // 板の長い辺を部屋の向きに
-                }
+                var sky = RoomArt.Panel(dome, "Oculus Sky", Vector3.up * (apex + 0.4f), Vector3.up,
+                    Vector2.one * (layout.oculusRadius * 2.6f), RoomArt.MakeArt(art, "Oculus Sky", 5, new Color(1.4f, 1.4f, 1.5f), additive: false));
+                sky.transform.localRotation = Quaternion.LookRotation(Vector3.up, Vector3.forward);
+
+                MuseumDome.Place(dome, "Light Shaft", MuseumDome.LightShaft(layout.oculusRadius * 0.95f, layout.oculusRadius * 1.35f, apex, 48),
+                    RoomArt.MakeArt(art, "Light Shaft", 6, new Color(0.9f, 0.95f, 1.15f), additive: true), Vector3.zero, false);
+            }
+            float shaftAngle = 2f * Mathf.Atan(layout.oculusRadius * 1.35f / apex) * Mathf.Rad2Deg;
+            hallLights.Add(AddLight(dome, "Oculus Light", Vector3.up * (apex + 0.2f), LightType.Spot,
+                new Color(0.82f, 0.88f, 1f), hallIntensity, apex + 4f, shaftAngle * 1.15f, false));
+
+            // 壁と天井の照明。出入口と出入口のあいだ (22.5° ずれた向き) に置く
+            for (int k = 0; k < MuseumLayout.SlotCount; k++)
+            {
+                float angle = (k + 0.5f) * 360f / MuseumLayout.SlotCount * Mathf.Deg2Rad;
+                var dir = new Vector3(Mathf.Sin(angle), 0f, Mathf.Cos(angle));
+
+                // 壁を上から照らす光: 壁ぎわの高い所から、壁に沿って下へ
+                var wash = AddLight(dome, "Wall Wash", dir * (R - 0.7f) + Vector3.up * (drum - 0.3f), LightType.Spot,
+                    new Color(1f, 0.95f, 0.88f), washIntensity, drum + 2f, 60f, false);
+                wash.transform.rotation = Quaternion.LookRotation(Vector3.down * 0.85f + dir * 0.5f);
+                washLights.Add(wash);
+
+                // 格天井を照らし上げる光: 壁の上の縁から、天井の内側をなめるように上へ。くぼみの段に陰影が出る
+                var up = AddLight(dome, "Dome Uplight", dir * (R - 0.5f) + Vector3.up * (drum - 0.15f), LightType.Spot,
+                    new Color(1f, 0.9f, 0.78f), domeUpIntensity, R * 1.6f, 70f, false);
+                up.transform.rotation = Quaternion.LookRotation(Vector3.up * 0.9f - dir * 0.45f);
+                domeUpLights.Add(up);
             }
 
-            // 入口の上のサイン: 部屋の名前と、展示している作品の名前
+            // 床の方位盤のまわりに部屋の名前、入口の上に部屋の名前と作品名
             var font = CaptionText.DefaultFont;
             var warm = new Color(1f, 0.95f, 0.86f, 0.9f);
             var dim = new Color(0.8f, 0.76f, 0.7f, 0.75f);
             foreach (var room in rooms)
             {
-                Vector3 f = MuseumGeometry.Forward(room.direction);
-                float half = Mathf.Abs(f.x) > 0.5f ? hall.x * 0.5f : hall.z * 0.5f;
-                var sign = new GameObject("Sign_" + room.name).transform;
-                sign.SetParent(decor, false);
-                sign.localPosition = f * (half - 0.005f) + Vector3.up * (ch + 0.8f);
-                sign.localRotation = Quaternion.LookRotation(f); // ホールの中から読める向き
+                Vector3 dir = SlotDirection(room.slot);
 
+                var sign = new GameObject("Sign_" + room.name).transform;
+                sign.SetParent(dome, false);
+                sign.localPosition = dir * (R - 0.12f) + Vector3.up * (ch + 0.8f); // 壁は曲がっているので、文字の端が埋まらないよう少し手前に
+                sign.localRotation = Quaternion.LookRotation(dir); // ドームの中から読める向き
                 var works = new System.Text.StringBuilder();
                 foreach (var e in room.exhibits)
                 {
@@ -326,45 +356,55 @@ namespace NightShards.Museum
                     TextAnchor.MiddleCenter, TextAlignment.Center);
                 CaptionText.Add(sign, "Works", works.ToString(), Vector3.down * 0.34f, 0.11f, dim, font, textMaterial,
                     TextAnchor.MiddleCenter, TextAlignment.Center);
+
+                // 床の文字: 方位盤の外側の輪の上に寝かせて置く。中心に立って、その方向を向くと読める
+                var floorText = new GameObject("Floor Name_" + room.name).transform;
+                floorText.SetParent(dome, false);
+                floorText.localPosition = dir * 8.1f + Vector3.up * 0.005f;
+                floorText.localRotation = Quaternion.LookRotation(Vector3.down, dir);
+                CaptionText.Add(floorText, "Name", room.name, Vector3.zero, 0.42f, new Color(0.85f, 0.7f, 0.42f, 0.85f), font, textMaterial,
+                    TextAnchor.MiddleCenter, TextAlignment.Center);
             }
         }
 
-        // 通路と展示室を1組作る
-        void BuildWing(RoomSpec room, Vector3 hall, float t, float cw, float ch, float cl)
+        // 通路と展示室を1組作る。部屋はまず「北向き (+z)」として組み、最後に親ごとスロットの向きへ回す
+        void BuildWing(RoomSpec room, float t, float cw, float ch, float cl)
         {
-            Vector3 f = MuseumGeometry.Forward(room.direction);
-            Vector3 r = new Vector3(f.z, 0f, -f.x); // f から見て右
-            float hallHalf = Mathf.Abs(f.x) > 0.5f ? hall.x * 0.5f : hall.z * 0.5f;
+            float R = layout.domeRadius;
             var wing = new GameObject("Wing_" + room.name).transform;
             wing.SetParent(root, false);
+            wing.localRotation = Quaternion.Euler(0f, MuseumLayout.SlotAngle(room.slot), 0f);
 
-            // 通路: 床はホールの内側の端から部屋の内側の端まで、天井と横壁は両側の壁の外側の面の間
-            float inner = cl - 2f * t;
-            Vector3 mid = f * (hallHalf + cl * 0.5f);
+            Vector3 f = Vector3.forward;
+            Vector3 r = Vector3.right;
+
+            // 通路: ドームの壁の少し内側から、部屋の内側の手前の端まで
+            float start = Mathf.Sqrt(Mathf.Max(0f, R * R - Mathf.Pow(cw * 0.5f + t, 2f))) - 0.05f;
+            float near = R + cl;                      // 部屋の内側の手前の端
+            float len = near - start;
+            float wallLen = len - t;                  // 横壁と天井は、部屋の壁の手前まで
+            Vector3 mid = f * (start + len * 0.5f);
+            Vector3 wallMid = f * (start + wallLen * 0.5f);
             MuseumGeometry.Box(wing, "Corridor Floor", mid + Vector3.down * (MuseumGeometry.SlabThickness * 0.5f),
-                MuseumGeometry.Size(f, cl, MuseumGeometry.SlabThickness, cw), materials.wood);
-            MuseumGeometry.Box(wing, "Corridor Ceiling", mid + Vector3.up * (ch + MuseumGeometry.SlabThickness * 0.5f),
-                MuseumGeometry.Size(f, inner, MuseumGeometry.SlabThickness, cw + 2f * t), materials.concreteCeiling);
+                new Vector3(cw, MuseumGeometry.SlabThickness, len), materials.wood);
+            MuseumGeometry.Box(wing, "Corridor Ceiling", wallMid + Vector3.up * (ch + MuseumGeometry.SlabThickness * 0.5f),
+                new Vector3(cw + 2f * t, MuseumGeometry.SlabThickness, wallLen), materials.concreteCeiling);
             for (int side = -1; side <= 1; side += 2)
             {
-                Vector3 c = mid + r * (side * (cw * 0.5f + t * 0.5f)) + Vector3.up * (ch * 0.5f);
-                MuseumGeometry.Box(wing, "Corridor Wall", c, MuseumGeometry.Size(f, inner, ch, t), materials.concreteWall);
+                Vector3 c = wallMid + r * (side * (cw * 0.5f + t * 0.5f)) + Vector3.up * (ch * 0.5f);
+                MuseumGeometry.Box(wing, "Corridor Wall", c, new Vector3(t, ch, wallLen), materials.concreteWall);
             }
-            // 通路の奥に部屋の色の光。ホールから見ると、入口ごとに違う色が漏れて見える
-            glowLights.Add(AddLight(wing, "Corridor Glow", f * (hallHalf + cl - 1f) + Vector3.up * (ch - 0.5f), LightType.Point,
+            // 通路の奥に部屋の色の光。ドームから見ると、入口ごとに違う色が漏れて見える
+            glowLights.Add(AddLight(wing, "Corridor Glow", f * (near - 1f) + Vector3.up * (ch - 0.5f), LightType.Point,
                 room.accent, glowIntensity, 6f, 0f, false));
 
-            // 展示室
-            float near = hallHalf + cl; // 部屋の内側の手前の端
+            // 展示室 (この中では北向きなので、幅が x・奥行きが z)
             Vector3 center = f * (near + room.depth * 0.5f);
-            bool alongZ = Mathf.Abs(f.z) > 0.5f;
-            float sizeX = alongZ ? room.width : room.depth;
-            float sizeZ = alongZ ? room.depth : room.width;
             var doors = new Dictionary<RoomDirection, List<float>>
             {
-                { MuseumGeometry.Opposite(room.direction), new List<float> { 0f } },
+                { RoomDirection.South, new List<float> { 0f } },
             };
-            var roomRoot = MuseumGeometry.Room(wing, "Room", center, sizeX, sizeZ, room.height, t, doors, cw, ch,
+            var roomRoot = MuseumGeometry.Room(wing, "Room", center, room.width, room.depth, room.height, t, doors, cw, ch,
                 FloorFor(room.theme), WallFor(room.theme), CeilingFor(room.theme));
             fillLights.Add(AddLight(roomRoot, "Room Fill", center + Vector3.up * (room.height * 0.75f), LightType.Point,
                 room.accent, fillIntensity, Mathf.Max(room.width, room.depth), 0f, false));
@@ -471,10 +511,9 @@ namespace NightShards.Museum
 
         void CreatePlayer()
         {
-            Vector3 hall = layout.hallSize;
             var go = new GameObject("Player");
             go.transform.SetParent(transform, false);
-            go.transform.localPosition = new Vector3(0f, 0.05f, -hall.z * 0.5f + 2f); // ホールの南の壁ぎわで、北を向いて立つ
+            go.transform.localPosition = new Vector3(0f, 0.05f, 0f); // ドームの中心、天窓の光の真下で、北 (月の間) を向いて立つ
             go.transform.localRotation = Quaternion.identity;
 
             var cc = go.AddComponent<CharacterController>();

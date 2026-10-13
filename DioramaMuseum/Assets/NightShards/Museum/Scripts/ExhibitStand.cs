@@ -11,7 +11,6 @@ namespace NightShards.Museum
         // いまシーンにある展示の一覧 (近くの作品を探すのに使う)
         public static readonly List<ExhibitStand> All = new List<ExhibitStand>();
 
-        public static readonly string[] BiomeNames = { "アルプス月夜", "火山島", "日本の夕焼け", "南国の島" };
 
         // 仮の箱をバイオームごとに色分けする (ジオラマがまだないとき)
         static readonly Color[] BiomeTints =
@@ -24,7 +23,8 @@ namespace NightShards.Museum
 
         [SerializeField] string title;
         [SerializeField, TextArea(2, 4)] string description;
-        [SerializeField] int biome;
+        [SerializeField] int biome;          // -1 はまだ作っていない作品 (仮の箱)
+        [SerializeField] string place;
         [Tooltip("鑑賞モードでカメラが回る中心")]
         [SerializeField] Transform focus;
         [Tooltip("鑑賞モードを始めたときの、中心からカメラまでの距離")]
@@ -69,7 +69,8 @@ namespace NightShards.Museum
         {
             title = spec.title;
             description = spec.description;
-            biome = Mathf.Clamp(spec.biome, 0, BiomeNames.Length - 1);
+            biome = Mathf.Clamp(spec.biome, -1, BiomeTints.Length - 1);
+            place = spec.place;
             textMaterial = parts.text;
 
             MuseumGeometry.Box(transform, "Pedestal", Vector3.up * (PedestalHeight * 0.5f),
@@ -84,7 +85,7 @@ namespace NightShards.Museum
             float size = parts.dioramaSize;
             var block = new MaterialPropertyBlock();
             GameObject go;
-            if (parts.diorama != null)
+            if (parts.diorama != null && biome >= 0)
             {
                 // ジオラマ: Cube の中を MuseumDiorama シェーダーが描く。
                 // 作品ごとの違いは _Biome (種類) と _Seed (地形の形。作品名から決める) で渡す
@@ -97,8 +98,9 @@ namespace NightShards.Museum
                 // まだジオラマがないときの仮の箱。バイオームの色を付けておく
                 go = MuseumGeometry.Box(transform, "Placeholder", Vector3.up * (PedestalHeight + size * 0.5f), Vector3.one * size, parts.placeholder);
                 go.transform.localRotation = Quaternion.Euler(0f, 20f, 0f);
-                block.SetColor("_ColorA", BiomeTints[biome]);
-                block.SetColor("_ColorB", BiomeTints[biome] * 0.8f);
+                Color tint = biome >= 0 ? BiomeTints[biome] : new Color(0.85f, 0.82f, 0.76f);
+                block.SetColor("_ColorA", tint);
+                block.SetColor("_ColorB", tint * 0.8f);
             }
             diorama = go.GetComponent<Renderer>();
             diorama.SetPropertyBlock(block);
@@ -135,7 +137,8 @@ namespace NightShards.Museum
             var warm = new Color(1f, 0.96f, 0.88f);
             var dim = new Color(0.78f, 0.74f, 0.68f);
             CaptionText.Add(caption, "Title", title, new Vector3(left, top, front), 0.034f * s, warm, parts.font, parts.text);
-            CaptionText.Add(caption, "Medium", $"{BiomeNames[biome]}　|　HLSL レイマーチング",
+            string medium = string.IsNullOrEmpty(place) ? "HLSL レイマーチング" : $"{place}　|　HLSL レイマーチング";
+            CaptionText.Add(caption, "Medium", medium,
                 new Vector3(left, top - 0.042f * s, front), 0.017f * s, dim, parts.font, parts.text);
             if (lines > 0)
                 CaptionText.Add(caption, "Description", body, new Vector3(left, top - 0.072f * s, front), 0.02f * s, warm, parts.font, parts.text);

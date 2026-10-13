@@ -9,7 +9,7 @@ namespace NightShards.Museum
     [RequireComponent(typeof(Light))]
     public class ShojiSun : MonoBehaviour
     {
-        [Tooltip("光が進む水平の向き (障子から部屋の中へ)")]
+        [Tooltip("光が進む水平の向き (障子から部屋の中へ)。部屋から見た向き")]
         public Vector3 aimFlat = Vector3.back;
         [Tooltip("見下ろす角度の範囲 (度)。小さいほど日が低く、影が長い")]
         public Vector2 pitchRange = new Vector2(20f, 40f);
@@ -52,7 +52,8 @@ namespace NightShards.Museum
             float pitch = Mathf.Lerp(pitchRange.y, pitchRange.x, s);
             Vector3 flat = new Vector3(aimFlat.x, 0f, aimFlat.z);
             if (flat.sqrMagnitude < 1e-4f) flat = Vector3.forward;
-            transform.rotation = Quaternion.LookRotation(flat.normalized) * Quaternion.Euler(pitch, 0f, 0f);
+            // 部屋は回して置かれるので、向きは親 (部屋) から見た向きで決める
+            transform.localRotation = Quaternion.LookRotation(flat.normalized) * Quaternion.Euler(pitch, 0f, 0f);
         }
 
         // 白地に黒い桟の格子。外側の縁は黒にして、光が四角く切り取られるようにする
