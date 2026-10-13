@@ -18,11 +18,11 @@ STEP_TITLE = "段階1:館の骨組みを作って、中を歩く"
 # 貼る順に並べる。(Assets からのパス, 状態, 説明)
 # 状態: "新規" = この回で初めて作るファイル / "変更" = 前回から書き換えたファイル / "そのまま" = 前回から変わっていない (貼り直さなくてよい)
 FILES = [
-    ("Assets/NightShards/Museum/Shaders/MuseumSurface.shader", "変更",
+    ("Assets/NightShards/Museum/Shaders/MuseumSurface.shader", "そのまま",
      "壁・床・天井の質感 (URP 用)。打ち放しコンクリート・木・石・漆喰を、画像なしでノイズから作る"),
     ("Assets/NightShards/Museum/Scripts/MuseumLayout.cs", "そのまま",
      "館の設計図 (部屋の数・大きさ・向き・作品)。ここを変えると館の形が変わる"),
-    ("Assets/NightShards/Museum/Scripts/MuseumMaterials.cs", "変更",
+    ("Assets/NightShards/Museum/Scripts/MuseumMaterials.cs", "そのまま",
      "館で使うマテリアル7種のまとめと、その初期の色"),
     ("Assets/NightShards/Museum/Scripts/MuseumGeometry.cs", "そのまま",
      "床・壁・天井を Cube で組む道具。壁に出入口の穴をあける"),
@@ -34,17 +34,17 @@ FILES = [
      "画面中央の照準の点と、起動時の操作説明"),
     ("Assets/NightShards/Museum/Scripts/MuseumBuilder.cs", "変更",
      "設計図を読んで館を組み立てる本体。再生時にプレイヤーと画面表示も作る"),
-    ("Assets/NightShards/Museum/Editor/MuseumMenu.cs", "変更",
+    ("Assets/NightShards/Museum/Editor/MuseumMenu.cs", "そのまま",
      "Tools メニューと Inspector のボタン。編集中のシーンに館を組み立てる。必ず Editor フォルダに置く"),
 ]
 
 NOTICE = {
-    "title": "URP 用に作り替えました (ピンク色の修正)",
+    "title": "今回の変更:明るさを Inspector で調整できるように",
     "body": [
-        "スクリーンショットの `Global Volume` と影の警告から、このプロジェクトは **URP** でした。最初のシェーダーは Built-In 用だったので、URP では必ずピンク色になっていました。",
-        "**変更** の付いた4ファイル (`MuseumSurface.shader`・`MuseumMaterials.cs`・`MuseumBuilder.cs`・`MuseumMenu.cs`) を貼り直してください。シェーダーは URP 用に書き直し、ライトの明るさも URP に合わせて上げています。",
-        "貼り直したら **Tools > Diorama Museum > 美術館を組み立てる** をもう一度選びます。前に作ったマテリアルはそのまま使われ、新しいシェーダーで描き直されます。",
-        "それでもピンク色なら、`MuseumSurface` を選んだときに Inspector に出るエラー文と、Console の赤いメッセージを貼ってください。",
+        "館がかなり暗かったので、ライトの初期値を上げました。あわせて `Museum` の Inspector に **明るさ** の欄を作り、**Brightness** (全体の倍率) や各ライトの値を変えると、**再生中でもその場で**明るさが変わるようにしました。",
+        "**変更** の付いた `MuseumBuilder.cs` だけを貼り直してください。そのあと `Museum` の Inspector 右上の **⋮ > Reset** を押して新しい初期値にし、**組み立て直す** を押します (Reset は Layout も初期設定に戻します)。",
+        "再生して、Brightness を動かしながら好みの明るさを探してください。決まった値を教えてもらえれば、それを初期値にします。",
+        "**Directional Light のチェックが外れているのは意図どおりです。** 屋内の美術館なので太陽の光は使わず、スポットライトだけで照らしています。残したいときは `Museum` の **Take Over Scene** を外してから組み立て直し、Directional Light のチェックを自分で入れ直してください。",
     ],
 }
 
@@ -290,7 +290,9 @@ TROUBLE = [
     ("Reduced additional punctual light shadows resolution by 2 to make 8 shadow maps fit in the 2048x2048 shadow atlas",
      "エラーではなく、影の数が多いという URP のお知らせ。気になるときは、URP のアセット (Settings フォルダの PC_RPAsset など) の Lighting > Additional Lights > Shadow Atlas Resolution を 4096 にするか、`Museum` の Layout > Spot Shadows を外す。"),
     ("光だまりが暗い / 明るすぎる",
-     "`Museum` の Inspector の **明るさ** にある Spot Intensity などを変えて、**組み立て直す** を押す。"),
+     "`Museum` の Inspector の **明るさ** の Brightness (全体) や Spot Intensity などを変える。再生中でもその場で変わる。変わらないときは、一度 **組み立て直す** を押す (前の版で組み立てた建物は、ライトを覚えていないため)。"),
+    ("[Museum] URP のアセット「…」の Lighting > Additional Lights が … になっています",
+     "URP の設定で、スポットライトなどの追加のライトが切られているか、頂点単位になっている。Console のメッセージをクリックすると URP のアセットが選ばれるので、Lighting > Additional Lights を **Per Pixel** にする。"),
     ("[Museum] シェーダー NightShards/MuseumSurface が見つかりません",
      "シェーダーの1行目が `Shader \"NightShards/MuseumSurface\"` になっているか確認する。貼る前の中身が残っていないかも見る。"),
     ("床や壁がピンク色",

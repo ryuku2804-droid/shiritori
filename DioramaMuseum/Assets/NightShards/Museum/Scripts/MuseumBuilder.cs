@@ -17,23 +17,35 @@ namespace NightShards.Museum
         [Tooltip("Tools メニューで組み立てると、保存したマテリアルがここに入る")]
         [SerializeField] MuseumMaterials materials = new MuseumMaterials();
 
-        [Tooltip("シーンにもとからある Directional Light を止め、再生中は元の Main Camera も止める (暗い館内にするため)")]
+        [Tooltip("シーンにもとからある Directional Light (太陽の光) を止め、再生中は元の Main Camera も止める。" +
+                 "屋内なので太陽の光は使わない。外すと、Directional Light はそのまま残る")]
         [SerializeField] bool takeOverScene = true;
 
-        [Header("空気感")]
-        [SerializeField] Color ambient = new Color(0.025f, 0.025f, 0.03f);
-        [SerializeField] Color fogColor = new Color(0.01f, 0.01f, 0.012f);
-        [SerializeField] float fogDensity = 0.035f;
+        [Header("明るさ (再生中に動かすと、その場で変わる)")]
+        [Tooltip("すべてのライトと環境光にかける倍率")]
+        [SerializeField, Range(0.25f, 4f)] float brightness = 1f;
+        [Tooltip("影の部分の明るさ (どこにも光が当たっていない所の色)")]
+        [SerializeField] Color ambient = new Color(0.06f, 0.06f, 0.07f);
+        // URP のライトは距離の2乗で暗くなるので、高めの値になる
+        [Tooltip("台座の真上のスポットライト")] [SerializeField] float spotIntensity = 60f;
+        [Tooltip("ホールの天井のライト")] [SerializeField] float hallIntensity = 40f;
+        [Tooltip("通路の奥の色の光")] [SerializeField] float glowIntensity = 12f;
+        [Tooltip("展示室全体のほのかな光")] [SerializeField] float fillIntensity = 10f;
 
-        [Header("明るさ (URP のライトは距離の2乗で暗くなるので、高めの値になる)")]
-        [Tooltip("台座の真上のスポットライト")] [SerializeField] float spotIntensity = 30f;
-        [Tooltip("ホールの天井のライト")] [SerializeField] float hallIntensity = 20f;
-        [Tooltip("通路の奥の色の光")] [SerializeField] float glowIntensity = 6f;
-        [Tooltip("展示室全体のほのかな光")] [SerializeField] float fillIntensity = 3f;
+        [Header("霧")]
+        [SerializeField] Color fogColor = new Color(0.01f, 0.01f, 0.012f);
+        [Tooltip("大きいほど奥が暗く沈む")]
+        [SerializeField] float fogDensity = 0.025f;
 
         // 組み立てた建物の親。Tools メニューで組み立てた場合は、シーンに保存されている
         [SerializeField, HideInInspector] Transform root;
         [SerializeField, HideInInspector] List<Transform> exhibitAnchors = new List<Transform>();
+
+        // 明るさをあとから変えられるように、作ったライトを種類ごとに覚えておく
+        [SerializeField, HideInInspector] List<Light> spotLights = new List<Light>();
+        [SerializeField, HideInInspector] List<Light> hallLights = new List<Light>();
+        [SerializeField, HideInInspector] List<Light> glowLights = new List<Light>();
+        [SerializeField, HideInInspector] List<Light> fillLights = new List<Light>();
 
         public MuseumLayout Layout => layout;
         public Shader SurfaceShader => surfaceShader;
@@ -51,10 +63,23 @@ namespace NightShards.Museum
             layout = MuseumLayout.CreateDefault();
         }
 
+        // Inspector で値を変えたとき。建物があれば、ライトの明るさと環境光だけをその場で直す
+        void OnValidate()
+        {
+            if (root != null) ApplyLighting();
+        }
+
         void Awake()
         {
-            if (root == null) Build();
-            else ApplyEnvironment();
+            if (root == null)
+            {
+                Build();
+            }
+            else
+            {
+                ApplyEnvironment();
+                ApplyLighting();
+            }
 
             if (takeOverScene)
                 foreach (var cam in FindObjectsByType<Camera>(FindObjectsSortMode.None))
@@ -70,7 +95,7 @@ namespace NightShards.Museum
         public void Build()
         {
             Clear();
-            MuseumMaterials.WarnIfNotUniversalPipeline();
+            if (!MuseumMaterials.WarnIfNotUniversalPipeline()) WarnIfAdditionalLightsOff();
             ApplyEnvironment();
             materials.FillMissing(MuseumMaterials.FindShader(surfaceShader));
 
@@ -79,6 +104,7 @@ namespace NightShards.Museum
             exhibitAnchors.Clear();
 
             BuildHallAndRooms();
+            ApplyLighting();
         }
 
         // 組み立てた建物を消す
@@ -91,6 +117,10 @@ namespace NightShards.Museum
             }
             root = null;
             exhibitAnchors.Clear();
+            spotLights.Clear();
+            hallLights.Clear();
+            glowLights.Clear();
+            fillLights.Clear();
         }
 
         // 暗く静かな館内にする。空の光は使わず、ほぼ黒の環境光と、黒い霧で奥を沈める
@@ -102,16 +132,43 @@ namespace NightShards.Museum
 
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-            RenderSettings.ambientLight = ambient;
-            // URP は環境光を ambientProbe から読むので、同じ色で直接作っておく
-            var probe = new UnityEngine.Rendering.SphericalHarmonicsL2();
-            probe.AddAmbientLight(ambient);
-            RenderSettings.ambientProbe = probe;
             RenderSettings.reflectionIntensity = 0.15f;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.fogColor = fogColor;
             RenderSettings.fogDensity = fogDensity;
+        }
+
+        // ライトの明るさと環境光に、いまの設定を入れ直す
+        public void ApplyLighting()
+        {
+            SetIntensity(spotLights, spotIntensity);
+            SetIntensity(hallLights, hallIntensity);
+            SetIntensity(glowLights, glowIntensity);
+            SetIntensity(fillLights, fillIntensity);
+
+            Color amb = ambient * brightness;
+            RenderSettings.ambientLight = amb;
+            // URP は環境光を ambientProbe から読むので、同じ色で直接作っておく
+            var probe = new UnityEngine.Rendering.SphericalHarmonicsL2();
+            probe.AddAmbientLight(amb);
+            RenderSettings.ambientProbe = probe;
+        }
+
+        void SetIntensity(List<Light> lights, float intensity)
+        {
+            foreach (var l in lights)
+                if (l != null) l.intensity = intensity * brightness;
+        }
+
+        // URP の設定で「追加のライト」(スポットライトや点光源) が切られていると、館はほぼ真っ暗になる
+        static void WarnIfAdditionalLightsOff()
+        {
+            var urp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
+            if (urp == null) return;
+            if (urp.additionalLightsRenderingMode != UnityEngine.Rendering.Universal.LightRenderingMode.PerPixel)
+                Debug.LogWarning($"[Museum] URP のアセット「{urp.name}」の Lighting > Additional Lights が " +
+                                 $"{urp.additionalLightsRenderingMode} になっています。Per Pixel にしないと、スポットライトがほとんど効きません。", urp);
         }
 
         Material FloorFor(RoomTheme theme)
@@ -152,8 +209,8 @@ namespace NightShards.Museum
             foreach (var room in rooms) hallDoors[room.direction] = new List<float> { 0f };
             MuseumGeometry.Room(root, "Hall", Vector3.zero, hall.x, hall.z, hall.y, t, hallDoors, cw, ch,
                 materials.darkStone, materials.concreteWall, materials.concreteCeiling);
-            AddLight(root, "Hall Light", new Vector3(0f, hall.y - 0.2f, 0f), LightType.Spot,
-                new Color(0.8f, 0.86f, 1f), hallIntensity, hall.y + 3f, 75f, false);
+            hallLights.Add(AddLight(root, "Hall Light", new Vector3(0f, hall.y - 0.2f, 0f), LightType.Spot,
+                new Color(0.8f, 0.86f, 1f), hallIntensity, hall.y + 3f, 75f, false));
 
             foreach (var room in rooms) BuildWing(room, hall, t, cw, ch, cl);
         }
@@ -180,8 +237,8 @@ namespace NightShards.Museum
                 MuseumGeometry.Box(wing, "Corridor Wall", c, MuseumGeometry.Size(f, inner, ch, t), materials.concreteWall);
             }
             // 通路の奥に部屋の色の光。ホールから見ると、入口ごとに違う色が漏れて見える
-            AddLight(wing, "Corridor Glow", f * (hallHalf + cl - 1f) + Vector3.up * (ch - 0.5f), LightType.Point,
-                room.accent, glowIntensity, 6f, 0f, false);
+            glowLights.Add(AddLight(wing, "Corridor Glow", f * (hallHalf + cl - 1f) + Vector3.up * (ch - 0.5f), LightType.Point,
+                room.accent, glowIntensity, 6f, 0f, false));
 
             // 展示室
             float near = hallHalf + cl; // 部屋の内側の手前の端
@@ -195,8 +252,8 @@ namespace NightShards.Museum
             };
             var roomRoot = MuseumGeometry.Room(wing, "Room", center, sizeX, sizeZ, room.height, t, doors, cw, ch,
                 FloorFor(room.theme), materials.concreteWall, materials.concreteCeiling);
-            AddLight(roomRoot, "Room Fill", center + Vector3.up * (room.height * 0.75f), LightType.Point,
-                room.accent, fillIntensity, Mathf.Max(room.width, room.depth), 0f, false);
+            fillLights.Add(AddLight(roomRoot, "Room Fill", center + Vector3.up * (room.height * 0.75f), LightType.Point,
+                room.accent, fillIntensity, Mathf.Max(room.width, room.depth), 0f, false));
 
             BuildExhibits(room, roomRoot, f, r, near);
         }
@@ -227,8 +284,8 @@ namespace NightShards.Museum
                 exhibitAnchors.Add(anchor);
 
                 // 台座の真上から落とすスポットライト。床に光だまりができる
-                AddLight(stand, "Spot", Vector3.up * (room.height - 0.25f), LightType.Spot,
-                    new Color(1f, 0.94f, 0.84f), spotIntensity, room.height + 2f, 34f, layout.spotShadows);
+                spotLights.Add(AddLight(stand, "Spot", Vector3.up * (room.height - 0.25f), LightType.Spot,
+                    new Color(1f, 0.94f, 0.84f), spotIntensity, room.height + 2f, 34f, layout.spotShadows));
             }
         }
 

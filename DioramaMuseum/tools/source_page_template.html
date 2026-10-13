@@ -334,6 +334,8 @@ button.copy.done { background: var(--ok-fg); }
     btn._t = setTimeout(() => { btn.textContent = 'コピー'; btn.classList.remove('done'); }, 1800);
   }
 
-  show(0);
+  // 最初は、貼る必要のある (新規・変更の) 最初のファイルを出す
+  const firstToPaste = data.files.findIndex(f => f.status !== 'そのまま');
+  show(firstToPaste >= 0 ? firstToPaste : 0);
 })();
 </script>
