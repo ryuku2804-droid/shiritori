@@ -7,8 +7,6 @@ STEP_TITLE = "段階3:展示室そのものをアートにする"
 
 # 貼る順に並べる。(Assets からのパス, 状態, 説明)
 FILES = [
-    ("Assets/NightShards/Museum/Shaders/MuseumNoise.hlsl", "新規",
-     "シェーダーで共有するノイズ (ひび割れ・水の光など)。MuseumSurface と MuseumArt が読み込む"),
     ("Assets/NightShards/Museum/Shaders/MuseumSurface.shader", "変更",
      "黒曜石と溶岩のひび・水盤・水の光の3種類を追加。光の型紙 (クッキー) にも対応"),
     ("Assets/NightShards/Museum/Shaders/MuseumArt.shader", "新規",
@@ -35,6 +33,14 @@ FILES = [
     ("Assets/NightShards/Museum/Scripts/MuseumInput.cs", "そのまま", "キーとマウスの読み取り"),
     ("Assets/NightShards/Museum/Scripts/FirstPersonController.cs", "そのまま", "一人称で歩く"),
 ]
+
+NOTICE = {
+    "title": "MuseumNoise.hlsl は不要になりました",
+    "body": [
+        "`MuseumNoise.hlsl` は Unity のメニューから作れないので、使わない形に変えました。作りかけていたら消してかまいません。",
+        "新しく作るのは `MuseumArt` (**右クリック > Create > Shader > Unlit Shader**) だけです。`MuseumSurface.shader` と `MuseumArt.shader` は、右の最新のものを貼ってください (すでに貼っていても、もう一度貼り直してください)。",
+    ],
+}
 
 OVERVIEW = ("4つの展示室を、それぞれのジオラマから生まれたインスタレーションにします。"
             "**月の間**は揺れる黒い水盤と、壁の大きな月、天井から下がる無数の光の糸。"
@@ -66,18 +72,9 @@ PHASES = [
         "title": "ファイルを入れる",
         "steps": [
             {
-                "title": "共有のノイズのファイルを作る",
-                "body": [
-                    "`MuseumNoise.hlsl` はシェーダーではなく「読み込まれる部品」なので、Unity のメニューからは作れない。",
-                    "Project ウィンドウで `Shaders` フォルダを右クリック > **Show in Explorer** (Mac は Reveal in Finder)。開いたフォルダに、メモ帳などで `MuseumNoise.hlsl` という名前のファイルを作り、右の中身を貼って保存する (文字コードは UTF-8)。",
-                    "Unity に戻ると、Shaders フォルダに MuseumNoise が出てくる。",
-                ],
-                "ok": "Shaders フォルダに `MuseumNoise` (アイコンが文書のもの) がある。",
-            },
-            {
                 "title": "シェーダーを足す・貼り直す",
                 "body": [
-                    "`Shaders` で **Create > Shader > Unlit Shader**、名前を `MuseumArt` にして、中身を右のものに置き換える。",
+                    "`Shaders` フォルダを右クリック > **Create > Shader > Unlit Shader**。名前を `MuseumArt` にして、中身を右のものに置き換える。",
                     "`MuseumSurface.shader` は中身を右の新しいものに置き換える。",
                 ],
                 "ok": "`MuseumSurface` と `MuseumArt` を選ぶと、どちらも Inspector に赤いエラーがない。",
@@ -156,10 +153,8 @@ CHECKS = [
 ]
 
 TROUBLE = [
-    ("Couldn't open include file 'MuseumNoise.hlsl'",
-     "`MuseumNoise.hlsl` が、`MuseumSurface.shader` と `MuseumArt.shader` と同じフォルダにない。ファイル名の拡張子が `.hlsl.txt` になっていないかも確認する (エクスプローラーで拡張子を表示する)。"),
     ("床や壁がピンク色 (段階3から)",
-     "`MuseumSurface` を選んで Inspector のエラー文を見る。たいていは上の MuseumNoise.hlsl の問題。"),
+     "`MuseumSurface` を選んで Inspector のエラー文を見て、その文を貼ってください。"),
     ("[Museum] シェーダー NightShards/MuseumArt が見つかりません",
      "`MuseumArt.shader` の1行目が `Shader \"NightShards/MuseumArt\"` になっているか確認する。"),
     ("夕の間の床に格子の影が出ない",
