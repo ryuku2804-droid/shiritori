@@ -33,6 +33,8 @@ namespace NightShards.Museum
 
         public ExhibitStand Current { get; private set; }
         public bool IsViewing => mode != Mode.Walking;
+        // 0 = 目の位置、1 = 鑑賞の位置 (画面の仕上げのぼかしに使う)
+        public float Blend => blend * blend * (3f - 2f * blend);
 
         enum Mode { Walking, Viewing, Leaving }
         Mode mode = Mode.Walking;
@@ -55,7 +57,12 @@ namespace NightShards.Museum
 
                 case Mode.Viewing:
                     if (MuseumInput.InteractPressed || MuseumInput.BackPressed) Leave();
-                    else ReadOrbitInput();
+                    else
+                    {
+                        // Space: 作品の仕掛けを動かす
+                        if (MuseumInput.JumpPressed && Current.Work != null) Current.Work.Trigger();
+                        ReadOrbitInput();
+                    }
                     break;
             }
 
@@ -106,7 +113,8 @@ namespace NightShards.Museum
             body.ManageCursor = false;
             FirstPersonController.SetCursorLocked(false); // ドラッグするのでカーソルを出す
             SetPrompt("");
-            SetHint($"{stand.Title}　　ドラッグ  回す　　ホイール  寄る・離れる　　E / Esc  戻る");
+            string trick = stand.Work != null ? "　　Space  仕掛け" : "";
+            SetHint($"{stand.Title}　　ドラッグ  回す　　ホイール  寄る・離れる{trick}　　E / Esc  戻る");
             if (MuseumHUD.Instance != null) MuseumHUD.Instance.ShowCrosshair = false;
         }
 
@@ -167,6 +175,13 @@ namespace NightShards.Museum
             Vector3 center = Current.FocusPoint;
             Quaternion orbit = Quaternion.Euler(pitch, yaw, 0f);
             Vector3 orbitPos = center + orbit * new Vector3(0f, 0f, -distance);
+            // 仕掛けが動いている間は、地響きのようにカメラを小さく揺らす
+            if (Current.Work != null && Current.Work.Value > 0f)
+            {
+                float s = Time.time * 23f;
+                var shake = new Vector3(Mathf.PerlinNoise(s, 0.1f) - 0.5f, Mathf.PerlinNoise(0.3f, s) - 0.5f, Mathf.PerlinNoise(s, 0.7f) - 0.5f);
+                orbitPos += shake * (0.012f * Current.Work.Value * distance);
+            }
             Quaternion orbitRot = Quaternion.LookRotation(center - orbitPos);
 
             // 目の位置 (カメラの親) と鑑賞の位置のあいだを t で混ぜる

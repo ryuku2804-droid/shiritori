@@ -20,7 +20,9 @@ namespace NightShards.Museum
         [Tooltip("キャプションの2行目に出す場所の名前")]
         public string place = "";
         [TextArea(2, 4)] public string description = "";
-        [Tooltip("ジオラマの描き方。0 雪山 / 1 火山 / 2 日本 / 3 南の海。-1 はまだ作っていない作品 (仮の箱を置く)")]
+        [Tooltip("作品専用のシェーダーの名前 (例: Eruption → NightShards/Diorama/Eruption)。空なら下の biome で共通のジオラマを描く")]
+        public string work = "";
+        [Tooltip("共通のジオラマの描き方。0 雪山 / 1 火山 / 2 日本 / 3 南の海。-1 はまだ作っていない作品 (仮の箱を置く)")]
         [Range(-1, 3)] public int biome = 0;
     }
 
@@ -106,8 +108,18 @@ namespace NightShards.Museum
         {
             var room = new RoomSpec { name = name, theme = theme, slot = slot, accent = accent };
             foreach (var w in works)
-                room.exhibits.Add(new ExhibitSpec { title = w.title, place = w.place, description = w.desc, biome = w.biome });
+                room.exhibits.Add(new ExhibitSpec { title = w.title, place = w.place, description = w.desc, biome = w.biome, work = WorkFor(w.title) });
             return room;
+        }
+
+        // 作品専用のシェーダーができている作品の名前。作品を1つ作り込むたびに、ここに足す
+        public static string WorkFor(string title)
+        {
+            switch (title)
+            {
+                case "大噴火": return "Eruption";
+                default: return "";
+            }
         }
     }
 }

@@ -25,6 +25,8 @@ namespace NightShards.Museum
         [SerializeField, TextArea(2, 4)] string description;
         [SerializeField] int biome;          // -1 はまだ作っていない作品 (仮の箱)
         [SerializeField] string place;
+        [SerializeField] DioramaWork work;   // 作品専用のシェーダーで描くときの、仕掛けの係
+        [SerializeField] string workName;
         [Tooltip("鑑賞モードでカメラが回る中心")]
         [SerializeField] Transform focus;
         [Tooltip("鑑賞モードを始めたときの、中心からカメラまでの距離")]
@@ -38,6 +40,7 @@ namespace NightShards.Museum
         public Vector3 FocusPoint => focus != null ? focus.position : transform.position + Vector3.up * 1.4f;
         public float ViewDistance => viewDistance;
         public Renderer Diorama => diorama;
+        public DioramaWork Work => work;
 
         // 組み立てに使う部品のまとめ
         public struct Parts
@@ -45,7 +48,8 @@ namespace NightShards.Museum
             public Material pedestal;
             public Material placeholder;
             public Material plate;
-            public Material diorama;     // 既存の Diorama.shader のマテリアル。空なら仮の箱
+            public Material diorama;     // 共通のジオラマ (MuseumDiorama) のマテリアル。空なら仮の箱
+            public System.Func<string, Material> workMaterial; // 作品名 (work) から、作品専用のマテリアルを返す。なければ null
             public float dioramaSize;
             public Material text;
             public Font font;
@@ -71,6 +75,7 @@ namespace NightShards.Museum
             description = spec.description;
             biome = Mathf.Clamp(spec.biome, -1, BiomeTints.Length - 1);
             place = spec.place;
+            workName = spec.work;
             textMaterial = parts.text;
 
             MuseumGeometry.Box(transform, "Pedestal", Vector3.up * (PedestalHeight * 0.5f),
@@ -85,7 +90,16 @@ namespace NightShards.Museum
             float size = parts.dioramaSize;
             var block = new MaterialPropertyBlock();
             GameObject go;
-            if (parts.diorama != null && biome >= 0)
+            Material special = !string.IsNullOrEmpty(workName) && parts.workMaterial != null ? parts.workMaterial(workName) : null;
+            if (special != null)
+            {
+                // 作品専用のシェーダー (例: NightShards/Diorama/Eruption) で描く。仕掛けは DioramaWork が動かす
+                go = MuseumGeometry.Box(transform, "Diorama", Vector3.up * (PedestalHeight + size * 0.5f), Vector3.one * size, special);
+                block.SetFloat("_Seed", SeedFromTitle(title));
+                work = go.AddComponent<DioramaWork>();
+                work.Setup(workName);
+            }
+            else if (parts.diorama != null && biome >= 0)
             {
                 // ジオラマ: Cube の中を MuseumDiorama シェーダーが描く。
                 // 作品ごとの違いは _Biome (種類) と _Seed (地形の形。作品名から決める) で渡す

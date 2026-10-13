@@ -424,11 +424,20 @@ namespace NightShards.Museum
                 accent = room.accent,
                 exhibits = exhibitPositions,
             };
-            foreach (var l in RoomArt.Build(room.theme, info, artShader))
+            var roomLights = RoomArt.Build(room.theme, info, artShader);
+            foreach (var l in roomLights)
             {
                 artLights.Add(l);
                 artLightBase.Add(l.intensity);
             }
+
+            // 部屋とジオラマの連動: 仕掛けが動くと、部屋の照明と床の光が一緒に脈打つ
+            var reactLights = new List<Light>(roomLights);
+            reactLights.Add(fillLights[fillLights.Count - 1]);
+            var floorTransform = roomRoot.Find("Floor");
+            bool fire = room.theme == RoomTheme.Fire;
+            roomRoot.gameObject.AddComponent<RoomReactor>().Setup(reactLights,
+                floorTransform != null ? floorTransform.GetComponent<Renderer>() : null, fire ? 3f : 1.6f, fire ? 4f : 1.5f);
         }
 
         // ジオラマのマテリアル。欄が空なら、MuseumDiorama シェーダーでその場で作る (見つからなければ仮の箱になる)
@@ -447,6 +456,22 @@ namespace NightShards.Museum
             return runtimeDiorama;
         }
 
+        // 作品専用のマテリアル。シェーダー NightShards/Diorama/〇〇 があれば作る (同じ作品は1つを使い回す)
+        readonly Dictionary<string, Material> workMaterials = new Dictionary<string, Material>();
+        Material MaterialForWork(string work)
+        {
+            if (workMaterials.TryGetValue(work, out var cached) && cached != null) return cached;
+            Shader s = Shader.Find("NightShards/Diorama/" + work);
+            if (s == null)
+            {
+                Debug.LogWarning($"[Museum] シェーダー NightShards/Diorama/{work} が見つからないので、共通のジオラマで描きます。");
+                return null;
+            }
+            var m = new Material(s) { name = "Diorama " + work };
+            workMaterials[work] = m;
+            return m;
+        }
+
         // 部屋の幅いっぱいに、等間隔で台座を並べる。台座は入口のほうを向く
         List<Vector3> BuildExhibits(RoomSpec room, Transform parent, Vector3 f, Vector3 r, float near)
         {
@@ -457,6 +482,7 @@ namespace NightShards.Museum
                 placeholder = materials.placeholder,
                 plate = materials.pedestal,
                 diorama = DioramaMaterialOrDefault(),
+                workMaterial = MaterialForWork,
                 dioramaSize = dioramaSize,
                 text = textMaterial,
                 font = CaptionText.DefaultFont,
@@ -467,6 +493,8 @@ namespace NightShards.Museum
             for (int i = 0; i < n; i++)
             {
                 var spec = room.exhibits[i];
+                // 前に保存した設計図には作品専用のシェーダーの名前が入っていないので、作品名から補う
+                if (string.IsNullOrEmpty(spec.work)) spec.work = MuseumLayout.WorkFor(spec.title);
                 float across = -room.width * 0.5f + room.width * (i + 1) / (n + 1);
                 Vector3 pos = f * (near + room.depth * 0.55f) + r * across;
 
@@ -554,6 +582,10 @@ namespace NightShards.Museum
             lod.viewer = viewer;
 
             go.AddComponent<PerfDebug>(); // F1〜F5 で重さを調べる
+
+            var post = go.AddComponent<MuseumPost>(); // ブルーム・トーンマップ・鑑賞モードのぼかし
+            post.viewer = viewer;
+            post.viewCamera = cam;
         }
     }
 }
