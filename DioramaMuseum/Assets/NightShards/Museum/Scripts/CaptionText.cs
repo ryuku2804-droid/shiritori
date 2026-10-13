@@ -53,6 +53,13 @@ namespace NightShards.Museum
         public static TextMesh Add(Transform parent, string name, string text, Vector3 localPos, float lineHeight,
             Color color, Font font, Material mat)
         {
+            return Add(parent, name, text, localPos, lineHeight, color, font, mat, TextAnchor.UpperLeft, TextAlignment.Left);
+        }
+
+        // そろえ方を指定する版 (サインなど、中央そろえにしたいとき)
+        public static TextMesh Add(Transform parent, string name, string text, Vector3 localPos, float lineHeight,
+            Color color, Font font, Material mat, TextAnchor anchor, TextAlignment alignment)
+        {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             go.transform.localPosition = localPos;
@@ -61,8 +68,8 @@ namespace NightShards.Museum
             tm.font = font;
             tm.fontSize = FontSize;
             tm.characterSize = lineHeight * 10f / FontSize;
-            tm.anchor = TextAnchor.UpperLeft;
-            tm.alignment = TextAlignment.Left;
+            tm.anchor = anchor;
+            tm.alignment = alignment;
             tm.lineSpacing = 1.1f;
             tm.color = color;
             tm.text = text;

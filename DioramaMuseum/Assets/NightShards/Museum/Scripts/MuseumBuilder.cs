@@ -44,6 +44,7 @@ namespace NightShards.Museum
         [Tooltip("ホールの天井のライト")] [SerializeField] float hallIntensity = 40f;
         [Tooltip("通路の奥の色の光")] [SerializeField] float glowIntensity = 12f;
         [Tooltip("展示室全体のほのかな光")] [SerializeField] float fillIntensity = 10f;
+        [Tooltip("ホールの壁を上から照らす光")] [SerializeField] float washIntensity = 18f;
 
         [Header("霧")]
         [SerializeField] Color fogColor = new Color(0.01f, 0.01f, 0.012f);
@@ -59,6 +60,7 @@ namespace NightShards.Museum
         [SerializeField, HideInInspector] List<Light> hallLights = new List<Light>();
         [SerializeField, HideInInspector] List<Light> glowLights = new List<Light>();
         [SerializeField, HideInInspector] List<Light> fillLights = new List<Light>();
+        [SerializeField, HideInInspector] List<Light> washLights = new List<Light>();
         // 展示室のアートのライト。作ったときの明るさを覚えておき、Brightness をかける
         [SerializeField, HideInInspector] List<Light> artLights = new List<Light>();
         [SerializeField, HideInInspector] List<float> artLightBase = new List<float>();
@@ -141,6 +143,7 @@ namespace NightShards.Museum
             hallLights.Clear();
             glowLights.Clear();
             fillLights.Clear();
+            washLights.Clear();
             artLights.Clear();
             artLightBase.Clear();
         }
@@ -168,6 +171,7 @@ namespace NightShards.Museum
             SetIntensity(hallLights, hallIntensity);
             SetIntensity(glowLights, glowIntensity);
             SetIntensity(fillLights, fillIntensity);
+            SetIntensity(washLights, washIntensity);
             for (int i = 0; i < artLights.Count && i < artLightBase.Count; i++)
                 if (artLights[i] != null) artLights[i].intensity = artLightBase[i] * brightness;
 
@@ -254,6 +258,73 @@ namespace NightShards.Museum
                 new Color(0.8f, 0.86f, 1f), hallIntensity, hall.y + 3f, 75f, false));
 
             foreach (var room in rooms) BuildWing(room, hall, t, cw, ch, cl);
+            BuildHallDecor(rooms, hall, ch);
+        }
+
+        // ホールの空間デザイン: 壁を照らす光・天井の光のスリット・各入口の上の部屋の名前
+        void BuildHallDecor(List<RoomSpec> rooms, Vector3 hall, float ch)
+        {
+            var decor = new GameObject("Hall Decor").transform;
+            decor.SetParent(root, false);
+
+            // 壁を照らす光: 各面に2つずつ、天井近くから壁に沿って下へ流す。コンクリートの継ぎ目とセパ穴が浮かび上がる
+            for (int d = 0; d < 4; d++)
+            {
+                Vector3 f = MuseumGeometry.Forward((RoomDirection)d);
+                Vector3 r = new Vector3(f.z, 0f, -f.x);
+                float half = Mathf.Abs(f.x) > 0.5f ? hall.x * 0.5f : hall.z * 0.5f;
+                float along = (Mathf.Abs(f.x) > 0.5f ? hall.z : hall.x) * 0.25f; // 出入口の両わき
+                foreach (float side in new[] { -1f, 1f })
+                {
+                    Vector3 pos = f * (half - 0.7f) + r * (side * along) + Vector3.up * (hall.y - 0.3f);
+                    var l = AddLight(decor, "Wall Wash", pos, LightType.Spot, new Color(1f, 0.95f, 0.88f),
+                        washIntensity, hall.y + 2f, 60f, false);
+                    l.transform.rotation = Quaternion.LookRotation(Vector3.down * 0.85f + f * 0.5f); // 真下から少し壁へ
+                    washLights.Add(l);
+                }
+            }
+
+            // 天井の光のスリット: 中心から各部屋の入口へ向かう光の線。歩く向きへ目を導く
+            Shader art = artShader != null ? artShader : Shader.Find("NightShards/MuseumArt");
+            if (art != null)
+            {
+                var slitMat = RoomArt.MakeArt(art, "Ceiling Slit", 4, new Color(1.5f, 1.42f, 1.3f), additive: true);
+                foreach (var room in rooms)
+                {
+                    Vector3 f = MuseumGeometry.Forward(room.direction);
+                    Vector3 r = new Vector3(f.z, 0f, -f.x);
+                    float half = Mathf.Abs(f.x) > 0.5f ? hall.x * 0.5f : hall.z * 0.5f;
+                    float len = half - 0.9f;
+                    var slit = RoomArt.Panel(decor, "Ceiling Slit", f * (0.5f + len * 0.5f) + Vector3.up * (hall.y - 0.02f),
+                        Vector3.up, new Vector2(len, 0.14f), slitMat);
+                    slit.transform.localRotation = Quaternion.LookRotation(Vector3.up, r); // 板の長い辺を部屋の向きに
+                }
+            }
+
+            // 入口の上のサイン: 部屋の名前と、展示している作品の名前
+            var font = CaptionText.DefaultFont;
+            var warm = new Color(1f, 0.95f, 0.86f, 0.9f);
+            var dim = new Color(0.8f, 0.76f, 0.7f, 0.75f);
+            foreach (var room in rooms)
+            {
+                Vector3 f = MuseumGeometry.Forward(room.direction);
+                float half = Mathf.Abs(f.x) > 0.5f ? hall.x * 0.5f : hall.z * 0.5f;
+                var sign = new GameObject("Sign_" + room.name).transform;
+                sign.SetParent(decor, false);
+                sign.localPosition = f * (half - 0.005f) + Vector3.up * (ch + 0.8f);
+                sign.localRotation = Quaternion.LookRotation(f); // ホールの中から読める向き
+
+                var works = new System.Text.StringBuilder();
+                foreach (var e in room.exhibits)
+                {
+                    if (works.Length > 0) works.Append("　・　");
+                    works.Append(e.title);
+                }
+                CaptionText.Add(sign, "Name", room.name, Vector3.zero, 0.34f, warm, font, textMaterial,
+                    TextAnchor.MiddleCenter, TextAlignment.Center);
+                CaptionText.Add(sign, "Works", works.ToString(), Vector3.down * 0.34f, 0.11f, dim, font, textMaterial,
+                    TextAnchor.MiddleCenter, TextAlignment.Center);
+            }
         }
 
         // 通路と展示室を1組作る

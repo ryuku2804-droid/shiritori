@@ -1,12 +1,12 @@
 // 展示室のアート (光るもの) 用の URP シェーダー。光は受けず、自分で光る。ブルームがあればにじんで見える。
 // _Mode で種類を切り替える:
-//   0 月の円盤 / 1 天井から下がる光の糸 / 2 夕日の透ける障子 / 3 火の粉 (パーティクル)
+//   0 月の円盤 / 1 天井から下がる光の糸 / 2 夕日の透ける障子 / 3 火の粉 (パーティクル) / 4 天井の光のスリット
 // 重ね方は _SrcBlend / _DstBlend で決める (光るものは足し算、障子は不透明)。MuseumBuilder がマテリアルごとに設定する
 Shader "NightShards/MuseumArt"
 {
     Properties
     {
-        [Enum(Moon,0,Thread,1,Shoji,2,Ember,3)] _Mode ("Mode", Float) = 0
+        [Enum(Moon,0,Thread,1,Shoji,2,Ember,3,Slit,4)] _Mode ("Mode", Float) = 0
         [HDR] _Color ("Color", Color) = (1, 1, 1, 1)
         [Enum(UnityEngine.Rendering.BlendMode)] _SrcBlend ("Src Blend", Float) = 1
         [Enum(UnityEngine.Rendering.BlendMode)] _DstBlend ("Dst Blend", Float) = 1
@@ -233,6 +233,14 @@ Shader "NightShards/MuseumArt"
                 return color.rgb * a * a * color.a * 3.0;
             }
 
+            // 光のスリット: 細長い板の中央の線が光る。端はふっと消える
+            float3 Slit(float2 uv)
+            {
+                float across = 1.0 - abs(uv.y * 2.0 - 1.0);
+                float ends = smoothstep(0.0, 0.04, uv.x) * smoothstep(1.0, 0.96, uv.x);
+                return pow(saturate(across), 3.0) * ends;
+            }
+
             half4 Frag(Varyings input) : SV_Target
             {
                 float t = _Time.y;
@@ -244,7 +252,8 @@ Shader "NightShards/MuseumArt"
                 if (_Mode < 0.5)      col = Moon(input.uv);
                 else if (_Mode < 1.5) col = Thread(input.uv, input.color, t);
                 else if (_Mode < 2.5) col = Shoji(planar, px, input.uv, t);
-                else                  col = Ember(input.uv, input.color);
+                else if (_Mode < 3.5) col = Ember(input.uv, input.color);
+                else                  col = Slit(input.uv);
                 col *= _Color.rgb;
 
                 // 足し算で重ねるものは、霧の中では黒へ消える。不透明の障子は霧の色に溶ける

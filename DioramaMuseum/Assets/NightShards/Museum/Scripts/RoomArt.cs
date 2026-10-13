@@ -194,7 +194,7 @@ namespace NightShards.Museum
         // ---------------------------------------------------------------- 共通
 
         // 壁に貼る板 (Quad)。normalInto は壁に向かう向き (板の表は部屋の中を向く)
-        static GameObject Panel(Transform parent, string name, Vector3 pos, Vector3 normalInto, Vector2 size, Material mat)
+        public static GameObject Panel(Transform parent, string name, Vector3 pos, Vector3 normalInto, Vector2 size, Material mat)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
             go.name = name;
@@ -210,7 +210,7 @@ namespace NightShards.Museum
         }
 
         // MuseumArt のマテリアルを作る。additive = 光として足し算で重ねる / false = 不透明
-        static Material MakeArt(Shader shader, string name, int mode, Color color, bool additive)
+        public static Material MakeArt(Shader shader, string name, int mode, Color color, bool additive)
         {
             var m = new Material(shader) { name = name };
             m.SetFloat("_Mode", mode);
