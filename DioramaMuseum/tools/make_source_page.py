@@ -17,11 +17,11 @@ STEP_TITLE = "段階1:館の骨組みを作って、中を歩く"
 
 # 貼る順に並べる。(Assets からのパス, 状態, 説明)
 FILES = [
-    ("Assets/NightShards/Museum/Shaders/MuseumSurface.shader", "新規",
+    ("Assets/NightShards/Museum/Shaders/MuseumSurface.shader", "変更",
      "壁・床・天井の質感。打ち放しコンクリート・木・石・漆喰を、画像なしでノイズから作る"),
     ("Assets/NightShards/Museum/Scripts/MuseumLayout.cs", "新規",
      "館の設計図 (部屋の数・大きさ・向き・作品)。ここを変えると館の形が変わる"),
-    ("Assets/NightShards/Museum/Scripts/MuseumMaterials.cs", "新規",
+    ("Assets/NightShards/Museum/Scripts/MuseumMaterials.cs", "変更",
      "館で使うマテリアル7種のまとめと、その初期の色"),
     ("Assets/NightShards/Museum/Scripts/MuseumGeometry.cs", "新規",
      "床・壁・天井を Cube で組む道具。壁に出入口の穴をあける"),
@@ -31,11 +31,21 @@ FILES = [
      "一人称で歩く・走る・跳ぶ・見回す。壁はすり抜けない"),
     ("Assets/NightShards/Museum/Scripts/MuseumHUD.cs", "新規",
      "画面中央の照準の点と、起動時の操作説明"),
-    ("Assets/NightShards/Museum/Scripts/MuseumBuilder.cs", "新規",
+    ("Assets/NightShards/Museum/Scripts/MuseumBuilder.cs", "変更",
      "設計図を読んで館を組み立てる本体。再生時にプレイヤーと画面表示も作る"),
-    ("Assets/NightShards/Museum/Editor/MuseumMenu.cs", "新規",
+    ("Assets/NightShards/Museum/Editor/MuseumMenu.cs", "変更",
      "Tools メニューと Inspector のボタン。編集中のシーンに館を組み立てる。必ず Editor フォルダに置く"),
 ]
+
+NOTICE = {
+    "title": "組み立てたらピンク色になったときは",
+    "body": [
+        "ピンク色は「マテリアルのシェーダーが動いていない」しるしです。原因は次の2つのどちらかです。",
+        "**1. シェーダーのエラー**:`MuseumSurface.shader` に、環境によってはエラーになる書き方がありました。修正版を右に出しています。**変更** の付いた4ファイル (`MuseumSurface.shader`・`MuseumMaterials.cs`・`MuseumBuilder.cs`・`MuseumMenu.cs`) を貼り直し、**Tools > Diorama Museum > 美術館を組み立てる** をもう一度選んでください。",
+        "**2. プロジェクトが URP / HDRP**:Unity 6 の新規プロジェクトは、選び方によって URP (Universal 3D) になります。今回のシェーダーは Built-In 用なので、URP では必ずピンク色になります。**Edit > Project Settings > Graphics** の一番上 (Default Render Pipeline) に何か入っていれば URP です。",
+        "組み立て直すと、どちらが原因かを Console とダイアログで知らせるようにしました。**Console に出た赤いメッセージ**と、**Graphics の Default Render Pipeline に何が入っているか**を教えてください。URP だった場合は、URP で動くシェーダーに作り替えます。",
+    ],
+}
 
 OVERVIEW = ("中央ホールから東西南北に通路がのび、その先に4つの展示室があります。展示室ごとに色と床の素材が違い、"
             "台座の真上からスポットライトが落ちます。段階1では、まず**建物の骨組み**と、**中を歩く仕組み**を作ります。"
@@ -278,7 +288,7 @@ TROUBLE = [
     ("[Museum] シェーダー NightShards/MuseumSurface が見つかりません",
      "シェーダーの1行目が `Shader \"NightShards/MuseumSurface\"` になっているか確認する。貼る前の中身が残っていないかも見る。"),
     ("床や壁がピンク色",
-     "シェーダーにエラーがある。シェーダーを選ぶと Inspector にエラー文が出るので、それを貼ってください。"),
+     "シェーダーのエラーか、プロジェクトが URP / HDRP。ページの一番上の「ピンク色になったときは」を見てください。"),
     ("操作説明の文字が □ になる",
      "OS に日本語フォントが見つからないとき。お使いの OS を教えてください。フォントを指定する形に直します。"),
     ("暗すぎて何も見えない / 明るすぎる",
@@ -306,7 +316,7 @@ def main(out_path):
             "lines": src.count("\n") + (0 if src.endswith("\n") else 1),
             "code": src,
         })
-    payload = {"files": files, "overview": OVERVIEW, "map": museum_map(), "flow": FLOW, "see": SEE,
+    payload = {"notice": NOTICE, "files": files, "overview": OVERVIEW, "map": museum_map(), "flow": FLOW, "see": SEE,
                "phases": PHASES, "checks": CHECKS, "trouble": TROUBLE, "next": NEXT}
     data = json.dumps(payload, ensure_ascii=False).replace("</", "<\\/")
     page = (TEMPLATE

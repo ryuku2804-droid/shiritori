@@ -88,6 +88,7 @@ namespace NightShards.Museum.EditorTools
 
             EnsureMaterialAssets(builder);
             builder.Build();
+            ReportShaderProblems(builder);
 
             Undo.RegisterCreatedObjectUndo(builder.Root.gameObject, "美術館を組み立てる");
             EditorUtility.SetDirty(builder);
@@ -133,6 +134,37 @@ namespace NightShards.Museum.EditorTools
                 mats.Set(i, mat);
             }
             AssetDatabase.SaveAssets();
+        }
+
+        // ピンク色になる原因 (URP などのプロジェクト・シェーダーのエラー) を Console に書き出す
+        static void ReportShaderProblems(MuseumBuilder builder)
+        {
+            bool srp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null; // 詳しいメッセージは Build の中で出している
+
+            Shader shader = MuseumMaterials.FindShader(builder.SurfaceShader);
+            bool hasError = shader != null && ShaderUtil.ShaderHasError(shader);
+            if (hasError)
+            {
+                foreach (var m in ShaderUtil.GetShaderMessages(shader))
+                    Debug.LogError($"[Museum] シェーダーのエラー ({m.platform}) {m.line} 行目: {m.message}\n{m.messageDetails}");
+            }
+
+            // 保存済みのマテリアルが別のシェーダーを向いていないか (貼り直す前のマテリアルが残っている場合など)
+            var mats = builder.Materials;
+            for (int i = 0; i < MuseumMaterials.Defaults.Length; i++)
+            {
+                var mat = mats.Get(i);
+                if (mat == null || shader == null || mat.shader == shader) continue;
+                Debug.LogWarning($"[Museum] マテリアル「{mat.name}」のシェーダーが {mat.shader.name} になっていたので、MuseumSurface に直しました。", mat);
+                mat.shader = shader;
+                EditorUtility.SetDirty(mat);
+            }
+
+            if (srp || hasError)
+                EditorUtility.DisplayDialog("Diorama Museum",
+                    srp ? "このプロジェクトは URP / HDRP なので、館がピンク色になります。Console の赤いメッセージを見てください。"
+                        : "MuseumSurface シェーダーにエラーがあるので、館がピンク色になります。Console の赤いメッセージを貼ってください。",
+                    "OK");
         }
 
         // Scene ビューのカメラを、館全体が見える位置へ動かす

@@ -67,6 +67,7 @@ namespace NightShards.Museum
         public void Build()
         {
             Clear();
+            MuseumMaterials.WarnIfScriptableRenderPipeline();
             ApplyEnvironment();
             materials.FillMissing(MuseumMaterials.FindShader(surfaceShader));
 

@@ -103,5 +103,16 @@ namespace NightShards.Museum
             Debug.LogError("[Museum] シェーダー NightShards/MuseumSurface が見つかりません。MuseumSurface.shader を Assets に入れてください。");
             return Shader.Find("Standard");
         }
+
+        // MuseumSurface は Built-In Render Pipeline 用。URP や HDRP のプロジェクトでは描けずにピンク色になる
+        public static bool WarnIfScriptableRenderPipeline()
+        {
+            var rp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline;
+            if (rp == null) return false;
+            Debug.LogError($"[Museum] このプロジェクトは Built-In ではなく「{rp.GetType().Name}」({rp.name}) で描いています。" +
+                           "MuseumSurface は Built-In 用なので、ピンク色になります。" +
+                           "Edit > Project Settings > Graphics の Default Render Pipeline と、Quality の Render Pipeline Asset を None にすると Built-In に戻ります。");
+            return true;
+        }
     }
 }

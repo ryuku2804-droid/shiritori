@@ -81,6 +81,10 @@ ol.flow li { display: grid; grid-template-columns: minmax(0, 13em) minmax(0, 1fr
 ol.flow li:last-child { border-bottom: 0; }
 ol.flow .who { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--accent); overflow-wrap: anywhere; }
 @media (max-width: 640px) { ol.flow li { grid-template-columns: minmax(0, 1fr); } }
+.notice { padding: 16px 18px; border: 1px solid var(--accent); border-radius: 6px; background: var(--accent-soft); gap: 10px; }
+.notice h2 { font-size: 18px; }
+.notice #notice { display: grid; gap: 8px; }
+.cap .no .st.chg { color: var(--accent); }
 ul.see { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
 
 ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 18px; }
@@ -164,6 +168,11 @@ button.copy.done { background: var(--ok-fg); }
       <h1>{{STEP_TITLE}}</h1>
       <p class="lead">右側のコード台はコードだけを表示します。ファイルを選び「コピー」を押すと、そのファイルの全文がそのまま貼れる形でコピーされます。左の手順に沿って、上から順に進めてください。</p>
     </header>
+
+    <section class="notice" id="notice-wrap">
+      <h2 id="notice-title"></h2>
+      <div id="notice"></div>
+    </section>
 
     <section>
       <h2>何を作るか</h2>
@@ -250,6 +259,12 @@ button.copy.done { background: var(--ok-fg); }
 
   // 左側
   $('see').innerHTML = data.see.map(s => '<li>' + inline(s) + '</li>').join('');
+  if (data.notice) {
+    $('notice-title').innerHTML = inline(data.notice.title);
+    $('notice').innerHTML = data.notice.body.map(b => '<p>' + inline(b) + '</p>').join('');
+  } else {
+    $('notice-wrap').hidden = true;
+  }
   $('overview-lead').innerHTML = inline(data.overview);
   $('map').innerHTML = data.map;
   $('flow').innerHTML = data.flow.map(f => '<li><span class="who">' + esc(f[0]) + '</span><span>' + inline(f[1]) + '</span></li>').join('');

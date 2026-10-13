@@ -67,17 +67,18 @@ Shader "NightShards/MuseumSurface"
             return v;
         }
 
-        // 線 (継ぎ目・目地) の太さ w を、画面上で1ピクセルより細くならないようにぼかす。遠くでちらつかない
-        float LineMask(float dist, float w)
+        // 線 (継ぎ目・目地) の太さ w を、画面上で1ピクセルより細くならないようにぼかす。遠くでちらつかない。
+        // px は1ピクセルが何 m にあたるか。微分 (fwidth) は分岐の中で使えないので、surf の最初で計算して渡す
+        float LineMask(float dist, float w, float px)
         {
-            float aa = max(fwidth(dist), 1e-4);
+            float aa = max(px, 1e-4);
             return 1.0 - smoothstep(w - aa, w + aa, dist);
         }
 
         // ---------------------------------------------------------------- 種類ごとの模様
 
         // 打ち放しコンクリート: 1800×900 の型枠の継ぎ目と、600×450 間隔のセパ穴 (型枠を留めた丸い穴)
-        void Concrete(float2 uv, bool horizontal, out float3 albedo, out float smooth, out float occ)
+        void Concrete(float2 uv, float px, out float3 albedo, out float gloss, out float occ)
         {
             float cloud = Fbm(uv * 0.55);
             float grain = ValueNoise(uv * 38.0) - 0.5;
@@ -85,30 +86,30 @@ Shader "NightShards/MuseumSurface"
             albedo = lerp(_ColorB.rgb, _ColorA.rgb, saturate(cloud * 1.2 - 0.1));
             albedo *= 1.0 + grain * 0.08;
             albedo *= lerp(0.92, 1.04, streak);
-            smooth = _Smoothness * (0.8 + 0.4 * cloud);
+            gloss = _Smoothness * (0.8 + 0.4 * cloud);
             occ = 1.0;
 
             float2 panel = float2(1.8, 0.9);
             float2 g = frac(uv / panel) * panel;
             float seamDist = min(min(g.x, panel.x - g.x), min(g.y, panel.y - g.y));
-            float seam = LineMask(seamDist, 0.004);
+            float seam = LineMask(seamDist, 0.004, px);
 
             float2 pitch = float2(0.6, 0.45);
             float2 q = uv - float2(0.3, 0.225);
             q -= pitch * round(q / pitch);
             float r = length(q);
-            float hole = LineMask(r, 0.014);
-            float ring = LineMask(abs(r - 0.022), 0.004) * (1.0 - hole);
+            float hole = LineMask(r, 0.014, px);
+            float ring = LineMask(abs(r - 0.022), 0.004, px) * (1.0 - hole);
 
             albedo *= 1.0 - seam * 0.35;
             albedo *= 1.0 - hole * 0.55;
             albedo *= 1.0 + ring * 0.08;
             occ = 1.0 - hole * 0.6 - seam * 0.3;
-            smooth *= 1.0 - hole;
+            gloss *= 1.0 - hole;
         }
 
         // 木の床: 幅19cm・長さ1.8mの板を、列ごとにずらして張る。木目は板の長さ方向に伸ばしたノイズ
-        void Wood(float2 uv, out float3 albedo, out float smooth, out float occ)
+        void Wood(float2 uv, float px, out float3 albedo, out float gloss, out float occ)
         {
             float w = 0.19;
             float len = 1.8;
@@ -125,14 +126,14 @@ Shader "NightShards/MuseumSurface"
             float dy = frac(uv.y / w) * w;
             float dx = frac(along / len) * len;
             float gapDist = min(min(dy, w - dy), min(dx, len - dx));
-            float gap = LineMask(gapDist, 0.0015);
+            float gap = LineMask(gapDist, 0.0015, px);
             albedo *= 1.0 - gap * 0.6;
-            smooth = _Smoothness * (0.75 + 0.35 * grain) * (1.0 - gap);
+            gloss = _Smoothness * (0.75 + 0.35 * grain) * (1.0 - gap);
             occ = 1.0 - gap * 0.5;
         }
 
         // 石の研ぎ出し: 雲のようなむらに細かい粒を散らし、1.2m 角の目地を入れる。よく磨いてあるので光を映す
-        void Stone(float2 uv, out float3 albedo, out float smooth, out float occ)
+        void Stone(float2 uv, float px, out float3 albedo, out float gloss, out float occ)
         {
             float cloud = Fbm(uv * 0.8);
             float chip = step(0.86, ValueNoise(uv * 85.0));
@@ -143,19 +144,19 @@ Shader "NightShards/MuseumSurface"
             float tile = 1.2;
             float2 g = frac(uv / tile) * tile;
             float jointDist = min(min(g.x, tile - g.x), min(g.y, tile - g.y));
-            float joint = LineMask(jointDist, 0.0015);
+            float joint = LineMask(jointDist, 0.0015, px);
             albedo *= 1.0 - joint * 0.5;
-            smooth = _Smoothness * (0.9 + 0.1 * cloud) * (1.0 - joint * 0.6);
+            gloss = _Smoothness * (0.9 + 0.1 * cloud) * (1.0 - joint * 0.6);
             occ = 1.0 - joint * 0.4;
         }
 
         // 漆喰: ごく弱いむらだけ。台座や仮の箱に使う
-        void Plaster(float2 uv, out float3 albedo, out float smooth, out float occ)
+        void Plaster(float2 uv, float px, out float3 albedo, out float gloss, out float occ)
         {
             float cloud = Fbm(uv * 2.0);
             float grain = ValueNoise(uv * 60.0) - 0.5;
             albedo = lerp(_ColorA.rgb, _ColorB.rgb, cloud) * (1.0 + grain * 0.04);
-            smooth = _Smoothness * (0.85 + 0.3 * cloud);
+            gloss = _Smoothness * (0.85 + 0.3 * cloud);
             occ = 1.0;
         }
 
@@ -168,18 +169,19 @@ Shader "NightShards/MuseumSurface"
             bool horizontal = n.y > max(n.x, n.z);
             float2 uv = horizontal ? IN.worldPos.xz : (n.x > n.z ? IN.worldPos.zy : IN.worldPos.xy);
             uv /= max(_Scale, 1e-3);
+            float px = length(fwidth(uv)) * 0.7;
 
             float3 albedo;
-            float smooth;
+            float gloss;
             float occ;
-            if (_Kind < 0.5)      Concrete(uv, horizontal, albedo, smooth, occ);
-            else if (_Kind < 1.5) Wood(uv, albedo, smooth, occ);
-            else if (_Kind < 2.5) Stone(uv, albedo, smooth, occ);
-            else                  Plaster(uv, albedo, smooth, occ);
+            if (_Kind < 0.5)      Concrete(uv, px, albedo, gloss, occ);
+            else if (_Kind < 1.5) Wood(uv, px, albedo, gloss, occ);
+            else if (_Kind < 2.5) Stone(uv, px, albedo, gloss, occ);
+            else                  Plaster(uv, px, albedo, gloss, occ);
 
             o.Albedo = albedo;
             o.Metallic = 0;
-            o.Smoothness = saturate(smooth);
+            o.Smoothness = saturate(gloss);
             o.Occlusion = saturate(occ);
         }
         ENDCG
