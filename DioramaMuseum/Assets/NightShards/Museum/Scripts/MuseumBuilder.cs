@@ -3,8 +3,10 @@ using UnityEngine;
 
 namespace NightShards.Museum
 {
-    // 空のシーンにこれ1つを置いて再生すると、美術館が丸ごと組み上がる。
-    // 段階1: 中央ホール・通路・展示室・台座 (仮)・照明・プレイヤー・画面表示
+    // 美術館を組み立てる本体。組み立て方は2通りある:
+    //   1. メニュー Tools > Diorama Museum > 美術館を組み立てる  → 編集中のシーンに建物ができる (Scene ビューで見られる)
+    //   2. このコンポーネントだけを置いて再生                     → 建物がなければ、再生したときに組み立てる
+    // プレイヤー (カメラ) と画面表示は、どちらの場合も再生したときに作る
     public class MuseumBuilder : MonoBehaviour
     {
         [SerializeField] MuseumLayout layout = MuseumLayout.CreateDefault();
@@ -12,7 +14,10 @@ namespace NightShards.Museum
         [Tooltip("空なら Shader.Find で探す。ビルドに入れるときはここに MuseumSurface を入れておく")]
         [SerializeField] Shader surfaceShader;
 
-        [Tooltip("シーンにもとからある Main Camera と Directional Light を止める (暗い館内にするため)")]
+        [Tooltip("Tools メニューで組み立てると、保存したマテリアルがここに入る")]
+        [SerializeField] MuseumMaterials materials = new MuseumMaterials();
+
+        [Tooltip("シーンにもとからある Directional Light を止め、再生中は元の Main Camera も止める (暗い館内にするため)")]
         [SerializeField] bool takeOverScene = true;
 
         [Header("空気感")]
@@ -20,13 +25,20 @@ namespace NightShards.Museum
         [SerializeField] Color fogColor = new Color(0.01f, 0.01f, 0.012f);
         [SerializeField] float fogDensity = 0.035f;
 
-        public Transform Root { get; private set; }
+        // 組み立てた建物の親。Tools メニューで組み立てた場合は、シーンに保存されている
+        [SerializeField, HideInInspector] Transform root;
+        [SerializeField, HideInInspector] List<Transform> exhibitAnchors = new List<Transform>();
+
+        public MuseumLayout Layout => layout;
+        public Shader SurfaceShader => surfaceShader;
+        public MuseumMaterials Materials => materials;
+        public Transform Root => root;
         public FirstPersonController Player { get; private set; }
 
         // 台座の上の位置 (段階2でここにジオラマを置く)
-        public readonly List<Transform> ExhibitAnchors = new List<Transform>();
+        public IReadOnlyList<Transform> ExhibitAnchors => exhibitAnchors;
 
-        Material concreteWall, concreteCeiling, darkStone, paleStone, wood, pedestalMat, placeholderMat;
+        public const string RootName = "Museum (Generated)";
 
         void Reset()
         {
@@ -35,30 +47,55 @@ namespace NightShards.Museum
 
         void Awake()
         {
-            SetupEnvironment();
-            CreateMaterials();
+            if (root == null) Build();
+            else ApplyEnvironment();
 
-            Root = new GameObject("Museum").transform;
-            Root.SetParent(transform, false);
+            if (takeOverScene)
+                foreach (var cam in FindObjectsByType<Camera>(FindObjectsSortMode.None))
+                    cam.gameObject.SetActive(false);
 
-            BuildHallAndRooms();
+            // 1つの物体に効かせられるライトの数。床や壁は大きいので、少し増やしておく
+            QualitySettings.pixelLightCount = Mathf.Max(QualitySettings.pixelLightCount, 8);
+
             CreatePlayer();
             gameObject.AddComponent<MuseumHUD>();
         }
 
-        // ---------------------------------------------------------------- 環境
+        // ---------------------------------------------------------------- 組み立て・片付け
 
-        void SetupEnvironment()
+        // 建物をすべて作り直す。編集中にも再生中にも呼べる
+        public void Build()
+        {
+            Clear();
+            ApplyEnvironment();
+            materials.FillMissing(MuseumMaterials.FindShader(surfaceShader));
+
+            root = new GameObject(RootName).transform;
+            root.SetParent(transform, false);
+            exhibitAnchors.Clear();
+
+            BuildHallAndRooms();
+        }
+
+        // 組み立てた建物を消す
+        public void Clear()
+        {
+            if (root != null)
+            {
+                if (Application.isPlaying) Destroy(root.gameObject);
+                else DestroyImmediate(root.gameObject);
+            }
+            root = null;
+            exhibitAnchors.Clear();
+        }
+
+        // 暗く静かな館内にする。空の光は使わず、ほぼ黒の環境光と、黒い霧で奥を沈める
+        public void ApplyEnvironment()
         {
             if (takeOverScene)
-            {
                 foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None))
                     if (l.type == LightType.Directional) l.gameObject.SetActive(false);
-                foreach (var cam in FindObjectsByType<Camera>(FindObjectsSortMode.None))
-                    cam.gameObject.SetActive(false);
-            }
 
-            // 暗く静かな館内。空の光は使わず、ほぼ黒の環境光と、黒い霧で奥を沈める
             RenderSettings.skybox = null;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
             RenderSettings.ambientLight = ambient;
@@ -67,48 +104,15 @@ namespace NightShards.Museum
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.fogColor = fogColor;
             RenderSettings.fogDensity = fogDensity;
-
-            // 1つの物体に効かせられるライトの数。床や壁は大きいので、少し増やしておく
-            QualitySettings.pixelLightCount = Mathf.Max(QualitySettings.pixelLightCount, 8);
-        }
-
-        void CreateMaterials()
-        {
-            if (surfaceShader == null) surfaceShader = Shader.Find("NightShards/MuseumSurface");
-            if (surfaceShader == null)
-            {
-                Debug.LogError("[Museum] シェーダー NightShards/MuseumSurface が見つかりません。MuseumSurface.shader を Assets に入れてください。");
-                surfaceShader = Shader.Find("Standard");
-            }
-
-            // 種類: 0 コンクリート / 1 木 / 2 石 / 3 漆喰
-            concreteWall = MakeMat("Concrete Wall", 0, new Color(0.46f, 0.45f, 0.43f), new Color(0.34f, 0.33f, 0.32f), 0.18f);
-            concreteCeiling = MakeMat("Concrete Ceiling", 0, new Color(0.22f, 0.22f, 0.22f), new Color(0.15f, 0.15f, 0.16f), 0.1f);
-            darkStone = MakeMat("Dark Stone", 2, new Color(0.07f, 0.07f, 0.08f), new Color(0.13f, 0.13f, 0.14f), 0.78f);
-            paleStone = MakeMat("Pale Stone", 2, new Color(0.62f, 0.62f, 0.6f), new Color(0.5f, 0.5f, 0.49f), 0.6f);
-            wood = MakeMat("Wood", 1, new Color(0.36f, 0.22f, 0.13f), new Color(0.22f, 0.12f, 0.07f), 0.45f);
-            pedestalMat = MakeMat("Pedestal", 3, new Color(0.05f, 0.05f, 0.055f), new Color(0.08f, 0.08f, 0.085f), 0.35f);
-            placeholderMat = MakeMat("Placeholder", 3, new Color(0.8f, 0.8f, 0.78f), new Color(0.7f, 0.7f, 0.68f), 0.1f);
-        }
-
-        Material MakeMat(string name, int kind, Color a, Color b, float smoothness)
-        {
-            var m = new Material(surfaceShader) { name = name };
-            m.SetFloat("_Kind", kind);
-            m.SetColor("_ColorA", a);
-            m.SetColor("_ColorB", b);
-            m.SetFloat("_Smoothness", smoothness);
-            if (m.HasProperty("_Color")) m.SetColor("_Color", a); // Standard で代用したとき用
-            return m;
         }
 
         Material FloorFor(RoomTheme theme)
         {
             switch (theme)
             {
-                case RoomTheme.Dusk: return wood;
-                case RoomTheme.Sea: return paleStone;
-                default: return darkStone;
+                case RoomTheme.Dusk: return materials.wood;
+                case RoomTheme.Sea: return materials.paleStone;
+                default: return materials.darkStone;
             }
         }
 
@@ -138,9 +142,9 @@ namespace NightShards.Museum
             // 中央ホール。部屋のある面に出入口をあける
             var hallDoors = new Dictionary<RoomDirection, List<float>>();
             foreach (var room in rooms) hallDoors[room.direction] = new List<float> { 0f };
-            MuseumGeometry.Room(Root, "Hall", Vector3.zero, hall.x, hall.z, hall.y, t, hallDoors, cw, ch,
-                darkStone, concreteWall, concreteCeiling);
-            AddLight(Root, "Hall Light", new Vector3(0f, hall.y - 0.2f, 0f), LightType.Spot,
+            MuseumGeometry.Room(root, "Hall", Vector3.zero, hall.x, hall.z, hall.y, t, hallDoors, cw, ch,
+                materials.darkStone, materials.concreteWall, materials.concreteCeiling);
+            AddLight(root, "Hall Light", new Vector3(0f, hall.y - 0.2f, 0f), LightType.Spot,
                 new Color(0.8f, 0.86f, 1f), 1.4f, hall.y + 3f, 75f, false);
 
             foreach (var room in rooms) BuildWing(room, hall, t, cw, ch, cl);
@@ -153,19 +157,19 @@ namespace NightShards.Museum
             Vector3 r = new Vector3(f.z, 0f, -f.x); // f から見て右
             float hallHalf = Mathf.Abs(f.x) > 0.5f ? hall.x * 0.5f : hall.z * 0.5f;
             var wing = new GameObject("Wing_" + room.name).transform;
-            wing.SetParent(Root, false);
+            wing.SetParent(root, false);
 
             // 通路: 床はホールの内側の端から部屋の内側の端まで、天井と横壁は両側の壁の外側の面の間
             float inner = cl - 2f * t;
             Vector3 mid = f * (hallHalf + cl * 0.5f);
             MuseumGeometry.Box(wing, "Corridor Floor", mid + Vector3.down * (MuseumGeometry.SlabThickness * 0.5f),
-                MuseumGeometry.Size(f, cl, MuseumGeometry.SlabThickness, cw), wood);
+                MuseumGeometry.Size(f, cl, MuseumGeometry.SlabThickness, cw), materials.wood);
             MuseumGeometry.Box(wing, "Corridor Ceiling", mid + Vector3.up * (ch + MuseumGeometry.SlabThickness * 0.5f),
-                MuseumGeometry.Size(f, inner, MuseumGeometry.SlabThickness, cw + 2f * t), concreteCeiling);
+                MuseumGeometry.Size(f, inner, MuseumGeometry.SlabThickness, cw + 2f * t), materials.concreteCeiling);
             for (int side = -1; side <= 1; side += 2)
             {
                 Vector3 c = mid + r * (side * (cw * 0.5f + t * 0.5f)) + Vector3.up * (ch * 0.5f);
-                MuseumGeometry.Box(wing, "Corridor Wall", c, MuseumGeometry.Size(f, inner, ch, t), concreteWall);
+                MuseumGeometry.Box(wing, "Corridor Wall", c, MuseumGeometry.Size(f, inner, ch, t), materials.concreteWall);
             }
             // 通路の奥に部屋の色の光。ホールから見ると、入口ごとに違う色が漏れて見える
             AddLight(wing, "Corridor Glow", f * (hallHalf + cl - 1f) + Vector3.up * (ch - 0.5f), LightType.Point,
@@ -182,7 +186,7 @@ namespace NightShards.Museum
                 { MuseumGeometry.Opposite(room.direction), new List<float> { 0f } },
             };
             var roomRoot = MuseumGeometry.Room(wing, "Room", center, sizeX, sizeZ, room.height, t, doors, cw, ch,
-                FloorFor(room.theme), concreteWall, concreteCeiling);
+                FloorFor(room.theme), materials.concreteWall, materials.concreteCeiling);
             AddLight(roomRoot, "Room Fill", center + Vector3.up * (room.height * 0.75f), LightType.Point,
                 room.accent, 0.5f, Mathf.Max(room.width, room.depth), 0f, false);
 
@@ -204,15 +208,15 @@ namespace NightShards.Museum
                 stand.localPosition = pos;
                 stand.localRotation = Quaternion.LookRotation(-f);
 
-                MuseumGeometry.Box(stand, "Pedestal", Vector3.up * 0.5f, new Vector3(0.9f, 1f, 0.9f), pedestalMat);
+                MuseumGeometry.Box(stand, "Pedestal", Vector3.up * 0.5f, new Vector3(0.9f, 1f, 0.9f), materials.pedestal);
                 // 段階2で本物のジオラマに差し替える仮の箱
-                var placeholder = MuseumGeometry.Box(stand, "Placeholder", Vector3.up * 1.35f, Vector3.one * 0.7f, placeholderMat);
+                var placeholder = MuseumGeometry.Box(stand, "Placeholder", Vector3.up * 1.35f, Vector3.one * 0.7f, materials.placeholder);
                 placeholder.transform.localRotation = Quaternion.Euler(0f, 20f, 0f);
 
                 var anchor = new GameObject("Anchor").transform;
                 anchor.SetParent(stand, false);
                 anchor.localPosition = Vector3.up * 1f;
-                ExhibitAnchors.Add(anchor);
+                exhibitAnchors.Add(anchor);
 
                 // 台座の真上から落とすスポットライト。床に光だまりができる
                 AddLight(stand, "Spot", Vector3.up * (room.height - 0.25f), LightType.Spot,

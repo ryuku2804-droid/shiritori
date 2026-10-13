@@ -24,6 +24,10 @@
   --tok-k: #8fb8dc;
   --tok-n: #c7a2d6;
   --tok-p: #d9897a;
+  --room-moon: #6f8fd8;
+  --room-fire: #d9703a;
+  --room-dusk: #d98a5c;
+  --room-sea: #3fb3a8;
   --font-display: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
   --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Consolas", "Menlo", "MS Gothic", monospace;
@@ -56,6 +60,27 @@ h2 { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 2
 section { display: grid; gap: 14px; }
 code.i { font-family: var(--font-mono); font-size: .88em; background: var(--surface); border: 1px solid var(--line); padding: 0 5px; border-radius: 4px; overflow-wrap: anywhere; }
 
+.phases { display: grid; gap: 28px; }
+.phase { display: grid; gap: 14px; }
+.phase h3 { margin: 0; display: flex; align-items: baseline; gap: 10px; font-size: 17px; text-wrap: balance; }
+.phase h3 .pn { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--surface); background: var(--fg); padding: 2px 7px; border-radius: 3px; }
+figure.map { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; overflow-x: auto; }
+figure.map svg { display: block; width: 100%; max-width: 440px; height: auto; margin: 0 auto; }
+figure.map figcaption { font-size: 13px; color: var(--muted); text-align: center; margin-top: 6px; }
+.m-wall { fill: none; stroke: var(--fg); stroke-width: .35; }
+.m-floor { fill: var(--bg); }
+.m-txt { fill: var(--fg); font-family: var(--font-body); font-size: 1.5px; text-anchor: middle; dominant-baseline: middle; }
+.m-sub { fill: var(--muted); font-family: var(--font-mono); font-size: 1.1px; text-anchor: middle; }
+.m-ped { fill: var(--fg); }
+.m-room { fill-opacity: .16; }
+.m-moon { fill: var(--room-moon); } .m-fire { fill: var(--room-fire); } .m-dusk { fill: var(--room-dusk); } .m-sea { fill: var(--room-sea); }
+.m-pool { fill: var(--accent); opacity: .22; }
+.m-you { fill: var(--accent); }
+ol.flow { margin: 0; padding: 0; list-style: none; display: grid; }
+ol.flow li { display: grid; grid-template-columns: minmax(0, 13em) minmax(0, 1fr); gap: 4px 14px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+ol.flow li:last-child { border-bottom: 0; }
+ol.flow .who { font-family: var(--font-mono); font-size: 13px; font-weight: 500; color: var(--accent); overflow-wrap: anywhere; }
+@media (max-width: 640px) { ol.flow li { grid-template-columns: minmax(0, 1fr); } }
 ul.see { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
 
 ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 18px; }
@@ -141,13 +166,24 @@ button.copy.done { background: var(--ok-fg); }
     </header>
 
     <section>
-      <h2>再生すると見えるもの</h2>
+      <h2>何を作るか</h2>
+      <p class="lead" id="overview-lead"></p>
+      <figure class="map" id="map"></figure>
+    </section>
+
+    <section>
+      <h2>しくみ:だれが何をするか</h2>
+      <ol class="flow" id="flow"></ol>
+    </section>
+
+    <section>
+      <h2>できあがると見えるもの</h2>
       <ul class="see" id="see"></ul>
     </section>
 
     <section>
       <h2>手順</h2>
-      <ol class="steps" id="steps"></ol>
+      <div class="phases" id="steps"></div>
     </section>
 
     <section>
@@ -214,9 +250,14 @@ button.copy.done { background: var(--ok-fg); }
 
   // 左側
   $('see').innerHTML = data.see.map(s => '<li>' + inline(s) + '</li>').join('');
-  $('steps').innerHTML = data.steps.map(s =>
-    '<li><b class="t">' + inline(s.title) + '</b><div>' + s.body.map(inline).join('<br>') + '</div>' +
-    (s.ok ? '<div class="ok">' + inline(s.ok) + '</div>' : '') + '</li>').join('');
+  $('overview-lead').innerHTML = inline(data.overview);
+  $('map').innerHTML = data.map;
+  $('flow').innerHTML = data.flow.map(f => '<li><span class="who">' + esc(f[0]) + '</span><span>' + inline(f[1]) + '</span></li>').join('');
+  $('steps').innerHTML = data.phases.map((ph, pi) =>
+    '<div class="phase"><h3><span class="pn">' + String.fromCharCode(65 + pi) + '</span>' + inline(ph.title) + '</h3>' +
+    '<ol class="steps">' + ph.steps.map(s =>
+      '<li><b class="t">' + inline(s.title) + '</b><div>' + s.body.map(inline).join('<br>') + '</div>' +
+      (s.ok ? '<div class="ok">' + inline(s.ok) + '</div>' : '') + '</li>').join('') + '</ol></div>').join('');
   $('checks').innerHTML = data.checks.map(c => '<li><span></span><span>' + inline(c) + '</span></li>').join('');
   $('trouble').innerHTML = data.trouble.map(t => '<tr><td class="err">' + esc(t[0]) + '</td><td>' + inline(t[1]) + '</td></tr>').join('');
   $('next').innerHTML = inline(data.next);
