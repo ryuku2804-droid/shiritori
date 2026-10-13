@@ -18,8 +18,10 @@ namespace NightShards.Museum
         [SerializeField] MuseumMaterials materials = new MuseumMaterials();
 
         [Header("ジオラマとキャプション")]
-        [Tooltip("既存の Diorama.shader で作ったマテリアル。Tools で組み立てると自動で探して入れる。空なら仮の箱を置く")]
+        [Tooltip("ジオラマのマテリアル (MuseumDiorama シェーダー)。Tools で組み立てると自動で作って入れる。空なら再生時にその場で作る")]
         [SerializeField] Material dioramaMaterial;
+        [Tooltip("ジオラマのシェーダー。空なら Shader.Find で探す")]
+        [SerializeField] Shader dioramaShader;
         [Tooltip("ジオラマの箱の一辺 (m)")]
         [SerializeField] float dioramaSize = 0.8f;
         [Tooltip("キャプションの文字のシェーダー。空なら Shader.Find で探す")]
@@ -389,6 +391,22 @@ namespace NightShards.Museum
             }
         }
 
+        // ジオラマのマテリアル。欄が空なら、MuseumDiorama シェーダーでその場で作る (見つからなければ仮の箱になる)
+        Material runtimeDiorama;
+        Material DioramaMaterialOrDefault()
+        {
+            if (dioramaMaterial != null) return dioramaMaterial;
+            if (runtimeDiorama != null) return runtimeDiorama;
+            Shader s = dioramaShader != null ? dioramaShader : Shader.Find("NightShards/MuseumDiorama");
+            if (s == null)
+            {
+                Debug.LogWarning("[Museum] シェーダー NightShards/MuseumDiorama が見つからないので、台座には仮の箱を置きます。");
+                return null;
+            }
+            runtimeDiorama = new Material(s) { name = "Museum Diorama" };
+            return runtimeDiorama;
+        }
+
         // 部屋の幅いっぱいに、等間隔で台座を並べる。台座は入口のほうを向く
         List<Vector3> BuildExhibits(RoomSpec room, Transform parent, Vector3 f, Vector3 r, float near)
         {
@@ -398,7 +416,7 @@ namespace NightShards.Museum
                 pedestal = materials.pedestal,
                 placeholder = materials.placeholder,
                 plate = materials.pedestal,
-                diorama = dioramaMaterial,
+                diorama = DioramaMaterialOrDefault(),
                 dioramaSize = dioramaSize,
                 text = textMaterial,
                 font = CaptionText.DefaultFont,
@@ -491,6 +509,10 @@ namespace NightShards.Museum
             var viewer = go.AddComponent<ExhibitViewer>();
             viewer.cameraTransform = camGo.transform;
             viewer.body = Player;
+
+            var lod = go.AddComponent<DioramaLOD>();
+            lod.viewCamera = cam;
+            lod.viewer = viewer;
         }
     }
 }

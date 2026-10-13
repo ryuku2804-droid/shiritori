@@ -86,9 +86,11 @@ namespace NightShards.Museum
             GameObject go;
             if (parts.diorama != null)
             {
-                // 既存のジオラマ: Cube の中をシェーダーが描く。作品ごとの違いは _Biome で渡す
+                // ジオラマ: Cube の中を MuseumDiorama シェーダーが描く。
+                // 作品ごとの違いは _Biome (種類) と _Seed (地形の形。作品名から決める) で渡す
                 go = MuseumGeometry.Box(transform, "Diorama", Vector3.up * (PedestalHeight + size * 0.5f), Vector3.one * size, parts.diorama);
-                if (parts.diorama.HasProperty("_Biome")) block.SetFloat("_Biome", biome);
+                block.SetFloat("_Biome", biome);
+                block.SetFloat("_Seed", SeedFromTitle(title));
             }
             else
             {
@@ -137,6 +139,15 @@ namespace NightShards.Museum
                 new Vector3(left, top - 0.042f * s, front), 0.017f * s, dim, parts.font, parts.text);
             if (lines > 0)
                 CaptionText.Add(caption, "Description", body, new Vector3(left, top - 0.072f * s, front), 0.02f * s, warm, parts.font, parts.text);
+        }
+
+        // 作品名から 0〜10 の数を作る。同じ名前なら毎回同じ形になる
+        static float SeedFromTitle(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return 0f;
+            int h = 17;
+            foreach (char c in s) h = h * 31 + c;
+            return (h & 0xffff) / 6553.5f;
         }
 
         static void DestroySafe(Object o)

@@ -139,52 +139,46 @@ namespace NightShards.Museum.EditorTools
         }
 
         // シェーダーの欄と、ジオラマのマテリアルの欄を埋める。
-        // ジオラマは、プロジェクトの中から Diorama.shader という名前のファイルを探し、そのシェーダーでマテリアルを作る
+        // ジオラマのマテリアルは MuseumDiorama シェーダーで作り、Generated フォルダに保存する
         static void EnsureShadersAndDiorama(MuseumBuilder builder)
         {
             var so = new SerializedObject(builder);
 
-            var surface = so.FindProperty("surfaceShader");
-            if (surface.objectReferenceValue == null) surface.objectReferenceValue = Shader.Find("NightShards/MuseumSurface");
-            var text = so.FindProperty("textShader");
-            if (text.objectReferenceValue == null) text.objectReferenceValue = Shader.Find("NightShards/MuseumText");
-            var art = so.FindProperty("artShader");
-            if (art.objectReferenceValue == null) art.objectReferenceValue = Shader.Find("NightShards/MuseumArt");
+            void FillShader(string field, string shaderName)
+            {
+                var prop = so.FindProperty(field);
+                if (prop.objectReferenceValue == null) prop.objectReferenceValue = Shader.Find(shaderName);
+            }
+            FillShader("surfaceShader", "NightShards/MuseumSurface");
+            FillShader("textShader", "NightShards/MuseumText");
+            FillShader("artShader", "NightShards/MuseumArt");
+            FillShader("dioramaShader", "NightShards/MuseumDiorama");
 
             var diorama = so.FindProperty("dioramaMaterial");
-            if (diorama.objectReferenceValue == null)
+            var current = diorama.objectReferenceValue as Material;
+            bool usable = current != null && current.shader != null && current.shader.name == "NightShards/MuseumDiorama";
+            if (!usable)
             {
-                Shader dioramaShader = FindDioramaShader();
+                Shader dioramaShader = Shader.Find("NightShards/MuseumDiorama");
                 if (dioramaShader == null)
                 {
-                    Debug.LogWarning("[Museum] Diorama.shader が見つからないので、台座には仮の箱を置きます。");
+                    Debug.LogWarning("[Museum] シェーダー NightShards/MuseumDiorama が見つからないので、台座には仮の箱を置きます。");
                 }
                 else
                 {
                     string folder = MaterialFolderFor(MuseumMaterials.FindShader(builder.SurfaceShader));
-                    string path = folder + "/Diorama.mat";
+                    string path = folder + "/Museum Diorama.mat";
                     var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
                     if (mat == null)
                     {
-                        mat = new Material(dioramaShader) { name = "Diorama" };
+                        mat = new Material(dioramaShader) { name = "Museum Diorama" };
                         AssetDatabase.CreateAsset(mat, path);
                         AssetDatabase.SaveAssets();
                     }
                     diorama.objectReferenceValue = mat;
-                    Debug.Log($"[Museum] ジオラマのシェーダー「{dioramaShader.name}」を見つけ、{path} を使います。");
                 }
             }
             so.ApplyModifiedPropertiesWithoutUndo();
-        }
-
-        static Shader FindDioramaShader()
-        {
-            foreach (string guid in AssetDatabase.FindAssets("Diorama t:Shader"))
-            {
-                string path = AssetDatabase.GUIDToAssetPath(guid);
-                if (Path.GetFileName(path) == "Diorama.shader") return AssetDatabase.LoadAssetAtPath<Shader>(path);
-            }
-            return null;
         }
 
         // シェーダーが Assets/〇〇/Shaders にあれば Assets/〇〇/Generated に保存する。わからなければ決まった場所に
