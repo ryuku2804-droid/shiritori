@@ -16,8 +16,14 @@ namespace NightShards.Museum
         public Material wood;
         public Material pedestal;
         public Material placeholder;
+        public Material water;          // 月の間の床 (水盤)
+        public Material obsidian;       // 火の間の床 (溶岩のひび)
+        public Material basaltWall;     // 火の間の壁
+        public Material causticWall;    // 海の間の壁と天井 (水の光)
+        public Material causticFloor;   // 海の間の床
 
-        // マテリアル1つ分の初期値。kind は MuseumSurface の種類 (0 コンクリート / 1 木 / 2 石 / 3 漆喰)
+        // マテリアル1つ分の初期値。kind は MuseumSurface の種類
+        // (0 コンクリート / 1 木 / 2 石 / 3 漆喰 / 4 黒曜石と溶岩 / 5 水盤 / 6 水の光の映る漆喰)
         public struct Spec
         {
             public string name;
@@ -25,14 +31,18 @@ namespace NightShards.Museum
             public Color a;
             public Color b;
             public float smoothness;
+            public Color emission; // 自分で光る色 (溶岩・水の光)。1 より大きい値はブルームでにじむ
 
-            public Spec(string name, int kind, Color a, Color b, float smoothness)
+            public Spec(string name, int kind, Color a, Color b, float smoothness) : this(name, kind, a, b, smoothness, Color.black) { }
+
+            public Spec(string name, int kind, Color a, Color b, float smoothness, Color emission)
             {
                 this.name = name;
                 this.kind = kind;
                 this.a = a;
                 this.b = b;
                 this.smoothness = smoothness;
+                this.emission = emission;
             }
         }
 
@@ -46,6 +56,11 @@ namespace NightShards.Museum
             new Spec("Wood", 1, new Color(0.36f, 0.22f, 0.13f), new Color(0.22f, 0.12f, 0.07f), 0.45f),
             new Spec("Pedestal", 3, new Color(0.05f, 0.05f, 0.055f), new Color(0.08f, 0.08f, 0.085f), 0.35f),
             new Spec("Placeholder", 3, new Color(0.8f, 0.8f, 0.78f), new Color(0.7f, 0.7f, 0.68f), 0.1f),
+            new Spec("Water", 5, new Color(0.012f, 0.016f, 0.03f), new Color(0.02f, 0.03f, 0.05f), 0.96f),
+            new Spec("Obsidian", 4, new Color(0.025f, 0.02f, 0.02f), new Color(0.05f, 0.04f, 0.04f), 0.85f, new Color(4f, 1.1f, 0.15f)),
+            new Spec("Basalt Wall", 0, new Color(0.14f, 0.12f, 0.11f), new Color(0.08f, 0.07f, 0.07f), 0.2f),
+            new Spec("Caustic Wall", 6, new Color(0.82f, 0.86f, 0.86f), new Color(0.74f, 0.79f, 0.8f), 0.15f, new Color(0.4f, 0.9f, 0.95f)),
+            new Spec("Caustic Floor", 6, new Color(0.55f, 0.75f, 0.78f), new Color(0.45f, 0.65f, 0.7f), 0.7f, new Color(0.6f, 1.2f, 1.25f)),
         };
 
         public Material Get(int i)
@@ -58,7 +73,12 @@ namespace NightShards.Museum
                 case 3: return paleStone;
                 case 4: return wood;
                 case 5: return pedestal;
-                default: return placeholder;
+                case 6: return placeholder;
+                case 7: return water;
+                case 8: return obsidian;
+                case 9: return basaltWall;
+                case 10: return causticWall;
+                default: return causticFloor;
             }
         }
 
@@ -72,7 +92,12 @@ namespace NightShards.Museum
                 case 3: paleStone = m; break;
                 case 4: wood = m; break;
                 case 5: pedestal = m; break;
-                default: placeholder = m; break;
+                case 6: placeholder = m; break;
+                case 7: water = m; break;
+                case 8: obsidian = m; break;
+                case 9: basaltWall = m; break;
+                case 10: causticWall = m; break;
+                default: causticFloor = m; break;
             }
         }
 
@@ -90,6 +115,7 @@ namespace NightShards.Museum
             m.SetColor("_ColorA", spec.a);
             m.SetColor("_ColorB", spec.b);
             m.SetFloat("_Smoothness", spec.smoothness);
+            if (m.HasProperty("_EmissionColor")) m.SetColor("_EmissionColor", spec.emission);
             if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", spec.a); // URP/Lit で代用したとき用
             return m;
         }

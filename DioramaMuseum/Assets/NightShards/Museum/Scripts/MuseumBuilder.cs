@@ -24,6 +24,8 @@ namespace NightShards.Museum
         [SerializeField] float dioramaSize = 0.8f;
         [Tooltip("キャプションの文字のシェーダー。空なら Shader.Find で探す")]
         [SerializeField] Shader textShader;
+        [Tooltip("展示室のアート (月・光の糸・障子・火の粉) のシェーダー。空なら Shader.Find で探す")]
+        [SerializeField] Shader artShader;
         [Tooltip("キャプションの文字の大きさの倍率")]
         [SerializeField, Range(0.5f, 2f)] float captionTextScale = 1f;
 
@@ -57,6 +59,9 @@ namespace NightShards.Museum
         [SerializeField, HideInInspector] List<Light> hallLights = new List<Light>();
         [SerializeField, HideInInspector] List<Light> glowLights = new List<Light>();
         [SerializeField, HideInInspector] List<Light> fillLights = new List<Light>();
+        // 展示室のアートのライト。作ったときの明るさを覚えておき、Brightness をかける
+        [SerializeField, HideInInspector] List<Light> artLights = new List<Light>();
+        [SerializeField, HideInInspector] List<float> artLightBase = new List<float>();
 
         public MuseumLayout Layout => layout;
         public Shader SurfaceShader => surfaceShader;
@@ -136,6 +141,8 @@ namespace NightShards.Museum
             hallLights.Clear();
             glowLights.Clear();
             fillLights.Clear();
+            artLights.Clear();
+            artLightBase.Clear();
         }
 
         // 暗く静かな館内にする。空の光は使わず、ほぼ黒の環境光と、黒い霧で奥を沈める
@@ -161,6 +168,8 @@ namespace NightShards.Museum
             SetIntensity(hallLights, hallIntensity);
             SetIntensity(glowLights, glowIntensity);
             SetIntensity(fillLights, fillIntensity);
+            for (int i = 0; i < artLights.Count && i < artLightBase.Count; i++)
+                if (artLights[i] != null) artLights[i].intensity = artLightBase[i] * brightness;
 
             Color amb = ambient * brightness;
             RenderSettings.ambientLight = amb;
@@ -186,14 +195,31 @@ namespace NightShards.Museum
                                  $"{urp.additionalLightsRenderingMode} になっています。Per Pixel にしないと、スポットライトがほとんど効きません。", urp);
         }
 
+        // 部屋のテーマごとの床・壁・天井
         Material FloorFor(RoomTheme theme)
         {
             switch (theme)
             {
+                case RoomTheme.Moon: return materials.water;
+                case RoomTheme.Fire: return materials.obsidian;
                 case RoomTheme.Dusk: return materials.wood;
-                case RoomTheme.Sea: return materials.paleStone;
-                default: return materials.darkStone;
+                default: return materials.causticFloor;
             }
+        }
+
+        Material WallFor(RoomTheme theme)
+        {
+            switch (theme)
+            {
+                case RoomTheme.Fire: return materials.basaltWall;
+                case RoomTheme.Sea: return materials.causticWall;
+                default: return materials.concreteWall;
+            }
+        }
+
+        Material CeilingFor(RoomTheme theme)
+        {
+            return theme == RoomTheme.Sea ? materials.causticWall : materials.concreteCeiling;
         }
 
         // ---------------------------------------------------------------- 建物
@@ -266,16 +292,36 @@ namespace NightShards.Museum
                 { MuseumGeometry.Opposite(room.direction), new List<float> { 0f } },
             };
             var roomRoot = MuseumGeometry.Room(wing, "Room", center, sizeX, sizeZ, room.height, t, doors, cw, ch,
-                FloorFor(room.theme), materials.concreteWall, materials.concreteCeiling);
+                FloorFor(room.theme), WallFor(room.theme), CeilingFor(room.theme));
             fillLights.Add(AddLight(roomRoot, "Room Fill", center + Vector3.up * (room.height * 0.75f), LightType.Point,
                 room.accent, fillIntensity, Mathf.Max(room.width, room.depth), 0f, false));
 
-            BuildExhibits(room, roomRoot, f, r, near);
+            var exhibitPositions = BuildExhibits(room, roomRoot, f, r, near);
+
+            // 部屋そのもののアート
+            var info = new RoomArt.RoomInfo
+            {
+                parent = roomRoot,
+                center = center,
+                forward = f,
+                right = r,
+                width = room.width,
+                depth = room.depth,
+                height = room.height,
+                accent = room.accent,
+                exhibits = exhibitPositions,
+            };
+            foreach (var l in RoomArt.Build(room.theme, info, artShader))
+            {
+                artLights.Add(l);
+                artLightBase.Add(l.intensity);
+            }
         }
 
         // 部屋の幅いっぱいに、等間隔で台座を並べる。台座は入口のほうを向く
-        void BuildExhibits(RoomSpec room, Transform parent, Vector3 f, Vector3 r, float near)
+        List<Vector3> BuildExhibits(RoomSpec room, Transform parent, Vector3 f, Vector3 r, float near)
         {
+            var positions = new List<Vector3>();
             var parts = new ExhibitStand.Parts
             {
                 pedestal = materials.pedestal,
@@ -295,6 +341,7 @@ namespace NightShards.Museum
                 float across = -room.width * 0.5f + room.width * (i + 1) / (n + 1);
                 Vector3 pos = f * (near + room.depth * 0.55f) + r * across;
 
+                positions.Add(pos);
                 var go = new GameObject("Exhibit_" + spec.title);
                 go.transform.SetParent(parent, false);
                 go.transform.localPosition = pos;
@@ -308,6 +355,7 @@ namespace NightShards.Museum
                 spotLights.Add(AddLight(go.transform, "Spot", Vector3.up * (room.height - 0.25f), LightType.Spot,
                     new Color(1f, 0.94f, 0.84f), spotIntensity, room.height + 2f, 34f, layout.spotShadows));
             }
+            return positions;
         }
 
         Light AddLight(Transform parent, string name, Vector3 localPos, LightType type, Color color,

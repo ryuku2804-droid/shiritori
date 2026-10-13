@@ -148,6 +148,8 @@ namespace NightShards.Museum.EditorTools
             if (surface.objectReferenceValue == null) surface.objectReferenceValue = Shader.Find("NightShards/MuseumSurface");
             var text = so.FindProperty("textShader");
             if (text.objectReferenceValue == null) text.objectReferenceValue = Shader.Find("NightShards/MuseumText");
+            var art = so.FindProperty("artShader");
+            if (art.objectReferenceValue == null) art.objectReferenceValue = Shader.Find("NightShards/MuseumArt");
 
             var diorama = so.FindProperty("dioramaMaterial");
             if (diorama.objectReferenceValue == null)

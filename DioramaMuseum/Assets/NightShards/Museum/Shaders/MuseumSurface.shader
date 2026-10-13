@@ -1,15 +1,17 @@
 // 美術館の床・壁・天井・台座の質感 (URP 用)。テクスチャ画像は使わず、ワールド座標からノイズで模様を作る。
 // _Kind で種類を切り替える: 0 打ち放しコンクリート / 1 木の床 / 2 石 (研ぎ出し) / 3 漆喰
+//                           4 黒曜石と溶岩のひび / 5 水盤 / 6 揺れる水の光 (コースティクス) の映る漆喰
 // 光の計算は URP の UniversalFragmentPBR (URP/Lit と同じ) に任せるので、スポットライト・影・霧・環境光がそのまま効く
 Shader "NightShards/MuseumSurface"
 {
     Properties
     {
-        [Enum(Concrete,0,Wood,1,Stone,2,Plaster,3)] _Kind ("Kind", Float) = 0
+        [Enum(Concrete,0,Wood,1,Stone,2,Plaster,3,Obsidian,4,Water,5,Caustic,6)] _Kind ("Kind", Float) = 0
         _ColorA ("Color A", Color) = (0.46, 0.45, 0.43, 1)
         _ColorB ("Color B", Color) = (0.34, 0.33, 0.32, 1)
         _Smoothness ("Smoothness", Range(0, 1)) = 0.2
         _Scale ("Pattern Scale", Float) = 1
+        [HDR] _EmissionColor ("Emission (溶岩・水の光)", Color) = (0, 0, 0, 1)
     }
 
     SubShader
@@ -27,6 +29,7 @@ Shader "NightShards/MuseumSurface"
             half4 _ColorB;
             half _Smoothness;
             float _Scale;
+            half4 _EmissionColor;
         CBUFFER_END
         ENDHLSL
 
@@ -47,12 +50,14 @@ Shader "NightShards/MuseumSurface"
             #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
             #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
             #pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
+            #pragma multi_compile_fragment _ _LIGHT_COOKIES
             #pragma multi_compile _ _FORWARD_PLUS
             #pragma multi_compile _ _CLUSTER_LIGHT_LOOP
             #pragma multi_compile_fog
             #pragma multi_compile_instancing
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            #include "MuseumNoise.hlsl"
 
             struct Attributes
             {
@@ -69,48 +74,6 @@ Shader "NightShards/MuseumSurface"
                 half fogFactor : TEXCOORD2;
                 UNITY_VERTEX_OUTPUT_STEREO
             };
-
-            // ---------------------------------------------------------------- ノイズ
-
-            float Hash21(float2 p)
-            {
-                p = frac(p * float2(123.34, 456.21));
-                p += dot(p, p + 45.32);
-                return frac(p.x * p.y);
-            }
-
-            float ValueNoise(float2 p)
-            {
-                float2 i = floor(p);
-                float2 f = frac(p);
-                float2 u = f * f * (3.0 - 2.0 * f);
-                float a = Hash21(i);
-                float b = Hash21(i + float2(1, 0));
-                float c = Hash21(i + float2(0, 1));
-                float d = Hash21(i + float2(1, 1));
-                return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
-            }
-
-            float Fbm(float2 p)
-            {
-                float v = 0.0;
-                float amp = 0.5;
-                for (int k = 0; k < 5; k++)
-                {
-                    v += amp * ValueNoise(p);
-                    p = p * 2.03 + 17.1;
-                    amp *= 0.5;
-                }
-                return v;
-            }
-
-            // 線 (継ぎ目・目地) の太さ w を、画面上で1ピクセルより細くならないようにぼかす。遠くでちらつかない。
-            // px は1ピクセルが何 m にあたるか。微分 (fwidth) は分岐の中で使えないので、Frag の最初で計算して渡す
-            float LineMask(float dist, float w, float px)
-            {
-                float aa = max(px, 1e-4);
-                return 1.0 - smoothstep(w - aa, w + aa, dist);
-            }
 
             // ---------------------------------------------------------------- 種類ごとの模様
 
@@ -196,6 +159,28 @@ Shader "NightShards/MuseumSurface"
                 occ = 1.0;
             }
 
+            // 黒曜石の床: 黒く磨かれた石に、ボロノイのひびが走り、奥で溶岩が脈打つように光る
+            void Obsidian(float2 uv, float px, float t, out float3 albedo, out float gloss, out float occ, out float3 emission)
+            {
+                float3 big = Voronoi(uv * 0.9);
+                float3 fine = Voronoi(uv * 2.6 + 11.0);
+                float crack = max(LineMask(big.y, 0.03, px * 0.9), LineMask(fine.y, 0.012, px * 2.6) * 0.6);
+                float heat = exp(-big.y * 9.0);                          // ひびのまわりのにじむ熱
+                float pulse = 0.55 + 0.45 * sin(t * 1.1 + big.z * 6.2831); // ひびごとにずれて脈打つ
+
+                albedo = lerp(_ColorA.rgb, _ColorB.rgb, Fbm(uv * 3.0));
+                albedo = lerp(albedo, float3(0.05, 0.02, 0.01), crack);
+                gloss = _Smoothness * (1.0 - crack);
+                occ = 1.0;
+                emission = _EmissionColor.rgb * pulse * (crack + heat * 0.18);
+            }
+
+            // 水盤の高さ (さざ波)。法線を傾けるのに使う
+            float Ripple(float2 p, float t)
+            {
+                return ValueNoise(p * 2.5 + float2(t * 0.15, t * 0.1)) + 0.5 * ValueNoise(p * 6.0 - float2(t * 0.2, -t * 0.13));
+            }
+
             // ---------------------------------------------------------------- 本体
 
             Varyings Vert(Attributes input)
@@ -225,13 +210,37 @@ Shader "NightShards/MuseumSurface"
                 uv /= max(_Scale, 1e-3);
                 float px = length(fwidth(uv)) * 0.7;
 
+                float t = _Time.y;
                 float3 albedo;
                 float gloss;
                 float occ;
+                float3 emission = 0;
                 if (_Kind < 0.5)      Concrete(uv, px, albedo, gloss, occ);
                 else if (_Kind < 1.5) Wood(uv, px, albedo, gloss, occ);
                 else if (_Kind < 2.5) Stone(uv, px, albedo, gloss, occ);
-                else                  Plaster(uv, px, albedo, gloss, occ);
+                else if (_Kind < 3.5) Plaster(uv, px, albedo, gloss, occ);
+                else if (_Kind < 4.5) Obsidian(uv, px, t, albedo, gloss, occ, emission);
+                else if (_Kind < 5.5)
+                {
+                    // 水盤: ほぼ黒い水面。さざ波で法線を少し傾けて、光の映り込みを揺らす
+                    albedo = lerp(_ColorA.rgb, _ColorB.rgb, ValueNoise(uv * 0.7));
+                    gloss = _Smoothness;
+                    occ = 1.0;
+                    if (horizontal)
+                    {
+                        const float e = 0.02;
+                        float dx = (Ripple(uv + float2(e, 0), t) - Ripple(uv - float2(e, 0), t)) / (2.0 * e);
+                        float dz = (Ripple(uv + float2(0, e), t) - Ripple(uv - float2(0, e), t)) / (2.0 * e);
+                        normalWS = normalize(normalWS + float3(-dx, 0, -dz) * 0.05);
+                    }
+                }
+                else
+                {
+                    // 水の光の映る漆喰: 白い面に、ゆっくり揺れる光の網目が浮かぶ。壁は天井より少し弱く
+                    Plaster(uv, px, albedo, gloss, occ);
+                    float c = Caustics(uv * 0.33, t * 0.6) + 0.5 * Caustics(uv * 0.21 + 0.37, t * 0.45);
+                    emission = _EmissionColor.rgb * c * (horizontal ? 1.0 : 0.6);
+                }
 
                 // URP の光の計算に渡す材料
                 InputData inputData = (InputData)0;
@@ -252,7 +261,7 @@ Shader "NightShards/MuseumSurface"
                 surface.smoothness = saturate(gloss);
                 surface.occlusion = saturate(occ);
                 surface.normalTS = half3(0, 0, 1);
-                surface.emission = 0;
+                surface.emission = emission;
                 surface.alpha = 1;
 
                 half4 color = UniversalFragmentPBR(inputData, surface);
