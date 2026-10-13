@@ -15,6 +15,9 @@ namespace NightShards.Museum
         // 画面中央の下に出す案内。空なら出さない
         public string Prompt { get; set; } = "";
 
+        // 画面の下に出す操作の案内 (鑑賞モードの操作など)。空なら出さない
+        public string Hint { get; set; } = "";
+
         // false にすると照準の点を隠す (鑑賞モードの間など)
         public bool ShowCrosshair { get; set; } = true;
 
@@ -22,6 +25,7 @@ namespace NightShards.Museum
         {
             "WASD  歩く　　マウス  見回す",
             "Shift  走る　　Space  ジャンプ",
+            "作品に近づいて  E  鑑賞する",
             "Esc  カーソルを外す　　クリック  戻る",
             "H  この説明をもう一度",
         };
@@ -57,6 +61,13 @@ namespace NightShards.Museum
             {
                 var r = new Rect(0f, Screen.height * 0.5f + 40f * scale, Screen.width, 40f * scale);
                 Shadowed(r, Prompt, promptStyle, 1f);
+            }
+
+            if (!string.IsNullOrEmpty(Hint))
+            {
+                var r = new Rect(0f, Screen.height - 70f * scale, Screen.width, 40f * scale);
+                Fill(new Rect(0f, r.y - 6f * scale, Screen.width, r.height + 12f * scale), new Color(0f, 0f, 0f, 0.35f));
+                Shadowed(r, Hint, bodyStyle, 1f);
             }
 
             float alpha = IntroAlpha();

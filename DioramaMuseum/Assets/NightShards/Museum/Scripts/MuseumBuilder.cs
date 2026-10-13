@@ -17,6 +17,17 @@ namespace NightShards.Museum
         [Tooltip("Tools メニューで組み立てると、保存したマテリアルがここに入る")]
         [SerializeField] MuseumMaterials materials = new MuseumMaterials();
 
+        [Header("ジオラマとキャプション")]
+        [Tooltip("既存の Diorama.shader で作ったマテリアル。Tools で組み立てると自動で探して入れる。空なら仮の箱を置く")]
+        [SerializeField] Material dioramaMaterial;
+        [Tooltip("ジオラマの箱の一辺 (m)")]
+        [SerializeField] float dioramaSize = 0.8f;
+        [Tooltip("キャプションの文字のシェーダー。空なら Shader.Find で探す")]
+        [SerializeField] Shader textShader;
+        [Tooltip("キャプションの文字の大きさの倍率")]
+        [SerializeField, Range(0.5f, 2f)] float captionTextScale = 1f;
+
+        [Header("シーン")]
         [Tooltip("シーンにもとからある Directional Light (太陽の光) を止め、再生中は元の Main Camera も止める。" +
                  "屋内なので太陽の光は使わない。外すと、Directional Light はそのまま残る")]
         [SerializeField] bool takeOverScene = true;
@@ -50,11 +61,14 @@ namespace NightShards.Museum
         public MuseumLayout Layout => layout;
         public Shader SurfaceShader => surfaceShader;
         public MuseumMaterials Materials => materials;
+        public Material DioramaMaterial => dioramaMaterial;
         public Transform Root => root;
         public FirstPersonController Player { get; private set; }
 
-        // 台座の上の位置 (段階2でここにジオラマを置く)
+        // 展示の一覧 (ジオラマの中心)
         public IReadOnlyList<Transform> ExhibitAnchors => exhibitAnchors;
+
+        Material textMaterial; // 組み立て1回ぶん、すべてのキャプションで共有する
 
         public const string RootName = "Museum (Generated)";
 
@@ -102,6 +116,7 @@ namespace NightShards.Museum
             root = new GameObject(RootName).transform;
             root.SetParent(transform, false);
             exhibitAnchors.Clear();
+            textMaterial = CaptionText.CreateMaterial(textShader, CaptionText.DefaultFont);
 
             BuildHallAndRooms();
             ApplyLighting();
@@ -261,6 +276,18 @@ namespace NightShards.Museum
         // 部屋の幅いっぱいに、等間隔で台座を並べる。台座は入口のほうを向く
         void BuildExhibits(RoomSpec room, Transform parent, Vector3 f, Vector3 r, float near)
         {
+            var parts = new ExhibitStand.Parts
+            {
+                pedestal = materials.pedestal,
+                placeholder = materials.placeholder,
+                plate = materials.pedestal,
+                diorama = dioramaMaterial,
+                dioramaSize = dioramaSize,
+                text = textMaterial,
+                font = CaptionText.DefaultFont,
+                textScale = captionTextScale,
+            };
+
             int n = room.exhibits.Count;
             for (int i = 0; i < n; i++)
             {
@@ -268,23 +295,17 @@ namespace NightShards.Museum
                 float across = -room.width * 0.5f + room.width * (i + 1) / (n + 1);
                 Vector3 pos = f * (near + room.depth * 0.55f) + r * across;
 
-                var stand = new GameObject("Exhibit_" + spec.title).transform;
-                stand.SetParent(parent, false);
-                stand.localPosition = pos;
-                stand.localRotation = Quaternion.LookRotation(-f);
+                var go = new GameObject("Exhibit_" + spec.title);
+                go.transform.SetParent(parent, false);
+                go.transform.localPosition = pos;
+                go.transform.localRotation = Quaternion.LookRotation(-f);
 
-                MuseumGeometry.Box(stand, "Pedestal", Vector3.up * 0.5f, new Vector3(0.9f, 1f, 0.9f), materials.pedestal);
-                // 段階2で本物のジオラマに差し替える仮の箱
-                var placeholder = MuseumGeometry.Box(stand, "Placeholder", Vector3.up * 1.35f, Vector3.one * 0.7f, materials.placeholder);
-                placeholder.transform.localRotation = Quaternion.Euler(0f, 20f, 0f);
-
-                var anchor = new GameObject("Anchor").transform;
-                anchor.SetParent(stand, false);
-                anchor.localPosition = Vector3.up * 1f;
-                exhibitAnchors.Add(anchor);
+                var stand = go.AddComponent<ExhibitStand>();
+                stand.Build(spec, parts);
+                exhibitAnchors.Add(stand.Diorama.transform);
 
                 // 台座の真上から落とすスポットライト。床に光だまりができる
-                spotLights.Add(AddLight(stand, "Spot", Vector3.up * (room.height - 0.25f), LightType.Spot,
+                spotLights.Add(AddLight(go.transform, "Spot", Vector3.up * (room.height - 0.25f), LightType.Spot,
                     new Color(1f, 0.94f, 0.84f), spotIntensity, room.height + 2f, 34f, layout.spotShadows));
             }
         }
@@ -347,6 +368,10 @@ namespace NightShards.Museum
 
             Player = go.AddComponent<FirstPersonController>();
             Player.cameraPivot = pivot;
+
+            var viewer = go.AddComponent<ExhibitViewer>();
+            viewer.cameraTransform = camGo.transform;
+            viewer.body = Player;
         }
     }
 }
