@@ -10,7 +10,7 @@ namespace NightShards.Museum.EditorTools
     public static class MuseumMenu
     {
         const string Menu = "Tools/Diorama Museum/";
-        const string MaterialFolder = "Assets/NightShards/Museum/Generated";
+        const string DefaultMaterialFolder = "Assets/NightShards/Museum/Generated";
 
         [MenuItem(Menu + "美術館を組み立てる", priority = 0)]
         static void BuildInScene()
@@ -111,20 +111,21 @@ namespace NightShards.Museum.EditorTools
         // すでにファイルがあれば作り直さずにそれを使う (自分で調整した色が消えないように)
         static void EnsureMaterialAssets(MuseumBuilder builder)
         {
-            if (!AssetDatabase.IsValidFolder(MaterialFolder))
+            Shader shader = MuseumMaterials.FindShader(builder.SurfaceShader);
+            string materialFolder = MaterialFolderFor(shader);
+            if (!AssetDatabase.IsValidFolder(materialFolder))
             {
-                Directory.CreateDirectory(MaterialFolder);
+                Directory.CreateDirectory(materialFolder);
                 AssetDatabase.Refresh();
             }
 
-            Shader shader = MuseumMaterials.FindShader(builder.SurfaceShader);
             var mats = builder.Materials;
             for (int i = 0; i < MuseumMaterials.Defaults.Length; i++)
             {
                 if (mats.Get(i) != null && AssetDatabase.Contains(mats.Get(i))) continue;
 
                 var spec = MuseumMaterials.Defaults[i];
-                string path = $"{MaterialFolder}/{spec.name}.mat";
+                string path = $"{materialFolder}/{spec.name}.mat";
                 var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
                 if (mat == null)
                 {
@@ -136,10 +137,20 @@ namespace NightShards.Museum.EditorTools
             AssetDatabase.SaveAssets();
         }
 
+        // シェーダーが Assets/〇〇/Shaders にあれば Assets/〇〇/Generated に保存する。わからなければ決まった場所に
+        static string MaterialFolderFor(Shader shader)
+        {
+            string shaderPath = shader != null ? AssetDatabase.GetAssetPath(shader) : "";
+            if (!shaderPath.StartsWith("Assets/")) return DefaultMaterialFolder;
+            string dir = Path.GetDirectoryName(shaderPath).Replace('\\', '/');
+            string parent = Path.GetFileName(dir) == "Shaders" ? Path.GetDirectoryName(dir).Replace('\\', '/') : dir;
+            return parent + "/Generated";
+        }
+
         // ピンク色になる原因 (URP などのプロジェクト・シェーダーのエラー) を Console に書き出す
         static void ReportShaderProblems(MuseumBuilder builder)
         {
-            bool srp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null; // 詳しいメッセージは Build の中で出している
+            bool notUrp = !MuseumMaterials.IsUniversalPipeline(); // 詳しいメッセージは Build の中で出している
 
             Shader shader = MuseumMaterials.FindShader(builder.SurfaceShader);
             bool hasError = shader != null && ShaderUtil.ShaderHasError(shader);
@@ -160,9 +171,9 @@ namespace NightShards.Museum.EditorTools
                 EditorUtility.SetDirty(mat);
             }
 
-            if (srp || hasError)
+            if (notUrp || hasError)
                 EditorUtility.DisplayDialog("Diorama Museum",
-                    srp ? "このプロジェクトは URP / HDRP なので、館がピンク色になります。Console の赤いメッセージを見てください。"
+                    notUrp ? "このプロジェクトは URP ではないので、館がピンク色になります。Console の赤いメッセージを見てください。"
                         : "MuseumSurface シェーダーにエラーがあるので、館がピンク色になります。Console の赤いメッセージを貼ってください。",
                     "OK");
         }

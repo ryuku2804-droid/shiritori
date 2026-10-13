@@ -1,6 +1,6 @@
-// 美術館の床・壁・天井・台座の質感。テクスチャ画像は使わず、ワールド座標からノイズで模様を作る。
+// 美術館の床・壁・天井・台座の質感 (URP 用)。テクスチャ画像は使わず、ワールド座標からノイズで模様を作る。
 // _Kind で種類を切り替える: 0 打ち放しコンクリート / 1 木の床 / 2 石 (研ぎ出し) / 3 漆喰
-// サーフェスシェーダーなので、スポットライトや影は Unity の標準ライティング (Standard) がそのまま効く
+// 光の計算は URP の UniversalFragmentPBR (URP/Lit と同じ) に任せるので、スポットライト・影・霧・環境光がそのまま効く
 Shader "NightShards/MuseumSurface"
 {
     Properties
@@ -14,178 +14,401 @@ Shader "NightShards/MuseumSurface"
 
     SubShader
     {
-        Tags { "RenderType" = "Opaque" }
+        Tags { "RenderType" = "Opaque" "RenderPipeline" = "UniversalPipeline" "Queue" = "Geometry" }
         LOD 300
 
-        CGPROGRAM
-        #pragma surface surf Standard fullforwardshadows
-        #pragma target 3.5
+        HLSLINCLUDE
+        #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-        float _Kind;
-        fixed4 _ColorA;
-        fixed4 _ColorB;
-        half _Smoothness;
-        float _Scale;
+        // マテリアルごとの値は UnityPerMaterial にまとめる (SRP Batcher で速く描ける)
+        CBUFFER_START(UnityPerMaterial)
+            float _Kind;
+            half4 _ColorA;
+            half4 _ColorB;
+            half _Smoothness;
+            float _Scale;
+        CBUFFER_END
+        ENDHLSL
 
-        struct Input
+        // ------------------------------------------------------------------ 色を塗るパス
+        Pass
         {
-            float3 worldPos;
-            float3 worldNormal;
-        };
+            Name "ForwardLit"
+            Tags { "LightMode" = "UniversalForward" }
 
-        // ---------------------------------------------------------------- ノイズ
+            HLSLPROGRAM
+            #pragma target 3.5
+            #pragma vertex Vert
+            #pragma fragment Frag
 
-        float Hash21(float2 p)
-        {
-            p = frac(p * float2(123.34, 456.21));
-            p += dot(p, p + 45.32);
-            return frac(p.x * p.y);
-        }
+            // URP の光と影の切り替え。URP/Lit と同じものを並べる
+            #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
+            #pragma multi_compile _ _ADDITIONAL_LIGHTS_VERTEX _ADDITIONAL_LIGHTS
+            #pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
+            #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
+            #pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
+            #pragma multi_compile _ _FORWARD_PLUS
+            #pragma multi_compile _ _CLUSTER_LIGHT_LOOP
+            #pragma multi_compile_fog
+            #pragma multi_compile_instancing
 
-        float ValueNoise(float2 p)
-        {
-            float2 i = floor(p);
-            float2 f = frac(p);
-            float2 u = f * f * (3.0 - 2.0 * f);
-            float a = Hash21(i);
-            float b = Hash21(i + float2(1, 0));
-            float c = Hash21(i + float2(0, 1));
-            float d = Hash21(i + float2(1, 1));
-            return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
-        }
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
-        float Fbm(float2 p)
-        {
-            float v = 0.0;
-            float amp = 0.5;
-            for (int k = 0; k < 5; k++)
+            struct Attributes
             {
-                v += amp * ValueNoise(p);
-                p = p * 2.03 + 17.1;
-                amp *= 0.5;
+                float4 positionOS : POSITION;
+                float3 normalOS : NORMAL;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct Varyings
+            {
+                float4 positionCS : SV_POSITION;
+                float3 positionWS : TEXCOORD0;
+                float3 normalWS : TEXCOORD1;
+                half fogFactor : TEXCOORD2;
+                UNITY_VERTEX_OUTPUT_STEREO
+            };
+
+            // ---------------------------------------------------------------- ノイズ
+
+            float Hash21(float2 p)
+            {
+                p = frac(p * float2(123.34, 456.21));
+                p += dot(p, p + 45.32);
+                return frac(p.x * p.y);
             }
-            return v;
+
+            float ValueNoise(float2 p)
+            {
+                float2 i = floor(p);
+                float2 f = frac(p);
+                float2 u = f * f * (3.0 - 2.0 * f);
+                float a = Hash21(i);
+                float b = Hash21(i + float2(1, 0));
+                float c = Hash21(i + float2(0, 1));
+                float d = Hash21(i + float2(1, 1));
+                return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
+            }
+
+            float Fbm(float2 p)
+            {
+                float v = 0.0;
+                float amp = 0.5;
+                for (int k = 0; k < 5; k++)
+                {
+                    v += amp * ValueNoise(p);
+                    p = p * 2.03 + 17.1;
+                    amp *= 0.5;
+                }
+                return v;
+            }
+
+            // 線 (継ぎ目・目地) の太さ w を、画面上で1ピクセルより細くならないようにぼかす。遠くでちらつかない。
+            // px は1ピクセルが何 m にあたるか。微分 (fwidth) は分岐の中で使えないので、Frag の最初で計算して渡す
+            float LineMask(float dist, float w, float px)
+            {
+                float aa = max(px, 1e-4);
+                return 1.0 - smoothstep(w - aa, w + aa, dist);
+            }
+
+            // ---------------------------------------------------------------- 種類ごとの模様
+
+            // 打ち放しコンクリート: 1800×900 の型枠の継ぎ目と、600×450 間隔のセパ穴 (型枠を留めた丸い穴)
+            void Concrete(float2 uv, float px, out float3 albedo, out float gloss, out float occ)
+            {
+                float cloud = Fbm(uv * 0.55);
+                float grain = ValueNoise(uv * 38.0) - 0.5;
+                float streak = Fbm(float2(uv.x * 2.5, uv.y * 0.25)); // 縦に流れる雨じみのようなむら
+                albedo = lerp(_ColorB.rgb, _ColorA.rgb, saturate(cloud * 1.2 - 0.1));
+                albedo *= 1.0 + grain * 0.08;
+                albedo *= lerp(0.92, 1.04, streak);
+                gloss = _Smoothness * (0.8 + 0.4 * cloud);
+
+                float2 panel = float2(1.8, 0.9);
+                float2 g = frac(uv / panel) * panel;
+                float seamDist = min(min(g.x, panel.x - g.x), min(g.y, panel.y - g.y));
+                float seam = LineMask(seamDist, 0.004, px);
+
+                float2 pitch = float2(0.6, 0.45);
+                float2 q = uv - float2(0.3, 0.225);
+                q -= pitch * round(q / pitch);
+                float r = length(q);
+                float hole = LineMask(r, 0.014, px);
+                float ring = LineMask(abs(r - 0.022), 0.004, px) * (1.0 - hole);
+
+                albedo *= 1.0 - seam * 0.35;
+                albedo *= 1.0 - hole * 0.55;
+                albedo *= 1.0 + ring * 0.08;
+                occ = 1.0 - hole * 0.6 - seam * 0.3;
+                gloss *= 1.0 - hole;
+            }
+
+            // 木の床: 幅19cm・長さ1.8mの板を、列ごとにずらして張る。木目は板の長さ方向に伸ばしたノイズ
+            void Wood(float2 uv, float px, out float3 albedo, out float gloss, out float occ)
+            {
+                float w = 0.19;
+                float plankLength = 1.8;
+                float row = floor(uv.y / w);
+                float along = uv.x + Hash21(float2(row, 7.0)) * 3.0;
+                float plank = floor(along / plankLength);
+                float h = Hash21(float2(row, plank));
+
+                float grain = Fbm(float2(along * 0.7, uv.y * 26.0 + h * 10.0));
+                float rings = sin(uv.y * 70.0 + grain * 9.0 + h * 6.0) * 0.5 + 0.5;
+                float tone = saturate(grain * 0.8 + rings * 0.25);
+                albedo = lerp(_ColorB.rgb, _ColorA.rgb, tone) * (0.82 + 0.32 * h);
+
+                float dy = frac(uv.y / w) * w;
+                float dx = frac(along / plankLength) * plankLength;
+                float gapDist = min(min(dy, w - dy), min(dx, plankLength - dx));
+                float gap = LineMask(gapDist, 0.0015, px);
+                albedo *= 1.0 - gap * 0.6;
+                gloss = _Smoothness * (0.75 + 0.35 * grain) * (1.0 - gap);
+                occ = 1.0 - gap * 0.5;
+            }
+
+            // 石の研ぎ出し: 雲のようなむらに細かい粒を散らし、1.2m 角の目地を入れる。よく磨いてあるので光を映す
+            void Stone(float2 uv, float px, out float3 albedo, out float gloss, out float occ)
+            {
+                float cloud = Fbm(uv * 0.8);
+                float chip = step(0.86, ValueNoise(uv * 85.0));
+                float chip2 = step(0.9, ValueNoise(uv * 140.0 + 31.0));
+                albedo = lerp(_ColorA.rgb, _ColorB.rgb, cloud);
+                albedo += chip * 0.06 + chip2 * 0.04;
+
+                float tile = 1.2;
+                float2 g = frac(uv / tile) * tile;
+                float jointDist = min(min(g.x, tile - g.x), min(g.y, tile - g.y));
+                float joint = LineMask(jointDist, 0.0015, px);
+                albedo *= 1.0 - joint * 0.5;
+                gloss = _Smoothness * (0.9 + 0.1 * cloud) * (1.0 - joint * 0.6);
+                occ = 1.0 - joint * 0.4;
+            }
+
+            // 漆喰: ごく弱いむらだけ。台座や仮の箱に使う
+            void Plaster(float2 uv, float px, out float3 albedo, out float gloss, out float occ)
+            {
+                float cloud = Fbm(uv * 2.0);
+                float grain = ValueNoise(uv * 60.0) - 0.5;
+                albedo = lerp(_ColorA.rgb, _ColorB.rgb, cloud) * (1.0 + grain * 0.04);
+                gloss = _Smoothness * (0.85 + 0.3 * cloud);
+                occ = 1.0;
+            }
+
+            // ---------------------------------------------------------------- 本体
+
+            Varyings Vert(Attributes input)
+            {
+                Varyings output = (Varyings)0;
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
+
+                VertexPositionInputs pos = GetVertexPositionInputs(input.positionOS.xyz);
+                VertexNormalInputs nrm = GetVertexNormalInputs(input.normalOS);
+                output.positionCS = pos.positionCS;
+                output.positionWS = pos.positionWS;
+                output.normalWS = nrm.normalWS;
+                output.fogFactor = ComputeFogFactor(pos.positionCS.z);
+                return output;
+            }
+
+            half4 Frag(Varyings input) : SV_Target
+            {
+                float3 normalWS = normalize(input.normalWS);
+
+                // 面の向きでいちばん近い平面に投影する (床と天井は xz、壁は xy か zy)
+                float3 n = abs(normalWS);
+                bool horizontal = n.y > max(n.x, n.z);
+                float3 p = input.positionWS;
+                float2 uv = horizontal ? p.xz : (n.x > n.z ? p.zy : p.xy);
+                uv /= max(_Scale, 1e-3);
+                float px = length(fwidth(uv)) * 0.7;
+
+                float3 albedo;
+                float gloss;
+                float occ;
+                if (_Kind < 0.5)      Concrete(uv, px, albedo, gloss, occ);
+                else if (_Kind < 1.5) Wood(uv, px, albedo, gloss, occ);
+                else if (_Kind < 2.5) Stone(uv, px, albedo, gloss, occ);
+                else                  Plaster(uv, px, albedo, gloss, occ);
+
+                // URP の光の計算に渡す材料
+                InputData inputData = (InputData)0;
+                inputData.positionWS = input.positionWS;
+                inputData.positionCS = input.positionCS;
+                inputData.normalWS = normalWS;
+                inputData.viewDirectionWS = GetWorldSpaceNormalizeViewDir(input.positionWS);
+                inputData.shadowCoord = TransformWorldToShadowCoord(input.positionWS);
+                inputData.fogCoord = input.fogFactor;
+                inputData.bakedGI = SampleSH(normalWS);
+                inputData.normalizedScreenSpaceUV = GetNormalizedScreenSpaceUV(input.positionCS);
+                inputData.shadowMask = half4(1, 1, 1, 1);
+
+                SurfaceData surface = (SurfaceData)0;
+                surface.albedo = albedo;
+                surface.metallic = 0;
+                surface.specular = 0;
+                surface.smoothness = saturate(gloss);
+                surface.occlusion = saturate(occ);
+                surface.normalTS = half3(0, 0, 1);
+                surface.emission = 0;
+                surface.alpha = 1;
+
+                half4 color = UniversalFragmentPBR(inputData, surface);
+                color.rgb = MixFog(color.rgb, inputData.fogCoord);
+                return color;
+            }
+            ENDHLSL
         }
 
-        // 線 (継ぎ目・目地) の太さ w を、画面上で1ピクセルより細くならないようにぼかす。遠くでちらつかない。
-        // px は1ピクセルが何 m にあたるか。微分 (fwidth) は分岐の中で使えないので、surf の最初で計算して渡す
-        float LineMask(float dist, float w, float px)
+        // ------------------------------------------------------------------ 影を落とすパス
+        Pass
         {
-            float aa = max(px, 1e-4);
-            return 1.0 - smoothstep(w - aa, w + aa, dist);
+            Name "ShadowCaster"
+            Tags { "LightMode" = "ShadowCaster" }
+            ZWrite On
+            ZTest LEqual
+            ColorMask 0
+
+            HLSLPROGRAM
+            #pragma target 3.5
+            #pragma vertex ShadowVert
+            #pragma fragment ShadowFrag
+            #pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
+            #pragma multi_compile_instancing
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Shadows.hlsl"
+
+            float3 _LightDirection;
+            float3 _LightPosition;
+
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                float3 normalOS : NORMAL;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            float4 ShadowVert(Attributes input) : SV_POSITION
+            {
+                UNITY_SETUP_INSTANCE_ID(input);
+                float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
+                float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
+            #if defined(_CASTING_PUNCTUAL_LIGHT_SHADOW)
+                float3 lightDirectionWS = normalize(_LightPosition - positionWS); // スポットライトや点光源
+            #else
+                float3 lightDirectionWS = _LightDirection;                        // 平行光源
+            #endif
+                float4 positionCS = TransformWorldToHClip(ApplyShadowBias(positionWS, normalWS, lightDirectionWS));
+            #if UNITY_REVERSED_Z
+                positionCS.z = min(positionCS.z, UNITY_NEAR_CLIP_VALUE);
+            #else
+                positionCS.z = max(positionCS.z, UNITY_NEAR_CLIP_VALUE);
+            #endif
+                return positionCS;
+            }
+
+            half4 ShadowFrag() : SV_Target
+            {
+                return 0;
+            }
+            ENDHLSL
         }
 
-        // ---------------------------------------------------------------- 種類ごとの模様
-
-        // 打ち放しコンクリート: 1800×900 の型枠の継ぎ目と、600×450 間隔のセパ穴 (型枠を留めた丸い穴)
-        void Concrete(float2 uv, float px, out float3 albedo, out float gloss, out float occ)
+        // ------------------------------------------------------------------ 奥行きだけを書くパス (URP が前もって奥行きを取るときに使う)
+        Pass
         {
-            float cloud = Fbm(uv * 0.55);
-            float grain = ValueNoise(uv * 38.0) - 0.5;
-            float streak = Fbm(float2(uv.x * 2.5, uv.y * 0.25)); // 縦に流れる雨じみのようなむら
-            albedo = lerp(_ColorB.rgb, _ColorA.rgb, saturate(cloud * 1.2 - 0.1));
-            albedo *= 1.0 + grain * 0.08;
-            albedo *= lerp(0.92, 1.04, streak);
-            gloss = _Smoothness * (0.8 + 0.4 * cloud);
-            occ = 1.0;
+            Name "DepthOnly"
+            Tags { "LightMode" = "DepthOnly" }
+            ZWrite On
+            ColorMask R
 
-            float2 panel = float2(1.8, 0.9);
-            float2 g = frac(uv / panel) * panel;
-            float seamDist = min(min(g.x, panel.x - g.x), min(g.y, panel.y - g.y));
-            float seam = LineMask(seamDist, 0.004, px);
+            HLSLPROGRAM
+            #pragma target 3.5
+            #pragma vertex DepthVert
+            #pragma fragment DepthFrag
+            #pragma multi_compile_instancing
 
-            float2 pitch = float2(0.6, 0.45);
-            float2 q = uv - float2(0.3, 0.225);
-            q -= pitch * round(q / pitch);
-            float r = length(q);
-            float hole = LineMask(r, 0.014, px);
-            float ring = LineMask(abs(r - 0.022), 0.004, px) * (1.0 - hole);
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
 
-            albedo *= 1.0 - seam * 0.35;
-            albedo *= 1.0 - hole * 0.55;
-            albedo *= 1.0 + ring * 0.08;
-            occ = 1.0 - hole * 0.6 - seam * 0.3;
-            gloss *= 1.0 - hole;
+            struct Varyings
+            {
+                float4 positionCS : SV_POSITION;
+                UNITY_VERTEX_OUTPUT_STEREO
+            };
+
+            Varyings DepthVert(Attributes input)
+            {
+                Varyings output = (Varyings)0;
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
+                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                return output;
+            }
+
+            half DepthFrag(Varyings input) : SV_Target
+            {
+                return input.positionCS.z;
+            }
+            ENDHLSL
         }
 
-        // 木の床: 幅19cm・長さ1.8mの板を、列ごとにずらして張る。木目は板の長さ方向に伸ばしたノイズ
-        void Wood(float2 uv, float px, out float3 albedo, out float gloss, out float occ)
+        // ------------------------------------------------------------------ 奥行きと向きを書くパス (SSAO などが使う)
+        Pass
         {
-            float w = 0.19;
-            float len = 1.8;
-            float row = floor(uv.y / w);
-            float along = uv.x + Hash21(float2(row, 7.0)) * 3.0;
-            float plank = floor(along / len);
-            float h = Hash21(float2(row, plank));
+            Name "DepthNormals"
+            Tags { "LightMode" = "DepthNormals" }
+            ZWrite On
 
-            float grain = Fbm(float2(along * 0.7, uv.y * 26.0 + h * 10.0));
-            float rings = sin((uv.y * 70.0 + grain * 9.0 + h * 6.0)) * 0.5 + 0.5;
-            float tone = saturate(grain * 0.8 + rings * 0.25);
-            albedo = lerp(_ColorB.rgb, _ColorA.rgb, tone) * (0.82 + 0.32 * h);
+            HLSLPROGRAM
+            #pragma target 3.5
+            #pragma vertex DepthNormalsVert
+            #pragma fragment DepthNormalsFrag
+            #pragma multi_compile_fragment _ _GBUFFER_NORMALS_OCT
+            #pragma multi_compile_instancing
 
-            float dy = frac(uv.y / w) * w;
-            float dx = frac(along / len) * len;
-            float gapDist = min(min(dy, w - dy), min(dx, len - dx));
-            float gap = LineMask(gapDist, 0.0015, px);
-            albedo *= 1.0 - gap * 0.6;
-            gloss = _Smoothness * (0.75 + 0.35 * grain) * (1.0 - gap);
-            occ = 1.0 - gap * 0.5;
+            struct Attributes
+            {
+                float4 positionOS : POSITION;
+                float3 normalOS : NORMAL;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct Varyings
+            {
+                float4 positionCS : SV_POSITION;
+                float3 normalWS : TEXCOORD0;
+                UNITY_VERTEX_OUTPUT_STEREO
+            };
+
+            Varyings DepthNormalsVert(Attributes input)
+            {
+                Varyings output = (Varyings)0;
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
+                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                output.normalWS = TransformObjectToWorldNormal(input.normalOS);
+                return output;
+            }
+
+            half4 DepthNormalsFrag(Varyings input) : SV_Target
+            {
+                float3 normalWS = normalize(input.normalWS);
+            #if defined(_GBUFFER_NORMALS_OCT)
+                float2 oct = PackNormalOctQuadEncode(normalWS);
+                return half4(PackFloat2To888(saturate(oct * 0.5 + 0.5)), 0.0);
+            #else
+                return half4(normalWS, 0.0);
+            #endif
+            }
+            ENDHLSL
         }
-
-        // 石の研ぎ出し: 雲のようなむらに細かい粒を散らし、1.2m 角の目地を入れる。よく磨いてあるので光を映す
-        void Stone(float2 uv, float px, out float3 albedo, out float gloss, out float occ)
-        {
-            float cloud = Fbm(uv * 0.8);
-            float chip = step(0.86, ValueNoise(uv * 85.0));
-            float chip2 = step(0.9, ValueNoise(uv * 140.0 + 31.0));
-            albedo = lerp(_ColorA.rgb, _ColorB.rgb, cloud);
-            albedo += chip * 0.06 + chip2 * 0.04;
-
-            float tile = 1.2;
-            float2 g = frac(uv / tile) * tile;
-            float jointDist = min(min(g.x, tile - g.x), min(g.y, tile - g.y));
-            float joint = LineMask(jointDist, 0.0015, px);
-            albedo *= 1.0 - joint * 0.5;
-            gloss = _Smoothness * (0.9 + 0.1 * cloud) * (1.0 - joint * 0.6);
-            occ = 1.0 - joint * 0.4;
-        }
-
-        // 漆喰: ごく弱いむらだけ。台座や仮の箱に使う
-        void Plaster(float2 uv, float px, out float3 albedo, out float gloss, out float occ)
-        {
-            float cloud = Fbm(uv * 2.0);
-            float grain = ValueNoise(uv * 60.0) - 0.5;
-            albedo = lerp(_ColorA.rgb, _ColorB.rgb, cloud) * (1.0 + grain * 0.04);
-            gloss = _Smoothness * (0.85 + 0.3 * cloud);
-            occ = 1.0;
-        }
-
-        // ---------------------------------------------------------------- 本体
-
-        void surf(Input IN, inout SurfaceOutputStandard o)
-        {
-            // 面の向きでいちばん近い平面に投影する (床と天井は xz、壁は xy か zy)
-            float3 n = abs(normalize(IN.worldNormal));
-            bool horizontal = n.y > max(n.x, n.z);
-            float2 uv = horizontal ? IN.worldPos.xz : (n.x > n.z ? IN.worldPos.zy : IN.worldPos.xy);
-            uv /= max(_Scale, 1e-3);
-            float px = length(fwidth(uv)) * 0.7;
-
-            float3 albedo;
-            float gloss;
-            float occ;
-            if (_Kind < 0.5)      Concrete(uv, px, albedo, gloss, occ);
-            else if (_Kind < 1.5) Wood(uv, px, albedo, gloss, occ);
-            else if (_Kind < 2.5) Stone(uv, px, albedo, gloss, occ);
-            else                  Plaster(uv, px, albedo, gloss, occ);
-
-            o.Albedo = albedo;
-            o.Metallic = 0;
-            o.Smoothness = saturate(gloss);
-            o.Occlusion = saturate(occ);
-        }
-        ENDCG
     }
 
-    FallBack "Diffuse"
+    FallBack "Hidden/Universal Render Pipeline/FallbackError"
 }

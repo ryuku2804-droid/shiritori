@@ -90,7 +90,7 @@ namespace NightShards.Museum
             m.SetColor("_ColorA", spec.a);
             m.SetColor("_ColorB", spec.b);
             m.SetFloat("_Smoothness", spec.smoothness);
-            if (m.HasProperty("_Color")) m.SetColor("_Color", spec.a); // Standard で代用したとき用
+            if (m.HasProperty("_BaseColor")) m.SetColor("_BaseColor", spec.a); // URP/Lit で代用したとき用
             return m;
         }
 
@@ -101,17 +101,23 @@ namespace NightShards.Museum
             var s = Shader.Find("NightShards/MuseumSurface");
             if (s != null) return s;
             Debug.LogError("[Museum] シェーダー NightShards/MuseumSurface が見つかりません。MuseumSurface.shader を Assets に入れてください。");
-            return Shader.Find("Standard");
+            return Shader.Find("Universal Render Pipeline/Lit");
         }
 
-        // MuseumSurface は Built-In Render Pipeline 用。URP や HDRP のプロジェクトでは描けずにピンク色になる
-        public static bool WarnIfScriptableRenderPipeline()
+        // MuseumSurface は URP 用。Built-In や HDRP のプロジェクトでは描けずにピンク色になる
+        public static bool IsUniversalPipeline()
         {
             var rp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline;
-            if (rp == null) return false;
-            Debug.LogError($"[Museum] このプロジェクトは Built-In ではなく「{rp.GetType().Name}」({rp.name}) で描いています。" +
-                           "MuseumSurface は Built-In 用なので、ピンク色になります。" +
-                           "Edit > Project Settings > Graphics の Default Render Pipeline と、Quality の Render Pipeline Asset を None にすると Built-In に戻ります。");
+            return rp != null && rp.GetType().Name.Contains("Universal");
+        }
+
+        public static bool WarnIfNotUniversalPipeline()
+        {
+            if (IsUniversalPipeline()) return false;
+            var rp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline;
+            string current = rp == null ? "Built-In Render Pipeline" : rp.GetType().Name;
+            Debug.LogError($"[Museum] このプロジェクトは URP ではなく「{current}」で描いています。" +
+                           "MuseumSurface は URP 用なので、ピンク色になります。");
             return true;
         }
     }

@@ -18,7 +18,7 @@ STEP_TITLE = "段階1:館の骨組みを作って、中を歩く"
 # 貼る順に並べる。(Assets からのパス, 状態, 説明)
 FILES = [
     ("Assets/NightShards/Museum/Shaders/MuseumSurface.shader", "変更",
-     "壁・床・天井の質感。打ち放しコンクリート・木・石・漆喰を、画像なしでノイズから作る"),
+     "壁・床・天井の質感 (URP 用)。打ち放しコンクリート・木・石・漆喰を、画像なしでノイズから作る"),
     ("Assets/NightShards/Museum/Scripts/MuseumLayout.cs", "新規",
      "館の設計図 (部屋の数・大きさ・向き・作品)。ここを変えると館の形が変わる"),
     ("Assets/NightShards/Museum/Scripts/MuseumMaterials.cs", "変更",
@@ -38,12 +38,12 @@ FILES = [
 ]
 
 NOTICE = {
-    "title": "組み立てたらピンク色になったときは",
+    "title": "URP 用に作り替えました (ピンク色の修正)",
     "body": [
-        "ピンク色は「マテリアルのシェーダーが動いていない」しるしです。原因は次の2つのどちらかです。",
-        "**1. シェーダーのエラー**:`MuseumSurface.shader` に、環境によってはエラーになる書き方がありました。修正版を右に出しています。**変更** の付いた4ファイル (`MuseumSurface.shader`・`MuseumMaterials.cs`・`MuseumBuilder.cs`・`MuseumMenu.cs`) を貼り直し、**Tools > Diorama Museum > 美術館を組み立てる** をもう一度選んでください。",
-        "**2. プロジェクトが URP / HDRP**:Unity 6 の新規プロジェクトは、選び方によって URP (Universal 3D) になります。今回のシェーダーは Built-In 用なので、URP では必ずピンク色になります。**Edit > Project Settings > Graphics** の一番上 (Default Render Pipeline) に何か入っていれば URP です。",
-        "組み立て直すと、どちらが原因かを Console とダイアログで知らせるようにしました。**Console に出た赤いメッセージ**と、**Graphics の Default Render Pipeline に何が入っているか**を教えてください。URP だった場合は、URP で動くシェーダーに作り替えます。",
+        "スクリーンショットの `Global Volume` と影の警告から、このプロジェクトは **URP** でした。最初のシェーダーは Built-In 用だったので、URP では必ずピンク色になっていました。",
+        "**変更** の付いた4ファイル (`MuseumSurface.shader`・`MuseumMaterials.cs`・`MuseumBuilder.cs`・`MuseumMenu.cs`) を貼り直してください。シェーダーは URP 用に書き直し、ライトの明るさも URP に合わせて上げています。",
+        "貼り直したら **Tools > Diorama Museum > 美術館を組み立てる** をもう一度選びます。前に作ったマテリアルはそのまま使われ、新しいシェーダーで描き直されます。",
+        "それでもピンク色なら、`MuseumSurface` を選んだときに Inspector に出るエラー文と、Console の赤いメッセージを貼ってください。",
     ],
 }
 
@@ -123,7 +123,7 @@ FLOW = [
 ]
 
 SEE = [
-    "暗い中央ホールに立っている。前後左右に、通路の入口が4つある",
+    "暗い中央ホールに立っている。前後左右に、通路の入口が4つある (ピンク色ではない)",
     "通路の奥から、部屋ごとに違う色の光 (青・橙・茜・青緑) が漏れている",
     "壁は、型枠の継ぎ目と丸い穴 (セパ穴) のある打ち放しコンクリート。床は磨いた黒い石",
     "展示室には黒い台座が2つずつあり、上に白い仮の箱が載っている",
@@ -138,9 +138,10 @@ PHASES = [
             {
                 "title": "プロジェクトを開く",
                 "body": [
-                    "Unity 6 の **3D (Built-In Render Pipeline)** のプロジェクトを開く。既存のジオラマ (`Assets/NightShards/Diorama`) が入っているプロジェクトでよい。",
+                    "既存のジオラマ (`Assets/NightShards/Diorama`) が入っている Unity 6 のプロジェクトを開く。",
+                    "このコードは **URP (Universal 3D)** 用。**Edit > Project Settings > Graphics** の一番上 (Default Render Pipeline) に URP のファイルが入っていれば URP。",
                 ],
-                "ok": "Project ウィンドウに Assets フォルダが見えている。",
+                "ok": "Graphics の Default Render Pipeline に、名前に URP や Universal の入ったファイルが入っている。",
             },
             {
                 "title": "入力の設定を確かめる",
@@ -166,10 +167,10 @@ PHASES = [
             {
                 "title": "シェーダーを貼る",
                 "body": [
-                    "`Shaders` を右クリック > **Create > Shader > Standard Surface Shader**。名前を `MuseumSurface` にする。",
+                    "`Shaders` を右クリック > **Create > Shader > Unlit Shader** (どの種類でもよい)。名前を `MuseumSurface` にする。",
                     "ダブルクリックで開き、中身を全部消す。右のコード台で `MuseumSurface.shader` を選んで「コピー」→ 貼り付けて保存。",
                 ],
-                "ok": "シェーダーを選ぶと、Inspector の一番上に `NightShards/MuseumSurface` と出て、赤いエラーがない。",
+                "ok": "シェーダーを選ぶと、Inspector の一番上に `NightShards/MuseumSurface` と出て、赤いエラーがない (SRP Batcher が compatible になっている)。",
             },
             {
                 "title": "スクリプトを7つ貼る",
@@ -206,7 +207,7 @@ PHASES = [
                 "body": [
                     "Hierarchy の `Museum > Museum (Generated)` を開くと、`Hall`、`Wing_月の間` などが並んでいる。",
                     "Scene ビューで館の中にカメラを入れると、暗い館内とスポットライトの光だまりが見える。",
-                    "`Assets/NightShards/Museum/Generated` にマテリアルが7つできている。選んで Color A / Color B を変えると、壁や床の色をその場で調整できる。",
+                    "シェーダーを置いたフォルダの隣 (例 `Assets/NightShards/Museum/Generated`) にマテリアルが7つできている。選んで Color A / Color B を変えると、壁や床の色をその場で調整できる。",
                 ],
                 "ok": "Hierarchy に建物の部品が並び、Generated フォルダにマテリアルが7つある。",
             },
@@ -285,10 +286,14 @@ TROUBLE = [
      "`MuseumMenu.cs` が Editor フォルダにないか、Console にエラーが残っている。エラーが1つでもあると、メニューは増えない。"),
     ("error CS0246: The type or namespace name 'UnityEditor' could not be found (ビルド時)",
      "`MuseumMenu.cs` が Editor フォルダの外にある。`Assets/NightShards/Museum/Editor` に移す。"),
+    ("Reduced additional punctual light shadows resolution by 2 to make 8 shadow maps fit in the 2048x2048 shadow atlas",
+     "エラーではなく、影の数が多いという URP のお知らせ。気になるときは、URP のアセット (Settings フォルダの PC_RPAsset など) の Lighting > Additional Lights > Shadow Atlas Resolution を 4096 にするか、`Museum` の Layout > Spot Shadows を外す。"),
+    ("光だまりが暗い / 明るすぎる",
+     "`Museum` の Inspector の **明るさ** にある Spot Intensity などを変えて、**組み立て直す** を押す。"),
     ("[Museum] シェーダー NightShards/MuseumSurface が見つかりません",
      "シェーダーの1行目が `Shader \"NightShards/MuseumSurface\"` になっているか確認する。貼る前の中身が残っていないかも見る。"),
     ("床や壁がピンク色",
-     "シェーダーのエラーか、プロジェクトが URP / HDRP。ページの一番上の「ピンク色になったときは」を見てください。"),
+     "シェーダーを選んで Inspector のエラー文を見る。Console に「URP ではなく」と出ていれば、プロジェクトが URP ではない。どちらも、その文を貼ってください。"),
     ("操作説明の文字が □ になる",
      "OS に日本語フォントが見つからないとき。お使いの OS を教えてください。フォントを指定する形に直します。"),
     ("暗すぎて何も見えない / 明るすぎる",
