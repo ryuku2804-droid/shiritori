@@ -14,7 +14,7 @@ namespace NightShards.Museum
     //   Input Manager (Old)                → 旧 Input Manager を使う
     public static class MuseumInput
     {
-        enum K { W, A, S, D, Up, Down, Left, Right, LeftShift, RightShift, Space, E, Escape, H }
+        enum K { W, A, S, D, Up, Down, Left, Right, LeftShift, RightShift, Space, E, Escape, H, F1, F2, F3, F4, F5 }
 
         // WASD / 矢印キー。x: 左右、y: 前後 (-1〜1)
         public static Vector2 Move
@@ -62,6 +62,20 @@ namespace NightShards.Museum
         public static bool InteractPressed => Pressed(K.E);
         public static bool BackPressed => Pressed(K.Escape);
         public static bool HelpPressed => Pressed(K.H);
+
+        // F1〜F5 (重さを調べる切り替え用)。n は 1〜5
+        public static bool FunctionKeyPressed(int n)
+        {
+            switch (n)
+            {
+                case 1: return Pressed(K.F1);
+                case 2: return Pressed(K.F2);
+                case 3: return Pressed(K.F3);
+                case 4: return Pressed(K.F4);
+                case 5: return Pressed(K.F5);
+                default: return false;
+            }
+        }
 
         // 左クリック (押した瞬間 / 押している間)
         public static bool ClickPressed
@@ -128,6 +142,11 @@ namespace NightShards.Museum
                 case K.Space: return kb.spaceKey;
                 case K.E: return kb.eKey;
                 case K.Escape: return kb.escapeKey;
+                case K.F1: return kb.f1Key;
+                case K.F2: return kb.f2Key;
+                case K.F3: return kb.f3Key;
+                case K.F4: return kb.f4Key;
+                case K.F5: return kb.f5Key;
                 default: return kb.hKey;
             }
         }
@@ -149,6 +168,11 @@ namespace NightShards.Museum
                 case K.Space: return KeyCode.Space;
                 case K.E: return KeyCode.E;
                 case K.Escape: return KeyCode.Escape;
+                case K.F1: return KeyCode.F1;
+                case K.F2: return KeyCode.F2;
+                case K.F3: return KeyCode.F3;
+                case K.F4: return KeyCode.F4;
+                case K.F5: return KeyCode.F5;
                 default: return KeyCode.H;
             }
         }

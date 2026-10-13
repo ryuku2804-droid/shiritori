@@ -22,6 +22,9 @@ namespace NightShards.Museum
         public Camera viewCamera;
         public ExhibitViewer viewer;
 
+        // true にすると、すべてのジオラマを描かない (重さを調べる PerfDebug が使う)
+        public static bool HideAll;
+
         static readonly int StepsId = Shader.PropertyToID("_Steps");
         static readonly int ShadowStepsId = Shader.PropertyToID("_ShadowSteps");
 
@@ -40,9 +43,13 @@ namespace NightShards.Museum
                 if (stand == null || stand.Diorama == null) continue;
                 Renderer r = stand.Diorama;
 
-                float dist = Vector3.Distance(eye, r.bounds.center);
-                bool onScreen = GeometryUtility.TestPlanesAABB(planes, r.bounds);
-                bool show = onScreen && dist < hideDistance;
+                // 描かないようにしたジオラマは bounds が当てにならないので、位置と大きさから箱を作る (回っていても入るよう少し大きめ)
+                Transform t = r.transform;
+                float size = Mathf.Max(t.lossyScale.x, Mathf.Max(t.lossyScale.y, t.lossyScale.z)) * 1.5f;
+                var box = new Bounds(t.position, Vector3.one * size);
+                float dist = Vector3.Distance(eye, box.center);
+                bool onScreen = GeometryUtility.TestPlanesAABB(planes, box);
+                bool show = onScreen && dist < hideDistance && !HideAll;
                 if (r.enabled != show) r.enabled = show;
                 if (!show) continue; // 描かないものは、値も更新しない
 

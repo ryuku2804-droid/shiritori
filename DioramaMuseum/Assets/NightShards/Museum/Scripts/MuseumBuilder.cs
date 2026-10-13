@@ -513,6 +513,8 @@ namespace NightShards.Museum
             var lod = go.AddComponent<DioramaLOD>();
             lod.viewCamera = cam;
             lod.viewer = viewer;
+
+            go.AddComponent<PerfDebug>(); // F1〜F5 で重さを調べる
         }
     }
 }
