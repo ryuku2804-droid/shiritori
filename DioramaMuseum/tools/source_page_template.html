@@ -1,0 +1,281 @@
+<title>ジオラマ美術館 ソース</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* レイアウト: 左に手順と作品キャプション風のファイル一覧、右にスクロールしても残るコード台 (コードだけをコピーする場所)。狭い画面では縦に積む */
+:root {
+  --bg: #e4e4e0;          /* 打ち放しコンクリートの灰 */
+  --surface: #f2f2ef;
+  --fg: #1c1d1f;
+  --muted: #5d5f63;
+  --line: #c9cac5;
+  --accent: #9a5f12;      /* スポットライトの琥珀 */
+  --accent-soft: #f0e2c9;
+  --ok-fg: #2d6340;
+  --ok-bg: #dce9df;
+  --code-bg: #121316;
+  --code-fg: #dcdcd6;
+  --code-dim: #6c6e74;
+  --code-line: #ffffff12;
+  --code-sel: #2a2b31;
+  --tok-c: #7f8a86;
+  --tok-s: #d8b57a;
+  --tok-k: #8fb8dc;
+  --tok-n: #c7a2d6;
+  --tok-p: #d9897a;
+  --font-display: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --font-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Consolas", "Menlo", "MS Gothic", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #141517; --surface: #1c1d20; --fg: #e6e5e0; --muted: #9a9b9f; --line: #2e3034;
+    --accent: #e3a957; --accent-soft: #3a2c17; --ok-fg: #9fd3ae; --ok-bg: #1d3325;
+    --code-bg: #0c0d0f; --code-sel: #24252b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #141517; --surface: #1c1d20; --fg: #e6e5e0; --muted: #9a9b9f; --line: #2e3034;
+  --accent: #e3a957; --accent-soft: #3a2c17; --ok-fg: #9fd3ae; --ok-bg: #1d3325;
+  --code-bg: #0c0d0f; --code-sel: #24252b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.8; }
+p { margin: 0; }
+.page { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 32px; padding-inline: 24px; padding-block: 28px 64px; max-width: 1680px; margin: 0 auto; }
+.left { display: grid; gap: 36px; align-content: start; min-width: 0; }
+
+header { display: grid; gap: 10px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .18em; color: var(--accent); }
+h1 { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 30px; line-height: 1.35; text-wrap: balance; }
+h2 { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 21px; text-wrap: balance; }
+.lead { color: var(--muted); max-width: 62ch; }
+section { display: grid; gap: 14px; }
+code.i { font-family: var(--font-mono); font-size: .88em; background: var(--surface); border: 1px solid var(--line); padding: 0 5px; border-radius: 4px; overflow-wrap: anywhere; }
+
+ul.see { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+
+ol.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: grid; gap: 18px; }
+ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 2.2em minmax(0, 1fr); gap: 6px 10px; }
+ol.steps > li::before { content: counter(s); grid-row: span 3; font-family: var(--font-display); font-weight: 700; font-size: 22px; line-height: 1.3; color: var(--accent); }
+ol.steps b.t { font-size: 16px; }
+.ok { padding: 8px 12px; border-radius: 6px; background: var(--ok-bg); font-size: 14px; }
+.ok::before { content: "こうなっていれば OK"; display: block; font-size: 12px; font-weight: 700; color: var(--ok-fg); letter-spacing: .04em; }
+
+/* 作品キャプション風のファイルカード */
+.captions { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 12px; }
+button.cap {
+  all: unset; box-sizing: border-box; cursor: pointer; display: grid; gap: 4px; align-content: start;
+  padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; min-width: 0;
+}
+button.cap:hover { border-color: var(--accent); }
+button.cap[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+button.cap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cap .no { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); letter-spacing: .08em; display: flex; justify-content: space-between; gap: 8px; }
+.cap .no .st { color: var(--ok-fg); font-weight: 500; }
+.cap .nm { font-family: var(--font-mono); font-weight: 500; font-size: 14.5px; overflow-wrap: anywhere; }
+.cap .ds { font-size: 13.5px; color: var(--muted); line-height: 1.65; }
+.cap .md { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.tbl table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.tbl th, .tbl td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tbl tr:last-child td { border-bottom: 0; }
+.tbl th { font-size: 12.5px; color: var(--muted); font-weight: 700; white-space: nowrap; }
+.tbl td.err { font-family: var(--font-mono); font-size: 12.5px; min-width: 16em; }
+ul.checks { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+ul.checks li { display: grid; grid-template-columns: 1.4em minmax(0, 1fr); }
+ul.checks li::before { content: "□"; color: var(--accent); }
+
+/* 右: コード台 */
+.right { min-width: 0; }
+.stage {
+  position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px);
+  height: calc(100vh - 32px); display: grid; grid-template-rows: auto auto minmax(0, 1fr);
+  background: var(--code-bg); color: var(--code-fg); border-radius: 8px; overflow: hidden;
+}
+.tabs { display: flex; gap: 2px; overflow-x: auto; padding: 8px 8px 0; border-bottom: 1px solid var(--code-line); }
+.tabs button {
+  all: unset; cursor: pointer; white-space: nowrap; padding: 7px 12px; border-radius: 6px 6px 0 0;
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--code-dim);
+}
+.tabs button:hover { color: var(--code-fg); }
+.tabs button[aria-selected="true"] { color: var(--code-fg); background: var(--code-sel); }
+.tabs button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; background: var(--code-sel); }
+.bar .p { font-family: var(--font-mono); font-size: 12.5px; color: var(--code-dim); overflow-wrap: anywhere; min-width: 0; }
+.bar .p b { color: var(--code-fg); font-weight: 500; }
+button.copy {
+  border: 0; cursor: pointer; padding: 9px 18px; border-radius: 6px; min-width: 9.5em;
+  background: var(--accent); color: var(--code-bg); font: 700 14px/1 var(--font-body);
+}
+button.copy:hover { filter: brightness(1.08); }
+button.copy:focus-visible { outline: 2px solid var(--code-fg); outline-offset: 2px; }
+button.copy.done { background: var(--ok-fg); }
+.code { overflow: auto; display: grid; grid-template-columns: auto minmax(0, 1fr); font-family: var(--font-mono); font-size: 13px; line-height: 1.65; }
+.code pre { margin: 0; padding: 14px 16px; white-space: pre; tab-size: 4; }
+.code .g { padding: 14px 12px 14px 14px; white-space: pre; color: var(--code-dim); text-align: right; user-select: none; padding-right: 12px; border-right: 1px solid var(--code-line); position: sticky; left: 0; background: var(--code-bg); font-variant-numeric: tabular-nums; }
+.t-c { color: var(--tok-c); font-style: italic; }
+.t-s { color: var(--tok-s); }
+.t-k { color: var(--tok-k); }
+.t-n { color: var(--tok-n); }
+.t-p { color: var(--tok-p); }
+
+@media (max-width: 980px) {
+  .page { grid-template-columns: minmax(0, 1fr); padding-inline: 16px; }
+  .stage { position: static; height: auto; max-height: 85vh; }
+  h1 { font-size: 24px; }
+}
+@media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
+</style>
+
+<div class="page">
+  <div class="left">
+    <header>
+      <div class="eyebrow">DIORAMA MUSEUM / {{STEP_LABEL}}</div>
+      <h1>{{STEP_TITLE}}</h1>
+      <p class="lead">右側のコード台はコードだけを表示します。ファイルを選び「コピー」を押すと、そのファイルの全文がそのまま貼れる形でコピーされます。左の手順に沿って、上から順に進めてください。</p>
+    </header>
+
+    <section>
+      <h2>再生すると見えるもの</h2>
+      <ul class="see" id="see"></ul>
+    </section>
+
+    <section>
+      <h2>手順</h2>
+      <ol class="steps" id="steps"></ol>
+    </section>
+
+    <section>
+      <h2>ファイル</h2>
+      <p class="lead">カードを押すと、右のコード台にそのファイルが出ます。</p>
+      <div class="captions" id="caps"></div>
+    </section>
+
+    <section>
+      <h2>動作の確認</h2>
+      <ul class="checks" id="checks"></ul>
+    </section>
+
+    <section>
+      <h2>よくあるエラー</h2>
+      <div class="tbl"><table><thead><tr><th>Console の表示・症状</th><th>原因と直し方</th></tr></thead><tbody id="trouble"></tbody></table></div>
+    </section>
+
+    <section>
+      <h2>次の段階</h2>
+      <p id="next"></p>
+    </section>
+  </div>
+
+  <div class="right">
+    <div class="stage" id="stage">
+      <div class="tabs" role="tablist" aria-label="ファイル" id="tabs"></div>
+      <div class="bar"><span class="p" id="path"></span><button class="copy" id="copy" type="button">コピー</button></div>
+      <div class="code" id="code"><div class="g" id="gutter"></div><pre><code id="src"></code></pre></div>
+    </div>
+  </div>
+</div>
+
+<script id="data" type="application/json">{{DATA}}</script>
+<script>
+(function () {
+  const data = JSON.parse(document.getElementById('data').textContent);
+  const $ = id => document.getElementById(id);
+
+  const KEYWORDS = new Set(('abstract as base bool break byte case catch char class const continue decimal default delegate do double else enum event explicit extern false finally fixed float for foreach get set goto if implicit in int interface internal is lock long namespace new null object operator out override params private protected public readonly ref return sbyte sealed short sizeof static string struct switch this throw true try typeof uint ulong unchecked unsafe ushort using var virtual void volatile while yield async await nameof value when where ' +
+    'float2 float3 float4 half fixed4 inout Shader Properties SubShader Pass Tags CGPROGRAM ENDCG FallBack LOD').split(' '));
+  const TOKEN = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|(\$?@?"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])')|(^[ \t]*#[^\n]*)|\b(\d+(?:\.\d+)?f?)\b|\b([A-Za-z_]\w*)\b/gm;
+
+  function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function inline(s) {
+    return esc(s).replace(/`([^`]+)`/g, '<code class="i">$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  }
+  function highlight(src) {
+    let out = '', last = 0, m;
+    TOKEN.lastIndex = 0;
+    while ((m = TOKEN.exec(src))) {
+      out += esc(src.slice(last, m.index));
+      const t = m[0];
+      if (m[1]) out += '<span class="t-c">' + esc(t) + '</span>';
+      else if (m[2]) out += '<span class="t-s">' + esc(t) + '</span>';
+      else if (m[3]) out += '<span class="t-p">' + esc(t) + '</span>';
+      else if (m[4]) out += '<span class="t-n">' + esc(t) + '</span>';
+      else if (KEYWORDS.has(t)) out += '<span class="t-k">' + t + '</span>';
+      else out += esc(t);
+      last = TOKEN.lastIndex;
+    }
+    return out + esc(src.slice(last));
+  }
+
+  // 左側
+  $('see').innerHTML = data.see.map(s => '<li>' + inline(s) + '</li>').join('');
+  $('steps').innerHTML = data.steps.map(s =>
+    '<li><b class="t">' + inline(s.title) + '</b><div>' + s.body.map(inline).join('<br>') + '</div>' +
+    (s.ok ? '<div class="ok">' + inline(s.ok) + '</div>' : '') + '</li>').join('');
+  $('checks').innerHTML = data.checks.map(c => '<li><span></span><span>' + inline(c) + '</span></li>').join('');
+  $('trouble').innerHTML = data.trouble.map(t => '<tr><td class="err">' + esc(t[0]) + '</td><td>' + inline(t[1]) + '</td></tr>').join('');
+  $('next').innerHTML = inline(data.next);
+
+  const caps = $('caps'), tabs = $('tabs');
+  data.files.forEach((f, i) => {
+    const cap = document.createElement('button');
+    cap.type = 'button';
+    cap.className = 'cap';
+    cap.innerHTML = '<span class="no"><span>No.' + String(i + 1).padStart(2, '0') + '</span><span class="st">' + esc(f.status) + '</span></span>' +
+      '<span class="nm">' + esc(f.name) + '</span><span class="ds">' + inline(f.desc) + '</span>' +
+      '<span class="md">' + esc(f.folder) + ' · ' + f.lines + ' 行</span>';
+    cap.addEventListener('click', () => { show(i); if (window.matchMedia('(max-width: 980px)').matches) $('stage').scrollIntoView({ block: 'start' }); });
+    caps.appendChild(cap);
+
+    const tab = document.createElement('button');
+    tab.type = 'button';
+    tab.setAttribute('role', 'tab');
+    tab.textContent = f.name;
+    tab.addEventListener('click', () => show(i));
+    tabs.appendChild(tab);
+  });
+
+  // 右側のコード台
+  let current = 0;
+  function show(i) {
+    current = i;
+    const f = data.files[i];
+    $('path').innerHTML = esc(f.folder) + '<b>' + esc(f.name) + '</b>';
+    $('src').innerHTML = highlight(f.code);
+    $('gutter').textContent = Array.from({ length: f.lines }, (_, k) => k + 1).join('\n');
+    $('code').scrollTop = 0;
+    Array.from(tabs.children).forEach((t, k) => t.setAttribute('aria-selected', String(k === i)));
+    Array.from(caps.children).forEach((c, k) => c.setAttribute('aria-pressed', String(k === i)));
+    tabs.children[i].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+
+  const btn = $('copy');
+  btn.addEventListener('click', async () => {
+    const f = data.files[current];
+    try {
+      await navigator.clipboard.writeText(f.code);
+      flash('コピーしました');
+    } catch (e) {
+      const range = document.createRange();
+      range.selectNodeContents($('src'));
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      flash('Ctrl+C でコピー');
+    }
+  });
+  function flash(label) {
+    btn.textContent = label;
+    btn.classList.add('done');
+    clearTimeout(btn._t);
+    btn._t = setTimeout(() => { btn.textContent = 'コピー'; btn.classList.remove('done'); }, 1800);
+  }
+
+  show(0);
+})();
+</script>
