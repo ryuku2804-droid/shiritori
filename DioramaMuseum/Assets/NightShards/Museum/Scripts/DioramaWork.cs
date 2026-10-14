@@ -4,7 +4,8 @@ using UnityEngine;
 namespace NightShards.Museum
 {
     // 作品ごとの「仕掛け」を動かす。ジオラマの箱に付ける。
-    //   Trigger() (鑑賞モードで Space) → _Event が 0 → 1 に盛り上がり、しばらく続いてから 0 に戻る
+    //   Trigger() (鑑賞モードで Space、世界の中でクリック) → _Event が 0 → 1 に盛り上がり、しばらく続いてから 0 に戻る
+    //   演出の最中にもう一度 Trigger() しても、最初からやり直さない (終わってから次を受け付ける)
     //   その間、毎フレーム Pulse で強さを知らせる (部屋の照明や床が連動する: RoomReactor)
     //   音は画像や音声ファイルを使わず、ここで波形を作って鳴らす
     [RequireComponent(typeof(Renderer))]
@@ -21,6 +22,9 @@ namespace NightShards.Museum
 
         public string Work => work;
         public float Value { get; private set; }
+
+        // 演出の最中か (盛り上がり〜おさまるまで)
+        public bool IsPlaying => Time.time - started < rise + hold + fall;
 
         static readonly int EventId = Shader.PropertyToID("_Event");
         static readonly int EventTimeId = Shader.PropertyToID("_EventTime");
@@ -45,9 +49,10 @@ namespace NightShards.Museum
             block = new MaterialPropertyBlock();
         }
 
-        // 仕掛けを動かす。動いている途中なら、最初からやり直す
+        // 仕掛けを動かす。演出の最中なら何もしない
         public void Trigger()
         {
+            if (IsPlaying) return;
             started = Time.time;
             PlaySound();
         }
