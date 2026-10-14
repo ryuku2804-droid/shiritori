@@ -19,6 +19,7 @@ namespace NightShards.Museum
             public Vector2 center;               // 島の中心 (ここを向いて立つ)
             public bool hasSpawn;                // true なら、立つ場所を spawn に決めてある
             public Vector2 spawn;                // 立つ場所 (xz)
+            public Func<Vector2, float> bakeHeight; // シェーダーの高さの表に焼く式 (null なら height と同じ)
         }
 
         // 中に入れる作品なら true。work は作品専用シェーダーの名前 (例: Eruption)、seed は作品名から決めた数
@@ -45,6 +46,29 @@ namespace NightShards.Museum
                         spawn = new Vector2(0f, 0.36f),
                     };
                     return true;
+                case "Glacier":
+                    // 手前の湖の岸に立ち、奥の氷河と雪の峰と月を見上げる。シェーダーの表には岩の山だけを焼く (氷河は式で描く)
+                    info = new Info
+                    {
+                        height = xz => GlacierHeight(xz, seed),
+                        bakeHeight = xz => GlacierRock(xz, seed),
+                        water = -0.2f,
+                        center = new Vector2(0f, -0.2f),
+                        hasSpawn = true,
+                        spawn = new Vector2(0f, 0.38f),
+                    };
+                    return true;
+                case "Aurora":
+                    // 手前の岸に立ち、凍った湖とオーロラを見る。凍った湖の上も歩ける (氷の面 -0.2 の上に立つ)
+                    info = new Info
+                    {
+                        height = xz => AuroraHeight(xz, seed),
+                        water = -0.196f,
+                        center = new Vector2(0f, -0.1f),
+                        hasSpawn = true,
+                        spawn = new Vector2(0f, 0.36f),
+                    };
+                    return true;
                 default:
                     info = default;
                     return false;
@@ -66,6 +90,7 @@ namespace NightShards.Museum
             string key = work + "/" + seed.ToString("R");
             if (baked.TryGetValue(key, out var cached) && cached != null) return cached;
             if (!TryGet(work, seed, out var info)) return null;
+            Func<Vector2, float> bake = info.bakeHeight ?? info.height;
 
             int n = BakeSize;
             var data = new float[n * n];
@@ -76,7 +101,7 @@ namespace NightShards.Museum
                 for (int i = 0; i < n; i++)
                 {
                     float x = -BakeInner + (i + 0.5f) / n * 2f * BakeInner;
-                    data[j * n + i] = info.height(new Vector2(x, z));
+                    data[j * n + i] = bake(new Vector2(x, z));
                 }
             });
 
@@ -127,6 +152,77 @@ namespace NightShards.Museum
             float rid = 1f - Mathf.Abs(ValueNoise(new Vector2(xz.x * 38f + seed * 1.7f, xz.y * 38f + seed * 1.7f)) * 2f - 1f);
             float rid2 = 1f - Mathf.Abs(ValueNoise(new Vector2(xz.x * 81f + seed * 2.3f + 7f, xz.y * 81f + seed * 2.3f + 7f)) * 2f - 1f);
             h += 0.004f * rid * rid + 0.002f * rid2 * rid2;
+            return h;
+        }
+
+        // ---------------------------------------------------------------- 月下の氷河 (DioramaGlacier.shader と同じ)
+
+        static float ValleyX(float z, float seed) => 0.05f * Mathf.Sin(z * 5f + seed);
+
+        static float GlacierFloor(float z)
+        {
+            return Mathf.Lerp(-0.26f, 0.02f, SmoothStep(0f, -0.45f, z)) + 0.11f * SmoothStep(0.24f, 0.44f, z);
+        }
+
+        static float Ridged(Vector2 p)
+        {
+            float s = 0f, a = 0.5f, w = 1f;
+            for (int i = 0; i < 4; i++)
+            {
+                float n = 1f - Mathf.Abs(ValueNoise(p) * 2f - 1f);
+                n = n * n * w;
+                w = Mathf.Clamp01(n * 1.5f);
+                s += n * a;
+                p = new Vector2(p.x * 2.07f + 13.1f, p.y * 2.07f + 13.1f);
+                a *= 0.5f;
+            }
+            return s;
+        }
+
+        static float GlacierRock(Vector2 xz, float seed)
+        {
+            float side = Mathf.Abs(xz.x - ValleyX(xz.y, seed));
+            float back = SmoothStep(-0.12f, -0.44f, xz.y);
+            float m = 0.3f * Mathf.Max(SmoothStep(0.1f, 0.42f, side), back);
+            float h = GlacierFloor(xz.y) + m * (0.15f + 0.85f * Ridged(new Vector2(xz.x * 4f + seed, xz.y * 4f + seed)));
+            h += 0.008f * Fbm3(new Vector2(xz.x * 20f + seed, xz.y * 20f + seed)) - 0.004f;
+            return h;
+        }
+
+        static float TerminusZ(float x, float seed)
+        {
+            float dx = (x - ValleyX(-0.02f, seed)) / 0.2f;
+            return -0.04f + 0.05f * Mathf.Clamp01(1f - dx * dx);
+        }
+
+        static float GlacierTop(Vector2 xz, float seed)
+        {
+            float dx = (xz.x - ValleyX(xz.y, seed)) / 0.2f;
+            float prof = Mathf.Clamp01(1f - dx * dx * dx * dx);
+            float cv = Mathf.Sin((xz.y + 0.05f * dx * dx) * 140f + ValueNoise(new Vector2(xz.x * 30f + seed, xz.y * 30f + seed)) * 3f);
+            return GlacierFloor(xz.y) + 0.13f * prof - 0.005f * SmoothStep(0.7f, 1f, cv) * prof;
+        }
+
+        // 歩く地面: 岩の山と、氷河の表面の高いほう (氷河は、湖に面した崖より奥だけ)
+        static float GlacierHeight(Vector2 xz, float seed)
+        {
+            float h = GlacierRock(xz, seed);
+            if (xz.y < TerminusZ(xz.x, seed)) h = Mathf.Max(h, GlacierTop(xz, seed));
+            return h;
+        }
+
+        // ---------------------------------------------------------------- オーロラの夜 (DioramaAurora.shader の LandHeight と同じ)
+        // 針葉樹には当たり判定を付けない (歩いて通り抜けられる)
+
+        static float AuroraHeight(Vector2 xz, float seed)
+        {
+            float qx = xz.x, qz = (xz.y + 0.03f) * 1.35f;
+            float r = Mathf.Sqrt(qx * qx + qz * qz);
+            float h = -0.24f + 0.1f * SmoothStep(0.18f, 0.32f, r);
+            float back = SmoothStep(-0.15f, -0.44f, xz.y);
+            h += 0.22f * back * (0.3f + 0.7f * Fbm3(new Vector2(xz.x * 3f + seed, xz.y * 3f + seed)));
+            h += 0.03f * Fbm3(new Vector2(xz.x * 6f + seed * 1.3f, xz.y * 6f + seed * 1.3f)) * SmoothStep(0.25f, 0.35f, r);
+            h += 0.006f * Fbm3(new Vector2(xz.x * 20f + seed, xz.y * 20f + seed)) - 0.003f;
             return h;
         }
 

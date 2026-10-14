@@ -118,6 +118,8 @@ namespace NightShards.Museum
             switch (title)
             {
                 case "大噴火": return "Eruption";
+                case "月下の氷河": return "Glacier";
+                case "オーロラの夜": return "Aurora";
                 case "青い火の焦土": return "BlueFire";
                 case "青い火の火口湖": return "BlueFire"; // 前の名前 (前に保存した設計図のため)
                 default: return "";

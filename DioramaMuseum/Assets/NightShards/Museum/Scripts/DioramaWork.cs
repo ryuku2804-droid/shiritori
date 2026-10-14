@@ -30,6 +30,8 @@ namespace NightShards.Museum
             switch (workName)
             {
                 case "BlueFire": return new Color(0.3f, 0.55f, 1f, 0.85f); // 青い炎
+                case "Glacier": return new Color(0.75f, 0.88f, 1f, 0.4f);   // 月の光の青白さ
+                case "Aurora": return new Color(0.3f, 1f, 0.55f, 0.75f);    // オーロラの緑
                 default: return Color.clear;
             }
         }
@@ -128,7 +130,7 @@ namespace NightShards.Museum
             source.PlayOneShot(clip, volume);
         }
 
-        static AudioClip rumble, roar;
+        static AudioClip rumble, roar, calving, shimmer;
 
         static AudioClip SoundFor(string workName)
         {
@@ -140,9 +142,73 @@ namespace NightShards.Museum
                 case "BlueFire":
                     if (roar == null) roar = MakeRoar(10f);
                     return roar;
+                case "Glacier":
+                    if (calving == null) calving = MakeCalving(9f);
+                    return calving;
+                case "Aurora":
+                    if (shimmer == null) shimmer = MakeShimmer(12f);
+                    return shimmer;
                 default:
                     return null;
             }
+        }
+
+        // 氷河が崩れる音: 「ピシッ」と氷が割れ、ゴゴゴと崩れ、3 秒後に「ザブン」と湖に落ちる
+        static AudioClip MakeCalving(float seconds)
+        {
+            const int rate = 22050;
+            int n = Mathf.RoundToInt(seconds * rate);
+            var data = new float[n];
+            var random = new System.Random(5);
+            float low = 0f, mid = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float time = (float)i / rate;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                low += (white - low) * 0.03f;
+                mid += (white - mid) * 0.25f;
+                float crack = white * Mathf.Exp(-time * 30f) * 1.5f + Mathf.Sin(time * 2f * Mathf.PI * 55f) * Mathf.Exp(-time * 6f);   // ピシッ
+                float rumbleEnv = Mathf.Clamp01((time - 1.4f) / 0.3f) * Mathf.Exp(-Mathf.Max(0f, time - 1.7f) * 1.2f);               // ゴゴゴ
+                float splashEnv = time > 3f ? Mathf.Exp(-(time - 3f) * 1.6f) : 0f;                                                    // ザブン
+                data[i] = crack + low * 6f * rumbleEnv + (mid * 1.5f + low * 3f) * splashEnv;
+            }
+            float peak = 0.0001f;
+            foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
+            for (int i = 0; i < n; i++) data[i] *= 0.85f / peak;
+            var clip = AudioClip.Create("Glacier Calving", n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        // オーロラの音: 風のようなやわらかいざわめきに、遠くで鳴る鈴のような和音が、ゆっくりふくらんで消える
+        static AudioClip MakeShimmer(float seconds)
+        {
+            const int rate = 22050;
+            int n = Mathf.RoundToInt(seconds * rate);
+            var data = new float[n];
+            var random = new System.Random(3);
+            float air = 0f;
+            float[] tones = { 392f, 493.9f, 587.3f, 784f }; // ソ・シ・レ・ソ
+            for (int i = 0; i < n; i++)
+            {
+                float time = (float)i / rate;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                air += (white - air) * 0.08f;
+                float swell = Mathf.Sin(Mathf.Clamp01(time / seconds) * Mathf.PI); // ゆっくりふくらんで、消える
+                float pad = 0f;
+                for (int k = 0; k < tones.Length; k++)
+                {
+                    float vib = 1f + 0.003f * Mathf.Sin(time * (0.7f + k * 0.3f)); // 少しゆらぐ
+                    pad += Mathf.Sin(2f * Mathf.PI * tones[k] * vib * time) * (0.5f + 0.5f * Mathf.Sin(time * (0.4f + k * 0.17f) + k));
+                }
+                data[i] = (air * 0.8f * (0.6f + 0.4f * Mathf.Sin(time * 0.9f)) + pad * 0.12f) * swell;
+            }
+            float peak = 0.0001f;
+            foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
+            for (int i = 0; i < n; i++) data[i] *= 0.7f / peak;
+            var clip = AudioClip.Create("Aurora Shimmer", n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
         }
 
         // ガスが燃える音: 「ボッ」と火がつく音のあと、ゴーッと吹き出す炎の音が続き、ゆっくり小さくなる
