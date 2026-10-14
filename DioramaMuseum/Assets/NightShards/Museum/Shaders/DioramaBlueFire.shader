@@ -198,6 +198,17 @@ Shader "NightShards/Diorama/BlueFire"
                 return h;
             }
 
+            // 地形の大まかな高さ (細かい起伏を省いた、軽い版)。木の根元や炎の輪など、細かさのいらない所に使う
+            float HeightCoarse(float2 xz)
+            {
+                float h = -0.2 + 0.05 * Fbm3(xz * 3.0 + _Seed) - 0.025;
+                float2 a = (xz - float2(-0.22, -0.22)) / 0.15;
+                float2 b = (xz - float2(0.25, -0.05)) / 0.12;
+                h += 0.08 * exp(-dot(a, a)) + 0.05 * exp(-dot(b, b));
+                float river = (xz.x - 0.1 - 0.08 * sin(xz.y * 6.0 + _Seed)) / 0.03;
+                return h - 0.025 * exp(-river * river) + 0.003;
+            }
+
             // ---------------------------------------------------------------- 枯れ木
 
             // 枯れ木の形 (距離)。地面を TREE_CELL の大きさのます目に分け、ます目ごとにくじを引いて木を 1 本立てる。
@@ -214,7 +225,7 @@ Shader "NightShards/Diorama/BlueFire"
                 float2 off = (Hash22(id + 1.3) - 0.5) * TREE_CELL * 0.35;
                 float2 base = (cell + 0.5) * TREE_CELL + off;
                 if (abs(base.x) > INNER - 0.03 || abs(base.y) > INNER - 0.03) return bound;
-                float3 q = p - float3(base.x, Height(base) - 0.004, base.y);
+                float3 q = p - float3(base.x, HeightCoarse(base) - 0.012, base.y); // 根元は少し地面に埋める (軽い版の高さとの差を隠す)
                 float hgt = 0.07 + 0.08 * Hash21(id + 3.3);
                 q.x -= q.y * (Hash21(id + 5.5) - 0.5) * 0.3; // 少し傾く
                 // 幹: 上へ行くほど細い
@@ -402,7 +413,7 @@ Shader "NightShards/Diorama/BlueFire"
                 float R = FrontRadius();
                 if (_Event < 0.01 || R <= 0.0) return 0;
                 float3 bmin = float3(-INNER, -0.3, -INNER);
-                float3 bmax = float3(INNER, 0.0, INNER);
+                float3 bmax = float3(INNER, -0.03, INNER);
                 float3 inv = 1.0 / rd;
                 float3 t0 = (bmin - ro) * inv, t1 = (bmax - ro) * inv;
                 float3 tsmall = min(t0, t1), tbig = max(t0, t1);
@@ -410,7 +421,7 @@ Shader "NightShards/Diorama/BlueFire"
                 float tout = min(min(min(tbig.x, tbig.y), tbig.z), tMax);
                 if (tout <= tin) return 0;
 
-                const int steps = 36;
+                const int steps = 22;
                 float dt = (tout - tin) / steps;
                 float t = tin + dt * Hash21(rd.zy * 271.0 + _Time.y);
                 float3 col = 0;
@@ -420,7 +431,7 @@ Shader "NightShards/Diorama/BlueFire"
                     float near = FrontNear(p.xz);
                     if (near > 0.02)
                     {
-                        float y = p.y - Height(p.xz);
+                        float y = p.y - HeightCoarse(p.xz);
                         float ang = atan2(p.z, p.x);
                         float fh = 0.07 * (0.35 + 0.65 * Noise3(float3(ang * 6.0, _Time.y * 2.0, 0.0))) * near;
                         if (y > 0.0 && y < fh)
@@ -472,7 +483,7 @@ Shader "NightShards/Diorama/BlueFire"
                 float tout = min(min(min(tbig.x, tbig.y), tbig.z), tMax);
                 if (tout <= tin) return float4(0, 0, 0, 1);
 
-                int steps = clamp((int)(_Steps / 5.0), 10, 32);
+                int steps = clamp((int)(_Steps / 7.0), 8, 20);
                 float dt = (tout - tin) / steps;
                 float t = tin + dt * Hash21(rd.xy * 517.0 + _Time.y);
                 float3 col = 0;
@@ -568,9 +579,8 @@ Shader "NightShards/Diorama/BlueFire"
 
                 // 焦げた大地: 黒い板に割れ、割れ目の奥が青く光る。板の真ん中には白っぽい灰が積もる
                 float2 big = Cracks(p.xz * 22.0 + _Seed);
-                float2 fine = Cracks(p.xz * 64.0 + _Seed * 2.0 + 5.0);
                 float crack = 1.0 - smoothstep(0.0, 0.07, big.x);
-                float crack2 = (1.0 - smoothstep(0.0, 0.06, fine.x)) * 0.5;
+                float crack2 = (1.0 - smoothstep(0.0, 0.08, abs(ValueNoise(p.xz * 70.0 + _Seed * 2.0) - 0.5))) * 0.5; // 細かいひびは、軽いノイズの線で
                 float ash = smoothstep(0.08, 0.3, big.x) * (0.4 + 0.6 * ValueNoise(p.xz * 90.0)) * (0.5 + 0.5 * big.y);
                 float3 albedo = lerp(float3(0.014, 0.013, 0.014), float3(0.085, 0.083, 0.082), ash * (1.0 - burned * 0.7));
                 albedo *= 1.0 - max(crack, crack2) * 0.8;
