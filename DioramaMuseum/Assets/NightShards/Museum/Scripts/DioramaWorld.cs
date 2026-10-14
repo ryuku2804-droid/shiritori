@@ -22,6 +22,8 @@ namespace NightShards.Museum
         [Tooltip("歩く地面の当たり判定の細かさ (1 辺のます目の数)")]
         [SerializeField] int groundResolution = 160;
         [Tooltip("入るときの演出の秒数")] [SerializeField] float enterTime = 1.2f;
+        [Tooltip("氷の上のすべりにくさ (0〜1)。小さいほどつるつる滑る")]
+        [SerializeField, Range(0f, 1f)] float iceGrip = 0.08f;
         [Tooltip("出るときの演出の秒数")] [SerializeField] float exitTime = 0.8f;
 
         public bool InWorld { get; private set; }
@@ -109,6 +111,7 @@ namespace NightShards.Museum
             if (world != null) Destroy(world);
             world = null;
             worldWork = null;
+            body.SurfaceGrip = null; // 美術館の床はふつうの地面
             viewCamera.farClipPlane = baseFar;
             body.Teleport(returnPosition, returnYaw);
 
@@ -150,6 +153,16 @@ namespace NightShards.Museum
             worldWork.Setup(stand.WorkName, spatialSound: false);
 
             DioramaTerrain.TryGet(stand.WorkName, stand.Seed, out var info);
+            // 氷のある作品なら、足元が氷の上のときだけ、すべりやすくする
+            if (info.icy != null)
+            {
+                var icy = info.icy;
+                body.SurfaceGrip = pos =>
+                {
+                    Vector3 local = (pos - origin) / scale;
+                    return icy(new Vector2(local.x, local.z)) ? iceGrip : 1f;
+                };
+            }
             BuildGround(info);
             BuildEdges(info);
             FindSpawn(info);

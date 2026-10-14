@@ -20,6 +20,7 @@ namespace NightShards.Museum
             public bool hasSpawn;                // true なら、立つ場所を spawn に決めてある
             public Vector2 spawn;                // 立つ場所 (xz)
             public Func<Vector2, float> bakeHeight; // シェーダーの高さの表に焼く式 (null なら height と同じ)
+            public Func<Vector2, bool> icy;         // そこが氷の上か (つるつる滑る)。null なら氷はない
         }
 
         // 中に入れる作品なら true。work は作品専用シェーダーの名前 (例: Eruption)、seed は作品名から決めた数
@@ -52,6 +53,7 @@ namespace NightShards.Museum
                     {
                         height = xz => GlacierHeight(xz, seed),
                         bakeHeight = xz => GlacierRock(xz, seed),
+                        icy = xz => xz.y < TerminusZ(xz.x, seed) && GlacierTop(xz, seed) > GlacierRock(xz, seed) + 0.002f, // 氷河の上
                         water = -0.2f,
                         center = new Vector2(0f, -0.2f),
                         hasSpawn = true,
@@ -63,6 +65,7 @@ namespace NightShards.Museum
                     info = new Info
                     {
                         height = xz => AuroraHeight(xz, seed),
+                        icy = xz => AuroraHeight(xz, seed) < -0.2f, // 凍った湖の上
                         water = -0.196f,
                         center = new Vector2(0f, -0.1f),
                         hasSpawn = true,
