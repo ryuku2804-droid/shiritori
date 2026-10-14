@@ -209,11 +209,12 @@ namespace NightShards.Museum
             }
         }
 
-        // 立つ場所: 島の中心から手前 (+z、美術館で見ていた側) へまっすぐ進み、海に出る少し手前の浜辺。島の中心を向く
+        // 立つ場所: 作品が決めていればそこ。決めていなければ、島の中心から手前 (+z、美術館で見ていた側) へ
+        // まっすぐ進み、海に出る少し手前の浜辺。どちらも島 (火口) の中心を向く
         void FindSpawn(DioramaTerrain.Info info)
         {
             Vector2 spot = info.center + new Vector2(0f, 0.2f);
-            for (float r = 0.08f; r < Inner; r += 0.002f)
+            for (float r = 0.08f; r < Inner && !info.hasSpawn; r += 0.002f)
             {
                 Vector2 p = info.center + new Vector2(0f, r);
                 if (info.height(p) < info.water + 0.008f)
@@ -222,6 +223,7 @@ namespace NightShards.Museum
                     break;
                 }
             }
+            if (info.hasSpawn) spot = info.spawn;
             float h = Mathf.Max(info.height(spot), info.water);
             spawnPosition = origin + new Vector3(spot.x, h, spot.y) * scale + Vector3.up * 0.3f;
             Vector2 toCenter = info.center - spot;

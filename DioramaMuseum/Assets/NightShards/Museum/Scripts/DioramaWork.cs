@@ -21,6 +21,18 @@ namespace NightShards.Museum
         public static event Action<DioramaWork, float> Pulse;
 
         public string Work => work;
+
+        // 仕掛けが動いている間、部屋の照明をこの色に寄せる (a が寄せる強さ。0 なら照明の色はそのまま)
+        public Color Tint => TintFor(work);
+
+        static Color TintFor(string workName)
+        {
+            switch (workName)
+            {
+                case "BlueFire": return new Color(0.3f, 0.55f, 1f, 0.85f); // 青い炎
+                default: return Color.clear;
+            }
+        }
         public float Value { get; private set; }
 
         // 演出の最中か (盛り上がり〜おさまるまで)
@@ -101,16 +113,51 @@ namespace NightShards.Museum
             source.PlayOneShot(clip, volume);
         }
 
-        static AudioClip rumble;
+        static AudioClip rumble, roar;
 
         static AudioClip SoundFor(string workName)
         {
-            if (workName == "Eruption")
+            switch (workName)
             {
-                if (rumble == null) rumble = MakeRumble(9f);
-                return rumble;
+                case "Eruption":
+                    if (rumble == null) rumble = MakeRumble(9f);
+                    return rumble;
+                case "BlueFire":
+                    if (roar == null) roar = MakeRoar(10f);
+                    return roar;
+                default:
+                    return null;
             }
-            return null;
+        }
+
+        // ガスが燃える音: 「ボッ」と火がつく音のあと、ゴーッと吹き出す炎の音が続き、ゆっくり小さくなる
+        static AudioClip MakeRoar(float seconds)
+        {
+            const int rate = 22050;
+            int n = Mathf.RoundToInt(seconds * rate);
+            var data = new float[n];
+            var random = new System.Random(11);
+            float hiss = 0f, body = 0f, low = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float time = (float)i / rate;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                hiss += (white - hiss) * 0.35f;  // シャーという、ガスが吹き出す音
+                body += (white - body) * 0.06f;  // ゴーッという、炎の胴の音
+                low += (body - low) * 0.02f;     // 低いうなり
+                float gust = 0.75f + 0.25f * Mathf.Sin(time * 2.1f) * Mathf.Sin(time * 0.7f + 1f); // 風にあおられて強弱がつく
+                float ignite = Mathf.Exp(-time * 6f) * 2.5f;                                     // 火がつく瞬間の「ボッ」
+                float attack = Mathf.Clamp01(time / 0.08f);
+                float decay = Mathf.Exp(-Mathf.Max(0f, time - 3f) * 0.35f);
+                data[i] = (hiss * 0.25f + body * 1.2f + low * 4f) * (gust + ignite) * attack * decay;
+            }
+            float peak = 0.0001f;
+            foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
+            for (int i = 0; i < n; i++) data[i] *= 0.85f / peak;
+
+            var clip = AudioClip.Create("Blue Fire Roar", n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
         }
 
         // 地鳴り: 低い音だけを残した雑音 (ブラウンノイズ) に、ときどき岩が弾けるパチパチという音を混ぜる

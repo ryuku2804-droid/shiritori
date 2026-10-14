@@ -118,6 +118,7 @@ namespace NightShards.Museum
             switch (title)
             {
                 case "大噴火": return "Eruption";
+                case "青い火の火口湖": return "BlueFire";
                 default: return "";
             }
         }
