@@ -20,6 +20,8 @@ namespace NightShards.Museum
 
         public const float PedestalHeight = 1f;
         public const float PedestalWidth = 0.9f;
+        // ジオラマの箱を台座から浮かせる量。箱の底と台座の上の面が同じ高さだと、ちらついて台座が透けて見える
+        const float Lift = 0.002f;
 
         [SerializeField] string title;
         [SerializeField, TextArea(2, 4)] string description;
@@ -96,7 +98,7 @@ namespace NightShards.Museum
             if (special != null)
             {
                 // 作品専用のシェーダー (例: NightShards/Diorama/Eruption) で描く。仕掛けは DioramaWork が動かす
-                go = MuseumGeometry.Box(transform, "Diorama", Vector3.up * (PedestalHeight + size * 0.5f), Vector3.one * size, special);
+                go = MuseumGeometry.Box(transform, "Diorama", Vector3.up * (PedestalHeight + Lift + size * 0.5f), Vector3.one * size, special);
                 block.SetFloat("_Seed", SeedFromTitle(title));
                 work = go.AddComponent<DioramaWork>();
                 work.Setup(workName);
@@ -105,14 +107,14 @@ namespace NightShards.Museum
             {
                 // ジオラマ: Cube の中を MuseumDiorama シェーダーが描く。
                 // 作品ごとの違いは _Biome (種類) と _Seed (地形の形。作品名から決める) で渡す
-                go = MuseumGeometry.Box(transform, "Diorama", Vector3.up * (PedestalHeight + size * 0.5f), Vector3.one * size, parts.diorama);
+                go = MuseumGeometry.Box(transform, "Diorama", Vector3.up * (PedestalHeight + Lift + size * 0.5f), Vector3.one * size, parts.diorama);
                 block.SetFloat("_Biome", biome);
                 block.SetFloat("_Seed", SeedFromTitle(title));
             }
             else
             {
                 // まだジオラマがないときの仮の箱。バイオームの色を付けておく
-                go = MuseumGeometry.Box(transform, "Placeholder", Vector3.up * (PedestalHeight + size * 0.5f), Vector3.one * size, parts.placeholder);
+                go = MuseumGeometry.Box(transform, "Placeholder", Vector3.up * (PedestalHeight + Lift + size * 0.5f), Vector3.one * size, parts.placeholder);
                 go.transform.localRotation = Quaternion.Euler(0f, 20f, 0f);
                 Color tint = biome >= 0 ? BiomeTints[biome] : new Color(0.85f, 0.82f, 0.76f);
                 block.SetColor("_ColorA", tint);
@@ -123,7 +125,7 @@ namespace NightShards.Museum
 
             focus = new GameObject("Focus").transform;
             focus.SetParent(transform, false);
-            focus.localPosition = Vector3.up * (PedestalHeight + size * 0.5f);
+            focus.localPosition = Vector3.up * (PedestalHeight + Lift + size * 0.5f);
             viewDistance = Mathf.Max(1.2f, size * 2f);
         }
 
