@@ -265,8 +265,10 @@ Shader "NightShards/Diorama/Eruption"
             float3 SceneNormal(float3 p)
             {
                 const float2 e = float2(0.0009, -0.0009);
-                return normalize(e.xyy * Map(p + e.xyy).x + e.yyx * Map(p + e.yyx).x +
-                                 e.yxy * Map(p + e.yxy).x + e.xxx * Map(p + e.xxx).x);
+                float3 g = e.xyy * Map(p + e.xyy).x + e.yyx * Map(p + e.yyx).x +
+                           e.yxy * Map(p + e.yxy).x + e.xxx * Map(p + e.xxx).x;
+                // 平らすぎて向きが決まらない所でも壊れないように (0 で割ると、画面が白く点滅する原因になる)
+                return g / max(length(g), 1e-7);
             }
 
             float SoftShadow(float3 p, float3 l)
@@ -780,6 +782,10 @@ Shader "NightShards/Diorama/Eruption"
                 }
 
                 // ほぼ透明で光もない所は描かない (奥にある部屋の火の粉などを隠さないように、奥行きも書かない)
+                // 計算が壊れた 1 ピクセル (数でない値や、無限に明るい値) があると、ブルームで画面全体が白く点滅する。
+                // 最後に、色を 0〜64、不透明度を 0〜1 に収めて防ぐ (max・min は、壊れた値のときはもう片方を返す)
+                col = min(max(col, 0.0), 64.0);
+                alpha = min(max(alpha, 0.0), 1.0);
                 if (alpha < 0.01 && max(col.r, max(col.g, col.b)) < 0.002) discard;
                 return half4(col, alpha);
             }
