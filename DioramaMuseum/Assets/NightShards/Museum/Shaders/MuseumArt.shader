@@ -226,12 +226,14 @@ Shader "NightShards/MuseumArt"
                 return lerp(paper, float3(0.04, 0.025, 0.015), saturate(bar + frame));
             }
 
-            // 火の粉: パーティクルの板の中央に、やわらかい丸い光。色と透明度はパーティクルの頂点の色から
-            float3 Ember(float2 uv, half4 color)
+            // 火の粉: パーティクルの板の中央に、やわらかい丸い光。色と透明度はパーティクルの頂点の色から。
+            // カメラのすぐ前を通る火の粉は、画面いっぱいの大きな光になって画面が白く点滅するので、近いほど消す
+            float3 Ember(float2 uv, half4 color, float3 positionWS)
             {
                 float d = length(uv - 0.5) * 2.0;
                 float a = saturate(1.0 - d);
-                return color.rgb * a * a * color.a * 3.0;
+                float near = smoothstep(0.5, 1.5, distance(positionWS, GetCameraPositionWS())); // 0.5m より近いと見えない
+                return color.rgb * a * a * color.a * 3.0 * near;
             }
 
             // 光のスリット: 細長い板の中央の線が光る。端はふっと消える
@@ -276,7 +278,7 @@ Shader "NightShards/MuseumArt"
                 if (_Mode < 0.5)      col = Moon(input.uv);
                 else if (_Mode < 1.5) col = Thread(input.uv, input.color, t);
                 else if (_Mode < 2.5) col = Shoji(planar, px, input.uv, t);
-                else if (_Mode < 3.5) col = Ember(input.uv, input.color);
+                else if (_Mode < 3.5) col = Ember(input.uv, input.color, input.positionWS);
                 else if (_Mode < 4.5) col = Slit(input.uv);
                 else if (_Mode < 5.5) col = OculusSky(input.uv, t);
                 else                  col = Shaft(input.uv, input.positionWS, input.normalWS, t);
