@@ -140,6 +140,11 @@ Shader "NightShards/Diorama/Eruption"
                 h += 0.012 * exp(-pow((r - 0.055) / 0.015, 2.0));
                 // 細かい起伏
                 h += 0.012 * Fbm3(xz * 14.0 + _Seed) - 0.006;
+                // 岩肌の細かい尾根 (陸の上だけ)。中に入って歩いたときに、足元の地面がごつごつして見える
+                float rid = 1.0 - abs(ValueNoise(xz * 38.0 + _Seed * 1.7) * 2.0 - 1.0);
+                float rid2 = 1.0 - abs(ValueNoise(xz * 81.0 + _Seed * 2.3 + 7.0) * 2.0 - 1.0);
+                h += (0.006 * rid * rid + 0.0025 * rid2 * rid2) * smoothstep(-0.25, -0.15, h);
+                // ※ この式を変えたら、C# の DioramaTerrain.EruptionHeight も同じに直す (中を歩くときの地面になる)
                 return h;
             }
 
@@ -318,7 +323,8 @@ Shader "NightShards/Diorama/Eruption"
                     if (dens > 0.0)
                     {
                         float y = p.y - CRATER.y;
-                        float3 ash = float3(0.05, 0.045, 0.045);
+                        float above = PlumeDensity(p + float3(0.0, 0.03, 0.0)); // 少し上の濃さ = 月の光をさえぎる量
+                        float3 ash = float3(0.035, 0.032, 0.032) + float3(0.1, 0.12, 0.17) * exp(-above * 0.035);
                         float3 lavaLight = float3(1.6, 0.45, 0.08) * exp(-y * 9.0) * (1.0 + 2.5 * _Event);
                         float3 flashLight = float3(2.5, 2.8, 4.0) * flash * 8.0 * exp(-length(p - flashPos) * 22.0);
                         float3 light = ash + lavaLight + flashLight;
@@ -341,7 +347,38 @@ Shader "NightShards/Diorama/Eruption"
                 c += float3(0.3, 0.07, 0.02) * pow(1.0 - up, 5.0) * (0.5 + _Event); // 地平線の赤い照り返し
                 float2 sp = rd.xz / max(rd.y, 0.05) * 70.0;
                 float star = step(0.996, Hash21(floor(sp))) * smoothstep(0.1, 0.4, rd.y) * (1.0 - _Event * 0.7);
-                return c + star * 0.6;
+                // 月: 噴煙の赤い空にかかる、少し欠けた月と、そのまわりの淡い光の輪
+                float3 md = normalize(MOON_DIR);
+                float mc = dot(rd, md);
+                float disc = smoothstep(0.99955, 0.99975, mc);
+                float shade = smoothstep(0.0, 0.004, dot(rd - md * mc, normalize(float3(0.6, 0.2, -0.4))) + 0.006);
+                float3 moon = float3(1.6, 1.55, 1.4) * disc * lerp(0.15, 1.0, shade);
+                float halo = pow(saturate(mc), 400.0) * 0.25 + pow(saturate(mc), 40.0) * 0.04;
+                return c + star * 0.6 + moon + float3(0.5, 0.55, 0.7) * halo;
+            }
+
+            // ---------------------------------------------------------------- 水面の映り込み
+
+            // 水面で反射した線を、地形だけを相手にもう一度進める。島が当たれば暗い岩肌と溶岩の光、当たらなければ空
+            float3 Reflection(float3 p, float3 r, float3 craterCol)
+            {
+                float t = 0.004;
+                for (int i = 0; i < 40; i++)
+                {
+                    float3 q = p + r * t;
+                    if (abs(q.x) > INNER || abs(q.z) > INNER || q.y > 0.5) break;
+                    float d = (q.y - Height(q.xz)) * 0.5;
+                    if (d < 0.0006)
+                    {
+                        float heat;
+                        float flow = LavaFlow(q.xz, 1.0, heat);
+                        float3 toC = CRATER - q;
+                        float3 c = float3(0.012, 0.011, 0.012) + craterCol * 0.12 / (1.0 + dot(toC, toC) * 90.0);
+                        return c + LavaColor(heat) * flow * 0.8;
+                    }
+                    t += max(d, 0.002);
+                }
+                return Sky(r);
             }
 
             // ---------------------------------------------------------------- 色を塗る
@@ -385,7 +422,7 @@ Shader "NightShards/Diorama/Eruption"
                     float3 n = normalize(float3((ValueNoise(q + t * 0.8) - 0.5) * 0.2, 1.0, (ValueNoise(q.yx * 1.3 - t) - 0.5) * 0.2));
                     float3 r = reflect(rd, n);
                     float fres = 0.02 + 0.98 * pow(1.0 - saturate(dot(-rd, n)), 5.0);
-                    float3 refl = Sky(r) + craterCol * pow(saturate(dot(r, normalize(toCrater))), 18.0) * 1.5;
+                    float3 refl = Reflection(p, r, craterCol) + craterCol * pow(saturate(dot(r, normalize(toCrater))), 18.0) * 0.6;
                     float depth = WATER - h;
                     float3 body = lerp(float3(0.01, 0.03, 0.035), float3(0.002, 0.006, 0.012), saturate(depth * 12.0));
                     float3 c = lerp(body, refl, fres);
@@ -510,6 +547,11 @@ Shader "NightShards/Diorama/Eruption"
                 {
                     col = Sky(rd);
                 }
+
+                // 霞: 線がケースの中を進んだ距離が長いほど、空気の色に沈める
+                float travel = tHit - max(box.x, 0.0);
+                float3 haze = lerp(float3(0.012, 0.012, 0.02), float3(0.1, 0.035, 0.015), 0.35 + 0.65 * _Event);
+                col = lerp(col, haze, (1.0 - exp(-travel * 0.45)) * (hit ? 1.0 : 0.3));
 
                 // 噴煙を重ね、噴石の光を足す
                 float4 plume = Plume(ro, rd, tHit, flashPos, flash);

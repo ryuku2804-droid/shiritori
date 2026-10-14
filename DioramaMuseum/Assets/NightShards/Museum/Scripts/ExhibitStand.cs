@@ -41,6 +41,8 @@ namespace NightShards.Museum
         public float ViewDistance => viewDistance;
         public Renderer Diorama => diorama;
         public DioramaWork Work => work;
+        public string WorkName => workName;
+        public float Seed => SeedFromTitle(title);
 
         // 組み立てに使う部品のまとめ
         public struct Parts
@@ -159,7 +161,7 @@ namespace NightShards.Museum
         }
 
         // 作品名から 0〜10 の数を作る。同じ名前なら毎回同じ形になる
-        static float SeedFromTitle(string s)
+        public static float SeedFromTitle(string s)
         {
             if (string.IsNullOrEmpty(s)) return 0f;
             int h = 17;

@@ -30,9 +30,13 @@ namespace NightShards.Museum
         MaterialPropertyBlock block;
         AudioSource source;
 
-        public void Setup(string workName)
+        bool spatial = true;
+
+        // spatialSound = false にすると、音を場所に関係なく同じ大きさで鳴らす (ジオラマの世界の中では、こちら)
+        public void Setup(string workName, bool spatialSound = true)
         {
             work = workName;
+            spatial = spatialSound;
         }
 
         void Awake()
@@ -84,7 +88,7 @@ namespace NightShards.Museum
             {
                 source = gameObject.AddComponent<AudioSource>();
                 source.playOnAwake = false;
-                source.spatialBlend = 1f;     // 作品の位置から聞こえる
+                source.spatialBlend = spatial ? 1f : 0f; // 作品の位置から聞こえる (世界の中では、まわり全体から)
                 source.minDistance = 0.8f;
                 source.maxDistance = 14f;
                 source.rolloffMode = AudioRolloffMode.Linear;

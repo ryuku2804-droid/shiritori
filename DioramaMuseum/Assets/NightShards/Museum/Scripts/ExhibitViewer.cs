@@ -30,6 +30,7 @@ namespace NightShards.Museum
 
         public Transform cameraTransform;
         public FirstPersonController body;
+        public DioramaWorld world; // ジオラマの世界に入る係 (クリックで入る)
 
         public ExhibitStand Current { get; private set; }
         public bool IsViewing => mode != Mode.Walking;
@@ -39,6 +40,7 @@ namespace NightShards.Museum
         enum Mode { Walking, Viewing, Leaving }
         Mode mode = Mode.Walking;
 
+        float pressTime, dragAmount;    // クリックとドラッグを見分けるため
         float blend;                    // 0 = 目の位置、1 = 鑑賞の位置
         float yaw, pitch, distance;     // いまの値
         float yawGoal, pitchGoal, distanceGoal;
@@ -51,8 +53,10 @@ namespace NightShards.Museum
             {
                 case Mode.Walking:
                     var near = FindNearest();
-                    SetPrompt(near != null ? $"E で鑑賞　{near.Title}" : "");
+                    bool canEnter = near != null && world != null && world.CanEnter(near);
+                    SetPrompt(near == null ? "" : canEnter ? $"E で鑑賞　クリックで中に入る　{near.Title}" : $"E で鑑賞　{near.Title}");
                     if (near != null && MuseumInput.InteractPressed) Enter(near);
+                    else if (canEnter && MuseumInput.ClickPressed && Cursor.lockState == CursorLockMode.Locked) world.Enter(near);
                     break;
 
                 case Mode.Viewing:
@@ -114,8 +118,29 @@ namespace NightShards.Museum
             FirstPersonController.SetCursorLocked(false); // ドラッグするのでカーソルを出す
             SetPrompt("");
             string trick = stand.Work != null ? "　　Space  仕掛け" : "";
+            if (world != null && world.CanEnter(stand)) trick += "　　クリック  中に入る";
             SetHint($"{stand.Title}　　ドラッグ  回す　　ホイール  寄る・離れる{trick}　　E / Esc  戻る");
             if (MuseumHUD.Instance != null) MuseumHUD.Instance.ShowCrosshair = false;
+        }
+
+        // ジオラマの世界に入るとき: カメラを作品の中心へ吸い込ませる
+        public void ZoomIn()
+        {
+            distanceGoal = 0.05f;
+        }
+
+        // 鑑賞モードを演出なしで終わらせ、すぐ歩きの状態に戻す (ジオラマの世界に入る直前に使う)
+        public void ResetToWalking()
+        {
+            mode = Mode.Walking;
+            Current = null;
+            blend = 0f;
+            cameraTransform.localPosition = Vector3.zero;
+            cameraTransform.localRotation = Quaternion.identity;
+            body.InputEnabled = true;
+            SetPrompt("");
+            SetHint("");
+            if (MuseumHUD.Instance != null) MuseumHUD.Instance.ShowCrosshair = true;
         }
 
         void Leave()
@@ -140,11 +165,23 @@ namespace NightShards.Museum
 
         void ReadOrbitInput()
         {
+            // クリック (押してすぐ、ほとんど動かさずに離す) なら、ジオラマの世界に入る。動かしたらドラッグで回す
+            if (MuseumInput.ClickPressed)
+            {
+                pressTime = Time.time;
+                dragAmount = 0f;
+            }
             if (MuseumInput.ClickHeld)
             {
                 Vector2 d = MuseumInput.Look * dragSensitivity;
+                dragAmount += MuseumInput.Look.magnitude;
                 yawGoal += d.x;
                 pitchGoal -= d.y;
+            }
+            if (MuseumInput.ClickReleased && dragAmount < 0.8f && Time.time - pressTime < 0.35f &&
+                world != null && world.CanEnter(Current))
+            {
+                world.Enter(Current);
             }
             // キーボードでも回せるようにする (A/D で左右、W/S で上下)
             Vector2 k = MuseumInput.Move;

@@ -91,6 +91,20 @@ namespace NightShards.Museum
             }
         }
 
+        // 左ボタンを離した瞬間
+        public static bool ClickReleased
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                var m = Mouse.current;
+                return m != null && m.leftButton.wasReleasedThisFrame;
+#else
+                return Input.GetMouseButtonUp(0);
+#endif
+            }
+        }
+
         public static bool ClickHeld
         {
             get

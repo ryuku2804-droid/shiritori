@@ -583,6 +583,12 @@ namespace NightShards.Museum
 
             go.AddComponent<PerfDebug>(); // F1〜F5 で重さを調べる
 
+            var world = go.AddComponent<DioramaWorld>(); // クリックでジオラマの世界に入る
+            world.body = Player;
+            world.viewer = viewer;
+            world.viewCamera = cam;
+            viewer.world = world;
+
             var post = go.AddComponent<MuseumPost>(); // ブルーム・トーンマップ・鑑賞モードのぼかし
             post.viewer = viewer;
             post.viewCamera = cam;

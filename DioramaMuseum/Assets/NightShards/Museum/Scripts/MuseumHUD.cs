@@ -18,6 +18,10 @@ namespace NightShards.Museum
         // 画面の下に出す操作の案内 (鑑賞モードの操作など)。空なら出さない
         public string Hint { get; set; } = "";
 
+        // 画面全体を覆う色 (場面の切り替えの白い光や暗転)。Fade は 0 で見えない、1 で全部覆う
+        public float Fade { get; set; }
+        public Color FadeColor { get; set; } = Color.black;
+
         // false にすると照準の点を隠す (鑑賞モードの間など)
         public bool ShowCrosshair { get; set; } = true;
 
@@ -72,6 +76,14 @@ namespace NightShards.Museum
 
             float alpha = IntroAlpha();
             if (alpha > 0f) DrawIntro(scale, alpha);
+
+            // いちばん上に、場面の切り替えの色を重ねる
+            if (Fade > 0f)
+            {
+                var c = FadeColor;
+                c.a = Mathf.Clamp01(Fade);
+                Fill(new Rect(0f, 0f, Screen.width, Screen.height), c);
+            }
         }
 
         // 表示してから introDuration 秒たったら、introFade 秒かけて消える
