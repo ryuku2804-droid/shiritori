@@ -22,6 +22,8 @@ Shader "NightShards/Diorama/BlueFire"
         _Event ("Event (0-1)", Range(0, 1)) = 0
         _EventTime ("Event Time (s)", Float) = 0
         _Seed ("Seed", Float) = 0
+        [NoScaleOffset] _HeightTex ("Baked Height (自動で作る)", 2D) = "black" {}
+        _HeightTexOn ("Use Baked Height", Float) = 0
     }
 
     SubShader
@@ -38,7 +40,10 @@ Shader "NightShards/Diorama/BlueFire"
             float _Event;
             float _EventTime;
             float _Seed;
+            float _HeightTexOn;
         CBUFFER_END
+        TEXTURE2D(_HeightTex);
+        SAMPLER(sampler_linear_clamp);
         ENDHLSL
 
         Pass
@@ -198,15 +203,13 @@ Shader "NightShards/Diorama/BlueFire"
                 return h;
             }
 
-            // 地形の大まかな高さ (細かい起伏を省いた、軽い版)。木の根元や炎の輪など、細かさのいらない所に使う
-            float HeightCoarse(float2 xz)
+            // 地形の高さ (速い版)。再生中は、DioramaWork が最初に 1 回だけ計算して保存した高さの表 (_HeightTex) を読むだけ。
+            // 表がないとき (編集中など) は、式で計算する。地面の向きや色を決める所では、正確な Height を使う
+            float HeightFast(float2 xz)
             {
-                float h = -0.2 + 0.05 * Fbm3(xz * 3.0 + _Seed) - 0.025;
-                float2 a = (xz - float2(-0.22, -0.22)) / 0.15;
-                float2 b = (xz - float2(0.25, -0.05)) / 0.12;
-                h += 0.08 * exp(-dot(a, a)) + 0.05 * exp(-dot(b, b));
-                float river = (xz.x - 0.1 - 0.08 * sin(xz.y * 6.0 + _Seed)) / 0.03;
-                return h - 0.025 * exp(-river * river) + 0.003;
+                [branch] if (_HeightTexOn > 0.5)
+                    return SAMPLE_TEXTURE2D_LOD(_HeightTex, sampler_linear_clamp, xz / (2.0 * INNER) + 0.5, 0).r;
+                return Height(xz);
             }
 
             // ---------------------------------------------------------------- 枯れ木
@@ -225,7 +228,7 @@ Shader "NightShards/Diorama/BlueFire"
                 float2 off = (Hash22(id + 1.3) - 0.5) * TREE_CELL * 0.35;
                 float2 base = (cell + 0.5) * TREE_CELL + off;
                 if (abs(base.x) > INNER - 0.03 || abs(base.y) > INNER - 0.03) return bound;
-                float3 q = p - float3(base.x, HeightCoarse(base) - 0.012, base.y); // 根元は少し地面に埋める (軽い版の高さとの差を隠す)
+                float3 q = p - float3(base.x, HeightFast(base) - 0.006, base.y); // 根元は少し地面に埋める
                 float hgt = 0.07 + 0.08 * Hash21(id + 3.3);
                 q.x -= q.y * (Hash21(id + 5.5) - 0.5) * 0.3; // 少し傾く
                 // 幹: 上へ行くほど細い
@@ -246,11 +249,14 @@ Shader "NightShards/Diorama/BlueFire"
 
             // ---------------------------------------------------------------- 世界の形
 
-            float2 Map(float3 p)
+            // 世界の形 (距離)。exact が true なら正確な地形 (地面の向きを出すとき)、false なら速い地形 (線を進めるとき)
+            float2 MapX(float3 p, bool exact)
             {
                 float2 res = float2(SdBox(p - float3(0, -0.46, 0), float3(0.5, 0.04, 0.5)), ID_BASE);
                 float column = SdBox(p - float3(0, 0.04, 0), float3(INNER, 0.46, INNER));
-                float h = Height(p.xz);
+                float h;
+                if (exact) h = Height(p.xz);
+                else h = HeightFast(p.xz);
                 float ground = max((p.y - h) * 0.5, column);
                 if (ground < res.x) res = float2(ground, ID_GROUND);
                 float tree = max(Trees(p, h), column);
@@ -258,11 +264,13 @@ Shader "NightShards/Diorama/BlueFire"
                 return res;
             }
 
+            float2 Map(float3 p) { return MapX(p, false); }
+
             float3 SceneNormal(float3 p)
             {
                 const float2 e = float2(0.0007, -0.0007);
-                float3 g = e.xyy * Map(p + e.xyy).x + e.yyx * Map(p + e.yyx).x +
-                           e.yxy * Map(p + e.yxy).x + e.xxx * Map(p + e.xxx).x;
+                float3 g = e.xyy * MapX(p + e.xyy, true).x + e.yyx * MapX(p + e.yyx, true).x +
+                           e.yxy * MapX(p + e.yxy, true).x + e.xxx * MapX(p + e.xxx, true).x;
                 // 平らすぎて向きが決まらない所でも壊れないように (0 で割ると、画面が白く点滅する原因になる)
                 return g / max(length(g), 1e-7);
             }
@@ -431,7 +439,7 @@ Shader "NightShards/Diorama/BlueFire"
                     float near = FrontNear(p.xz);
                     if (near > 0.02)
                     {
-                        float y = p.y - HeightCoarse(p.xz);
+                        float y = p.y - HeightFast(p.xz);
                         float ang = atan2(p.z, p.x);
                         float fh = 0.07 * (0.35 + 0.65 * Noise3(float3(ang * 6.0, _Time.y * 2.0, 0.0))) * near;
                         if (y > 0.0 && y < fh)
@@ -648,7 +656,9 @@ Shader "NightShards/Diorama/BlueFire"
                 for (int i = 0; i < 200; i++)
                 {
                     if (i >= steps || t > box.y) break;
-                    float2 m = Map(ro + rd * t);
+                    float3 pos = ro + rd * t;
+                    if (rd.y > 0.0 && pos.y > maxHeight + 0.01) break; // 地形より上に出て上を向いている線は、もう何にも当たらない
+                    float2 m = Map(pos);
                     if (m.x < 0.0003 * (1.0 + t))
                     {
                         hit = true;
@@ -657,11 +667,16 @@ Shader "NightShards/Diorama/BlueFire"
                     }
                     t += m.x;
                 }
+                if (hit)
+                {
+                    // 当たった所を、正確な地形で 2 回だけ合わせ直す (速い地形との小さなずれをなくす)
+                    for (int r = 0; r < 2; r++) t += MapX(ro + rd * t, true).x;
+                }
                 float tHit = hit ? t : box.y;
 
                 // 燃え続ける炎の根元の高さ
                 float fireY[FIRES];
-                for (int f = 0; f < FIRES; f++) fireY[f] = Height(FIRE_XZ[f]);
+                for (int f = 0; f < FIRES; f++) fireY[f] = HeightFast(FIRE_XZ[f]);
 
                 float3 col = 0;
                 if (hit)

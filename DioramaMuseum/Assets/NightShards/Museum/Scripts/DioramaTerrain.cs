@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace NightShards.Museum
@@ -47,6 +49,47 @@ namespace NightShards.Museum
                     info = default;
                     return false;
             }
+        }
+
+        // ---------------------------------------------------------------- 高さの表 (シェーダーを速くする)
+
+        public const int BakeSize = 512;   // 表の細かさ (1 辺のます目の数)
+        const float BakeInner = 0.47f;     // 表がおおう範囲 (シェーダーの INNER と同じ)
+
+        static readonly Dictionary<string, Texture2D> baked = new Dictionary<string, Texture2D>();
+
+        // 地形の高さを、512×512 の表 (1 チャンネルの浮動小数の画像) に 1 回だけ計算して保存する。
+        // シェーダーは線を進めるたびにこの表を読むだけになるので、ノイズを毎回計算するよりずっと速い。
+        // 同じ作品・同じ形 (seed) なら、2 回目からは保存したものを返す。中に入れない作品なら null
+        public static Texture2D BakeHeight(string work, float seed)
+        {
+            string key = work + "/" + seed.ToString("R");
+            if (baked.TryGetValue(key, out var cached) && cached != null) return cached;
+            if (!TryGet(work, seed, out var info)) return null;
+
+            int n = BakeSize;
+            var data = new float[n * n];
+            // 行ごとに、CPU のいくつものコアで同時に計算する
+            Parallel.For(0, n, j =>
+            {
+                float z = -BakeInner + (j + 0.5f) / n * 2f * BakeInner;
+                for (int i = 0; i < n; i++)
+                {
+                    float x = -BakeInner + (i + 0.5f) / n * 2f * BakeInner;
+                    data[j * n + i] = info.height(new Vector2(x, z));
+                }
+            });
+
+            var tex = new Texture2D(n, n, TextureFormat.RFloat, false, true)
+            {
+                name = "Baked Height " + work,
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            tex.SetPixelData(data, 0);
+            tex.Apply(false, true); // CPU 側の写しは捨てて、メモリを節約する
+            baked[key] = tex;
+            return tex;
         }
 
         // ---------------------------------------------------------------- 大噴火 (DioramaEruption.shader の Height と同じ)

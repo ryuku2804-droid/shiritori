@@ -24,6 +24,8 @@ Shader "NightShards/Diorama/Eruption"
         _Event ("Event (0-1)", Range(0, 1)) = 0
         _EventTime ("Event Time (s)", Float) = 0
         _Seed ("Seed", Float) = 0
+        [NoScaleOffset] _HeightTex ("Baked Height (自動で作る)", 2D) = "black" {}
+        _HeightTexOn ("Use Baked Height", Float) = 0
     }
 
     SubShader
@@ -40,7 +42,10 @@ Shader "NightShards/Diorama/Eruption"
             float _Event;
             float _EventTime;
             float _Seed;
+            float _HeightTexOn;
         CBUFFER_END
+        TEXTURE2D(_HeightTex);
+        SAMPLER(sampler_linear_clamp);
         ENDHLSL
 
         Pass
@@ -156,6 +161,15 @@ Shader "NightShards/Diorama/Eruption"
                 return h;
             }
 
+            // 地形の高さ (速い版)。再生中は、DioramaWork が最初に 1 回だけ計算して保存した高さの表 (_HeightTex) を読むだけ。
+            // 表がないとき (編集中など) は、式で計算する。地面の向きや色を決める所では、正確な Height を使う
+            float HeightFast(float2 xz)
+            {
+                [branch] if (_HeightTexOn > 0.5)
+                    return SAMPLE_TEXTURE2D_LOD(_HeightTex, sampler_linear_clamp, xz / (2.0 * INNER) + 0.5, 0).r;
+                return Height(xz);
+            }
+
             // ---------------------------------------------------------------- 溶岩の流れ
 
             // 流れ k 番の伸び具合 (0〜1)。噴火が始まってからの時間で、先端がゆっくり山を下り、海まで届く
@@ -240,11 +254,14 @@ Shader "NightShards/Diorama/Eruption"
 
             // ---------------------------------------------------------------- 世界の形
 
-            float2 Map(float3 p)
+            // 世界の形 (距離)。exact が true なら正確な地形 (地面の向きを出すとき)、false なら速い地形 (線を進めるとき)
+            float2 MapX(float3 p, bool exact)
             {
                 float2 res = float2(SdBox(p - float3(0, -0.46, 0), float3(0.5, 0.04, 0.5)), ID_BASE);
                 float column = SdBox(p - float3(0, 0.04, 0), float3(INNER, 0.46, INNER));
-                float h = Height(p.xz);
+                float h;
+                if (exact) h = Height(p.xz);
+                else h = HeightFast(p.xz);
                 float ground = max((p.y - h) * 0.5, column);
                 if (ground < res.x) res = float2(ground, ID_GROUND);
                 float water = max(p.y - WATER, column);
@@ -262,11 +279,13 @@ Shader "NightShards/Diorama/Eruption"
                 return res;
             }
 
+            float2 Map(float3 p) { return MapX(p, false); }
+
             float3 SceneNormal(float3 p)
             {
                 const float2 e = float2(0.0009, -0.0009);
-                float3 g = e.xyy * Map(p + e.xyy).x + e.yyx * Map(p + e.yyx).x +
-                           e.yxy * Map(p + e.yxy).x + e.xxx * Map(p + e.xxx).x;
+                float3 g = e.xyy * MapX(p + e.xyy, true).x + e.yyx * MapX(p + e.yyx, true).x +
+                           e.yxy * MapX(p + e.yxy, true).x + e.xxx * MapX(p + e.xxx, true).x;
                 // 平らすぎて向きが決まらない所でも壊れないように (0 で割ると、画面が白く点滅する原因になる)
                 return g / max(length(g), 1e-7);
             }
@@ -363,7 +382,7 @@ Shader "NightShards/Diorama/Eruption"
                     if (disc < 0.0) continue;
                     float t = -b - sqrt(disc);
                     if (t < 0.0 || t >= best) continue;
-                    if (c.y < Height(c.xz)) continue; // もう地面に落ちた
+                    if (c.y < HeightFast(c.xz)) continue; // もう地面に落ちた
                     best = t;
                     // 黒く冷えた岩の皮が割れて、中の赤い溶岩がのぞく
                     float3 n = normalize(ro + rd * t - c);
@@ -391,7 +410,7 @@ Shader "NightShards/Diorama/Eruption"
                     if (tc < 0.0 || tc > tMax) continue;
                     float d2 = dot(w, w) - tc * tc;
                     if (d2 > 0.0036) continue;          // 線から遠い噴石は飛ばす (尾の長さより遠い)
-                    if (c.y < Height(c.xz)) continue;
+                    if (c.y < HeightFast(c.xz)) continue;
                     float3 hot = LavaColor(heat);
                     col += hot * 0.35 * exp(-d2 / (rad * rad * 12.0));
                     for (int j = 1; j <= 5; j++)
@@ -552,7 +571,7 @@ Shader "NightShards/Diorama/Eruption"
                 {
                     float3 q = p + r * t;
                     if (abs(q.x) > INNER || abs(q.z) > INNER || q.y > 0.5) break;
-                    float d = (q.y - Height(q.xz)) * 0.5;
+                    float d = (q.y - HeightFast(q.xz)) * 0.5;
                     if (d < 0.0006)
                     {
                         Lava L = LavaAt(q.xz, 1.0);
@@ -714,7 +733,9 @@ Shader "NightShards/Diorama/Eruption"
                 for (int i = 0; i < 200; i++)
                 {
                     if (i >= steps || t > box.y) break;
-                    float2 m = Map(ro + rd * t);
+                    float3 pos = ro + rd * t;
+                    if (rd.y > 0.0 && pos.y > maxHeight + 0.01) break; // 地形より上に出て上を向いている線は、もう何にも当たらない
+                    float2 m = Map(pos);
                     if (m.x < 0.0003 * (1.0 + t))
                     {
                         hit = true;
@@ -722,6 +743,11 @@ Shader "NightShards/Diorama/Eruption"
                         break;
                     }
                     t += m.x;
+                }
+                if (hit)
+                {
+                    // 当たった所を、正確な地形で 2 回だけ合わせ直す (速い地形との小さなずれをなくす)
+                    for (int r = 0; r < 2; r++) t += MapX(ro + rd * t, true).x;
                 }
                 float tHit = hit ? t : box.y;
 

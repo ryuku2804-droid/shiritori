@@ -61,6 +61,21 @@ namespace NightShards.Museum
             block = new MaterialPropertyBlock();
         }
 
+        static readonly int HeightTexId = Shader.PropertyToID("_HeightTex");
+        static readonly int HeightTexOnId = Shader.PropertyToID("_HeightTexOn");
+        static readonly int SeedId = Shader.PropertyToID("_Seed");
+
+        // 再生が始まったら、地形の高さの表を作ってシェーダーに渡す (シェーダーが速くなる)
+        void Start()
+        {
+            rend.GetPropertyBlock(block);
+            Texture2D height = DioramaTerrain.BakeHeight(work, block.GetFloat(SeedId));
+            if (height == null) return;
+            block.SetTexture(HeightTexId, height);
+            block.SetFloat(HeightTexOnId, 1f);
+            rend.SetPropertyBlock(block);
+        }
+
         // 仕掛けを動かす。演出の最中なら何もしない
         public void Trigger()
         {
