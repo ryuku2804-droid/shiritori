@@ -33,14 +33,14 @@ namespace NightShards.Museum
                     };
                     return true;
                 case "BlueFire":
-                    // 手前 (+z) の岸に立ち、正面の崖と青い炎の滝を見上げる
+                    // 手前 (+z) の焼け野原の端に立ち、奥へ広がる焦土を見渡す
                     info = new Info
                     {
                         height = xz => BlueFireHeight(xz, seed),
-                        water = -0.17f,
-                        center = new Vector2(0f, -0.2f),
+                        water = -1f, // 水はない
+                        center = Vector2.zero,
                         hasSpawn = true,
-                        spawn = new Vector2(0f, 0.32f),
+                        spawn = new Vector2(0f, 0.36f),
                     };
                     return true;
                 default:
@@ -69,39 +69,21 @@ namespace NightShards.Museum
             return h;
         }
 
-        // ---------------------------------------------------------------- 青い火の火口湖 (DioramaBlueFire.shader の地形と同じ)
-        // 崖の下の岸と湖の底は Lowland、崖の向こうは台地 (PlateauTop)。崖の面の細かい凹凸は省く
-
-        const float BlueWater = -0.17f;
+        // ---------------------------------------------------------------- 青い火の焦土 (DioramaBlueFire.shader の Height と同じ)
+        // 枯れ木には当たり判定を付けない (歩いて通り抜けられる)
 
         static float BlueFireHeight(Vector2 xz, float seed)
         {
-            float h = BlueLowland(xz, seed);
-            if (xz.y < BlueCliffLine(xz.x, seed)) h = Mathf.Max(h, BluePlateauTop(xz, seed));
-            return h;
-        }
-
-        static float BlueCliffLine(float x, float seed)
-        {
-            return -0.15f + 0.9f * x * x - 0.035f * Mathf.Exp(-(x * x) / (0.06f * 0.06f)) + 0.012f * Mathf.Sin(x * 17f + seed);
-        }
-
-        static float BluePlateauTop(Vector2 xz, float seed)
-        {
-            float top = 0.2f + 0.03f * Fbm3(new Vector2(xz.x * 6f + seed, xz.y * 6f + seed)) - xz.y * 0.1f;
-            top -= 0.025f * Mathf.Exp(-(xz.x * xz.x) / (0.03f * 0.03f));
-            return top;
-        }
-
-        static float BlueLowland(Vector2 xz, float seed)
-        {
-            float qx = xz.x, qz = (xz.y + 0.03f) * 1.3f;
-            float r = Mathf.Sqrt(qx * qx + qz * qz);
-            float h = -0.30f + 0.18f * SmoothStep(0.06f, 0.28f, r);
-            h += 0.012f * Fbm3(new Vector2(xz.x * 14f + seed, xz.y * 14f + seed)) - 0.006f;
+            float h = -0.2f + 0.05f * Fbm3(new Vector2(xz.x * 3f + seed, xz.y * 3f + seed)) - 0.025f;
+            float ax = (xz.x + 0.22f) / 0.15f, az = (xz.y + 0.22f) / 0.15f;
+            float bx = (xz.x - 0.25f) / 0.12f, bz = (xz.y + 0.05f) / 0.12f;
+            h += 0.08f * Mathf.Exp(-(ax * ax + az * az)) + 0.05f * Mathf.Exp(-(bx * bx + bz * bz));
+            float river = (xz.x - 0.1f - 0.08f * Mathf.Sin(xz.y * 6f + seed)) / 0.03f;
+            h -= 0.025f * Mathf.Exp(-river * river);
+            h += 0.01f * Fbm3(new Vector2(xz.x * 14f + seed, xz.y * 14f + seed)) - 0.005f;
             float rid = 1f - Mathf.Abs(ValueNoise(new Vector2(xz.x * 38f + seed * 1.7f, xz.y * 38f + seed * 1.7f)) * 2f - 1f);
             float rid2 = 1f - Mathf.Abs(ValueNoise(new Vector2(xz.x * 81f + seed * 2.3f + 7f, xz.y * 81f + seed * 2.3f + 7f)) * 2f - 1f);
-            h += (0.006f * rid * rid + 0.0025f * rid2 * rid2) * SmoothStep(BlueWater - 0.02f, BlueWater + 0.04f, h);
+            h += 0.004f * rid * rid + 0.002f * rid2 * rid2;
             return h;
         }
 

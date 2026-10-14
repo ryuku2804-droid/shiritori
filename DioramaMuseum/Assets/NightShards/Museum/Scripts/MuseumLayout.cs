@@ -84,7 +84,7 @@ namespace NightShards.Museum
                 ("ピサの斜塔", "イタリア・ピサ", "奇跡の広場の大聖堂と斜塔。鐘が鳴ると、鳩が一斉に飛び立つ。", -1)));
             layout.rooms.Add(MakeRoom("火の間", RoomTheme.Fire, 2, new Color(1f, 0.45f, 0.2f),
                 ("大噴火", "火山島", "噴煙の柱の中で火山雷が光り、溶岩が海に流れ込む。", 1),
-                ("青い火の火口湖", "インドネシア・イジェン火山", "黒い崖の上から、燃える硫黄が青い炎の滝になって流れ落ちる。", 1)));
+                ("青い火の焦土", "焼け野原", "青い炎に焼かれた大地。割れ目の奥で熱が青く光り、焼け残った木がくすぶる。", 1)));
             layout.rooms.Add(MakeRoom("砂漠と塩の間", RoomTheme.Desert, 3, new Color(1f, 0.75f, 0.45f),
                 ("ギザのピラミッド", "エジプト・ギザ", "砂嵐が過ぎると満天の星。三つ星がピラミッドの並びと重なる。", -1),
                 ("死海", "ヨルダン・イスラエル", "白い塩の結晶の岸と青緑の水。時が流れ、塩の結晶が育つ。", -1)));
@@ -118,7 +118,8 @@ namespace NightShards.Museum
             switch (title)
             {
                 case "大噴火": return "Eruption";
-                case "青い火の火口湖": return "BlueFire";
+                case "青い火の焦土": return "BlueFire";
+                case "青い火の火口湖": return "BlueFire"; // 前の名前 (前に保存した設計図のため)
                 default: return "";
             }
         }
