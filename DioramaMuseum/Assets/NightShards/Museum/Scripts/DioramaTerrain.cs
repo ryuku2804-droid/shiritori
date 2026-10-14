@@ -33,14 +33,14 @@ namespace NightShards.Museum
                     };
                     return true;
                 case "BlueFire":
-                    // 手前 (+z) の火口の縁に立ち、湖と、奥の壁の青い炎を見下ろす
+                    // 手前 (+z) の岸に立ち、正面の崖と青い炎の滝を見上げる
                     info = new Info
                     {
                         height = xz => BlueFireHeight(xz, seed),
                         water = -0.17f,
-                        center = Vector2.zero,
+                        center = new Vector2(0f, -0.2f),
                         hasSpawn = true,
-                        spawn = new Vector2(0f, BlueFireRim(Mathf.PI * 0.5f, seed) + 0.004f),
+                        spawn = new Vector2(0f, 0.32f),
                     };
                     return true;
                 default:
@@ -69,40 +69,35 @@ namespace NightShards.Museum
             return h;
         }
 
-        // ---------------------------------------------------------------- 青い火の火口湖 (DioramaBlueFire.shader の Height と同じ)
+        // ---------------------------------------------------------------- 青い火の火口湖 (DioramaBlueFire.shader の地形と同じ)
+        // 崖の下の岸と湖の底は Lowland、崖の向こうは台地 (PlateauTop)。崖の面の細かい凹凸は省く
 
         const float BlueWater = -0.17f;
-        const float BlueNotch = -0.6f;
-
-        static float BlueFireRim(float th, float seed)
-        {
-            return 0.3f + 0.025f * Mathf.Sin(th * 3f + seed) + 0.015f * Mathf.Sin(th * 5f + seed * 1.3f);
-        }
-
-        static float AngDist(float a, float b)
-        {
-            return Mathf.Abs(Mathf.Atan2(Mathf.Sin(a - b), Mathf.Cos(a - b)));
-        }
 
         static float BlueFireHeight(Vector2 xz, float seed)
         {
-            float r = xz.magnitude;
-            float th = Mathf.Atan2(xz.y, xz.x);
-            float inv = 1f / Mathf.Max(r, 0.0001f);
-            Vector2 dir = new Vector2(xz.x * inv, xz.y * inv);
-            float rim = BlueFireRim(th, seed);
-            float rimH = 0.13f + 0.06f * (Fbm3(new Vector2(dir.x * 1.5f + seed, dir.y * 1.5f + seed)) - 0.45f);
-            float nd = AngDist(th, BlueNotch) / 0.3f;
-            rimH -= 0.07f * Mathf.Exp(-nd * nd);
-            float s = Mathf.Clamp01((r - 0.08f) / (rim - 0.08f));
-            s = s * s * (3f - 2f * s);
-            float inner = -0.30f + (rimH + 0.30f) * Mathf.Pow(s, 1.6f);
-            float od = (r - rim) / 0.16f;
-            float outer = -0.13f + (rimH + 0.13f) * Mathf.Exp(-od * od);
-            float h = r < rim ? inner : outer;
-            float wall = SmoothStep(0.12f, 0.22f, r) * SmoothStep(rim + 0.06f, rim - 0.02f, r);
-            float gully = 1f - Mathf.Abs(Mathf.Sin(th * 14f + Fbm3(new Vector2(xz.x * 9f + seed, xz.y * 9f + seed)) * 3f));
-            h += 0.014f * gully * gully * wall;
+            float h = BlueLowland(xz, seed);
+            if (xz.y < BlueCliffLine(xz.x, seed)) h = Mathf.Max(h, BluePlateauTop(xz, seed));
+            return h;
+        }
+
+        static float BlueCliffLine(float x, float seed)
+        {
+            return -0.15f + 0.9f * x * x - 0.035f * Mathf.Exp(-(x * x) / (0.06f * 0.06f)) + 0.012f * Mathf.Sin(x * 17f + seed);
+        }
+
+        static float BluePlateauTop(Vector2 xz, float seed)
+        {
+            float top = 0.2f + 0.03f * Fbm3(new Vector2(xz.x * 6f + seed, xz.y * 6f + seed)) - xz.y * 0.1f;
+            top -= 0.025f * Mathf.Exp(-(xz.x * xz.x) / (0.03f * 0.03f));
+            return top;
+        }
+
+        static float BlueLowland(Vector2 xz, float seed)
+        {
+            float qx = xz.x, qz = (xz.y + 0.03f) * 1.3f;
+            float r = Mathf.Sqrt(qx * qx + qz * qz);
+            float h = -0.30f + 0.18f * SmoothStep(0.06f, 0.28f, r);
             h += 0.012f * Fbm3(new Vector2(xz.x * 14f + seed, xz.y * 14f + seed)) - 0.006f;
             float rid = 1f - Mathf.Abs(ValueNoise(new Vector2(xz.x * 38f + seed * 1.7f, xz.y * 38f + seed * 1.7f)) * 2f - 1f);
             float rid2 = 1f - Mathf.Abs(ValueNoise(new Vector2(xz.x * 81f + seed * 2.3f + 7f, xz.y * 81f + seed * 2.3f + 7f)) * 2f - 1f);
