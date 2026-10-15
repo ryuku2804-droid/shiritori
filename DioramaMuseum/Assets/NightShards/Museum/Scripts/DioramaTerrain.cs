@@ -22,6 +22,7 @@ namespace NightShards.Museum
             public Func<Vector2, float> bakeHeight; // シェーダーの高さの表に焼く式 (null なら height と同じ)
             public Func<Vector2, bool> icy;         // そこが氷の上か (つるつる滑る)。null なら氷はない
             public Func<List<Prop>> props;          // ぶつかる物 (柱・木・建物) の一覧。null ならなし
+            public float worldScale;                // 中に入ったときの拡大の倍率。0 ならふつう (120 倍)。実物の寸法で作った作品は大きく
         }
 
         // ぶつかる物 1 つ分。ジオラマの箱の座標 (-0.5〜0.5) で表す
@@ -139,27 +140,31 @@ namespace NightShards.Museum
                     };
                     return true;
                 case "Paris":
-                    // 凱旋門の手前に立ち、シャンゼリゼ通りの先のエッフェル塔を見る
+                    // エトワール広場の端に立ち、凱旋門をくぐってシャンゼリゼ通りとエッフェル塔を見る。
+                    // 実物の寸法 (1 m = 0.001) なので、400 倍にして人の大きさに近づける
                     info = new Info
                     {
                         height = xz => ParisGround(xz),
                         water = -10f,
                         center = new Vector2(0f, -0.2f),
                         hasSpawn = true,
-                        spawn = new Vector2(0f, 0.37f),
+                        spawn = new Vector2(0f, 0.4f),
                         props = () => ParisProps(seed),
+                        worldScale = 400f,
                     };
                     return true;
                 case "Pisa":
-                    // 芝生の手前に立ち、大聖堂と斜塔を見上げる
+                    // 南の芝生に立ち、大聖堂と斜塔を見上げる (右に斜塔、左に洗礼堂)。
+                    // 実物の寸法 (1 m = 0.003) なので、250 倍にして人の大きさに近づける
                     info = new Info
                     {
                         height = xz => -0.3f,
                         water = -10f,
-                        center = new Vector2(0f, -0.13f),
+                        center = new Vector2(-0.1f, 0f),
                         hasSpawn = true,
-                        spawn = new Vector2(0.05f, 0.38f),
+                        spawn = new Vector2(-0.12f, 0.4f),
                         props = () => PisaProps(),
+                        worldScale = 250f,
                     };
                     return true;
                 default:
@@ -538,24 +543,36 @@ namespace NightShards.Museum
             return list;
         }
 
-        // ---------------------------------------------------------------- 夜のパリ (DioramaParis.shader と同じ)
+        // ---------------------------------------------------------------- 夜のパリ (DioramaParis.shader と同じ。1 m = 0.001)
 
         const float ParisGroundY = -0.3f;
+        const float ParisRiverN = -0.2f, ParisRiverS = -0.11f;
+        static readonly Vector2 ParisArc = new Vector2(0f, 0.25f);
+        static readonly Vector2 ParisEiffel = new Vector2(-0.06f, -0.32f);
 
+        // セーヌ川: 岸から 7 m は川辺の道 (6 m 下)。その先の水路は、水面の高さを歩く (浅瀬を歩いているように)
         static float ParisGround(Vector2 xz)
         {
-            float river = SmoothStep(0.004f, 0f, Mathf.Max(-0.19f - xz.y, xz.y + 0.12f));
-            return ParisGroundY - 0.03f * river;
+            float z = xz.y;
+            if (z < ParisRiverN || z > ParisRiverS) return ParisGroundY;
+            float edge = Mathf.Min(z - ParisRiverN, ParisRiverS - z);
+            return ParisGroundY - (edge < 0.007f ? 0.006f : 0.0105f);
         }
 
         static bool ParisBlockAllowed(Vector2 c, float seed)
         {
             if (Mathf.Abs(c.x) > 0.44f || Mathf.Abs(c.y) > 0.44f) return false;
-            if (Mathf.Abs(c.x) < 0.05f && c.y > -0.12f) return false;
-            if ((c - new Vector2(0f, 0.27f)).magnitude < 0.11f) return false;
-            if (c.y > -0.22f && c.y < -0.09f) return false;
-            if (c.x > -0.32f && c.x < 0.08f && c.y < -0.2f) return false;
-            return Hash21(c.x * 7.3f + seed, c.y * 7.3f + seed) < 0.92f;
+            Vector2 d = c - ParisArc;
+            float r = d.magnitude;
+            if (r < 0.15f) return false;
+            float ang = Mathf.Atan2(d.y, d.x);
+            float sector = 2f * Mathf.PI / 12f;
+            float a2 = (Frac(ang / sector + 0.5f) - 0.5f) * sector;
+            if (r < 0.4f && Mathf.Abs(Mathf.Sin(a2)) * r < 0.03f) return false;
+            if (Mathf.Abs(c.x) < 0.06f && c.y > ParisRiverS && c.y < 0.14f) return false;
+            if (c.y > ParisRiverN - 0.03f && c.y < ParisRiverS + 0.03f) return false;
+            if (c.x > -0.16f && c.x < 0.04f && c.y < ParisRiverN) return false;
+            return Hash21(c.x * 7.3f + seed, c.y * 7.3f + seed) < 0.95f;
         }
 
         static List<Prop> ParisProps(float seed)
@@ -568,33 +585,43 @@ namespace NightShards.Museum
                 {
                     var c = new Vector2((cx + 0.5f) * cell, (cz + 0.5f) * cell);
                     if (!ParisBlockAllowed(c, seed)) continue;
-                    float h = 0.045f + 0.02f * Hash21(c.x * 3.1f + seed + 5f, c.y * 3.1f + seed + 5f);
-                    list.Add(Prop.Box(new Vector3(c.x, ParisGroundY + h * 0.5f, c.y), new Vector3(0.044f, h, 0.044f), 0f));
+                    // 街区 (屋根の上まで)
+                    float h = (19f + 2f * Hash21(c.x * 3.1f + seed + 5f, c.y * 3.1f + seed + 5f)) * 0.001f + 0.0075f;
+                    list.Add(Prop.Box(new Vector3(c.x, ParisGroundY + h * 0.5f, c.y), new Vector3(0.048f, h, 0.048f), 0f));
                 }
             }
-            // 凱旋門: アーチの両側の柱 (アーチの下は通り抜けられる)
-            for (int side = -1; side <= 1; side += 2)
-                list.Add(Prop.Box(new Vector3(side * 0.0165f, ParisGroundY + 0.025f, 0.27f), new Vector3(0.015f, 0.05f, 0.024f), 0f));
+            // 凱旋門: 4 本の柱 (大アーチも小アーチも、下を通り抜けられる)
+            for (int sx = -1; sx <= 1; sx += 2)
+                for (int sz = -1; sz <= 1; sz += 2)
+                    list.Add(Prop.Box(new Vector3(sx * 0.0149f, ParisGroundY + 0.025f, ParisArc.y + sz * 0.00765f), new Vector3(0.0152f, 0.05f, 0.0069f), 0f));
+            // イエナ橋: 橋の上を歩いて川をわたれる
+            list.Add(Prop.Box(new Vector3(ParisEiffel.x, ParisGroundY - 0.006f, (ParisRiverN + ParisRiverS) * 0.5f), new Vector3(0.035f, 0.012f, ParisRiverS - ParisRiverN + 0.008f), 0f));
             // エッフェル塔の 4 本の脚
             for (int sx = -1; sx <= 1; sx += 2)
                 for (int sz = -1; sz <= 1; sz += 2)
-                    list.Add(Prop.Capsule(new Vector3(-0.12f + sx * 0.063f, ParisGroundY, -0.32f + sz * 0.063f), 0.05f, 0.012f));
+                    list.Add(Prop.Capsule(new Vector3(ParisEiffel.x + sx * 0.0495f, ParisGroundY, ParisEiffel.y + sz * 0.0495f), 0.05f, 0.013f));
             return list;
         }
 
-        // ---------------------------------------------------------------- ピサの斜塔 (DioramaPisa.shader と同じ場所)
+        // ---------------------------------------------------------------- ピサの斜塔 (DioramaPisa.shader と同じ。1 m = 0.0022 で作り、1.35 倍に置く)
+        // 美術館の正面 (+z) が南、+x が西。洗礼堂 (西)・大聖堂・斜塔 (東) が、左から右へ並ぶ
 
         static List<Prop> PisaProps()
         {
             const float g = -0.3f;
-            return new List<Prop>
+            const float k = 1.35f; // 建物を大きくする倍率 (シェーダーの BSCALE と同じ)
+            var list = new List<Prop>
             {
-                Prop.Capsule(new Vector3(0.27f, g, 0.12f), 0.16f, 0.0245f),                            // 斜塔
-                Prop.Capsule(new Vector3(-0.3f, g, -0.12f), 0.1f, 0.05f),                              // 洗礼堂
-                Prop.Box(new Vector3(0f, g + 0.0325f, -0.13f), new Vector3(0.34f, 0.065f, 0.08f), 0f),  // 大聖堂の身廊と側廊
-                Prop.Box(new Vector3(0.09f, g + 0.03f, -0.13f), new Vector3(0.056f, 0.06f, 0.18f), 0f), // 翼廊
-                Prop.Box(new Vector3(0f, g + 0.015f, -0.43f), new Vector3(0.94f, 0.03f, 0.016f), 0f),   // 城壁
+                Prop.Capsule(new Vector3(-0.26f * k, g, 0.06f * k), 0.12f * k, 0.0178f * k),                                  // 斜塔
+                Prop.Capsule(new Vector3(0.22f * k, g, 0f), 0.12f * k, 0.0375f * k),                                         // 洗礼堂
+                Prop.Box(new Vector3(-0.0475f * k, g + 0.03f * k, 0f), new Vector3(0.225f, 0.06f, 0.07f) * k, 0f),            // 大聖堂の身廊と側廊
+                Prop.Box(new Vector3(-0.075f * k, g + 0.03f * k, 0f), new Vector3(0.03f, 0.06f, 0.158f) * k, 0f),             // 翼廊
+                Prop.Capsule(new Vector3(-0.16f * k, g, 0f), 0.05f * k, 0.015f * k),                                         // 後陣
+                Prop.Box(new Vector3(0.07f * k, g + 0.012f * k, -0.165f * k), new Vector3(0.28f, 0.024f, 0.11f) * k, 0f),     // カンポサント (墓所の回廊)
+                Prop.Box(new Vector3(0f, g + 0.012f, -0.43f), new Vector3(0.94f, 0.024f, 0.016f), 0f),                       // 北の城壁
+                Prop.Box(new Vector3(0.43f, g + 0.012f, 0f), new Vector3(0.016f, 0.024f, 0.94f), 0f),                        // 西の城壁
             };
+            return list;
         }
 
         // ---------------------------------------------------------------- シェーダーと同じノイズ

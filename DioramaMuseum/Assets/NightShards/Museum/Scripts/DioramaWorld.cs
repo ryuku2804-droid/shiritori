@@ -5,7 +5,7 @@ using UnityEngine;
 namespace NightShards.Museum
 {
     // ジオラマの世界に入る。プレイヤーに付ける。
-    //   入る: 作品をクリック → 画角が狭まりながら白く吸い込まれ、120 倍に拡大したジオラマの中の浜辺に立つ
+    //   入る: 作品をクリック → 画角が狭まりながら白く吸い込まれ、120 倍 (実物の寸法の作品はもっと大きく) に拡大したジオラマの中の浜辺に立つ
     //   中:   WASD で歩ける (地面は DioramaTerrain で作った当たり判定)。クリックで仕掛け。ガラスの壁が世界の端
     //   出る: E か Esc → 暗転して、入る前にいた美術館の場所に戻る
     // 拡大したジオラマは、美術館から遠く離れた場所 (地下 3000m) に作るので、美術館とは重ならない
@@ -27,6 +27,8 @@ namespace NightShards.Museum
         [Tooltip("出るときの演出の秒数")] [SerializeField] float exitTime = 0.8f;
 
         public bool InWorld { get; private set; }
+
+        float worldScale = 120f; // いま入っている世界の倍率 (作品ごとに決められる。決めていなければ scale)
 
         const float Inner = 0.47f; // ジオラマの地形がある範囲 (箱の中の、ガラスの内側)
 
@@ -59,7 +61,7 @@ namespace NightShards.Museum
             if (MuseumInput.ClickPressed && worldWork != null) worldWork.Trigger();
             if (MuseumInput.InteractPressed || MuseumInput.BackPressed) StartCoroutine(ExitRoutine());
             // 何かの拍子に世界の外へ落ちたら、浜辺に戻す
-            if (body.transform.position.y < origin.y - scale) body.Teleport(spawnPosition, spawnYaw);
+            if (body.transform.position.y < origin.y - worldScale) body.Teleport(spawnPosition, spawnYaw);
         }
 
         // ---------------------------------------------------------------- 入る
@@ -86,7 +88,7 @@ namespace NightShards.Museum
             BuildWorld(stand);
             viewCamera.fieldOfView = baseFov;
             baseFar = viewCamera.farClipPlane;
-            viewCamera.farClipPlane = scale * 3f;
+            viewCamera.farClipPlane = worldScale * 3f;
             body.Teleport(spawnPosition, spawnYaw);
 
             InWorld = true;
@@ -132,13 +134,15 @@ namespace NightShards.Museum
             if (world != null) Destroy(world);
             world = new GameObject("Diorama World");
             world.transform.position = origin;
+            DioramaTerrain.TryGet(stand.WorkName, stand.Seed, out var info);
+            worldScale = info.worldScale > 0f ? info.worldScale : scale;
 
             // ジオラマと同じマテリアルの、大きな箱。カメラが箱の中にいても、シェーダーが中の景色を描く
             var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
             Destroy(cube.GetComponent<Collider>());
             cube.name = "World";
             cube.transform.SetParent(world.transform, false);
-            cube.transform.localScale = Vector3.one * scale;
+            cube.transform.localScale = Vector3.one * worldScale;
             var rend = cube.GetComponent<Renderer>();
             rend.sharedMaterial = stand.Diorama.sharedMaterial;
             rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -152,14 +156,13 @@ namespace NightShards.Museum
             worldWork = cube.AddComponent<DioramaWork>();
             worldWork.Setup(stand.WorkName, spatialSound: false);
 
-            DioramaTerrain.TryGet(stand.WorkName, stand.Seed, out var info);
             // 氷のある作品なら、足元が氷の上のときだけ、すべりやすくする
             if (info.icy != null)
             {
                 var icy = info.icy;
                 body.SurfaceGrip = pos =>
                 {
-                    Vector3 local = (pos - origin) / scale;
+                    Vector3 local = (pos - origin) / worldScale;
                     return icy(new Vector2(local.x, local.z)) ? iceGrip : 1f;
                 };
             }
@@ -183,7 +186,7 @@ namespace NightShards.Museum
                     float x = -Inner + 2f * Inner * i / n;
                     float z = -Inner + 2f * Inner * j / n;
                     float h = Mathf.Max(info.height(new Vector2(x, z)), info.water - 0.004f);
-                    verts.Add(new Vector3(x, h, z) * scale);
+                    verts.Add(new Vector3(x, h, z) * worldScale);
                 }
             }
             int row = n + 1;
@@ -216,20 +219,20 @@ namespace NightShards.Museum
             {
                 var go = new GameObject(prop.box ? "Box" : "Pillar");
                 go.transform.SetParent(holder, false);
-                go.transform.localPosition = prop.bottom * scale;
+                go.transform.localPosition = prop.bottom * worldScale;
                 if (prop.box)
                 {
                     // シェーダーの向きの決め方 (x 軸が (cos, sin)) を、Unity の回転 (y 軸まわり) に直す
                     go.transform.localRotation = Quaternion.Euler(0f, -prop.yaw * Mathf.Rad2Deg, 0f);
-                    go.AddComponent<BoxCollider>().size = prop.size * scale;
+                    go.AddComponent<BoxCollider>().size = prop.size * worldScale;
                 }
                 else
                 {
                     var capsule = go.AddComponent<CapsuleCollider>();
                     capsule.direction = 1; // 縦
-                    capsule.radius = prop.radius * scale;
-                    capsule.height = (prop.height + prop.radius * 2f) * scale;
-                    capsule.center = Vector3.up * (prop.height * 0.5f * scale);
+                    capsule.radius = prop.radius * worldScale;
+                    capsule.height = (prop.height + prop.radius * 2f) * worldScale;
+                    capsule.center = Vector3.up * (prop.height * 0.5f * worldScale);
                 }
             }
         }
@@ -237,8 +240,8 @@ namespace NightShards.Museum
         // 世界の端: ガラスの内側に、見えない壁を 4 枚
         void BuildEdges(DioramaTerrain.Info info)
         {
-            float half = Inner * scale;
-            float height = scale;
+            float half = Inner * worldScale;
+            float height = worldScale;
             for (int k = 0; k < 4; k++)
             {
                 var wall = new GameObject("Edge");
@@ -267,7 +270,7 @@ namespace NightShards.Museum
             }
             if (info.hasSpawn) spot = info.spawn;
             float h = Mathf.Max(info.height(spot), info.water);
-            spawnPosition = origin + new Vector3(spot.x, h, spot.y) * scale + Vector3.up * 0.3f;
+            spawnPosition = origin + new Vector3(spot.x, h, spot.y) * worldScale + Vector3.up * 0.3f;
             Vector2 toCenter = info.center - spot;
             spawnYaw = Mathf.Atan2(toCenter.x, toCenter.y) * Mathf.Rad2Deg;
         }
