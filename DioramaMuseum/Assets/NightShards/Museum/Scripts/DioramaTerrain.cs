@@ -138,6 +138,30 @@ namespace NightShards.Museum
                         props = () => ToriiProps(seed),
                     };
                     return true;
+                case "Paris":
+                    // 凱旋門の手前に立ち、シャンゼリゼ通りの先のエッフェル塔を見る
+                    info = new Info
+                    {
+                        height = xz => ParisGround(xz),
+                        water = -10f,
+                        center = new Vector2(0f, -0.2f),
+                        hasSpawn = true,
+                        spawn = new Vector2(0f, 0.37f),
+                        props = () => ParisProps(seed),
+                    };
+                    return true;
+                case "Pisa":
+                    // 芝生の手前に立ち、大聖堂と斜塔を見上げる
+                    info = new Info
+                    {
+                        height = xz => -0.3f,
+                        water = -10f,
+                        center = new Vector2(0f, -0.13f),
+                        hasSpawn = true,
+                        spawn = new Vector2(0.05f, 0.38f),
+                        props = () => PisaProps(),
+                    };
+                    return true;
                 default:
                     info = default;
                     return false;
@@ -512,6 +536,65 @@ namespace NightShards.Museum
             // 山頂の社
             list.Add(Prop.Box(new Vector3(0f, ToriiPathY(1f) + 0.002f + 0.012f, 0f), new Vector3(0.026f, 0.024f, 0.02f), 0f));
             return list;
+        }
+
+        // ---------------------------------------------------------------- 夜のパリ (DioramaParis.shader と同じ)
+
+        const float ParisGroundY = -0.3f;
+
+        static float ParisGround(Vector2 xz)
+        {
+            float river = SmoothStep(0.004f, 0f, Mathf.Max(-0.19f - xz.y, xz.y + 0.12f));
+            return ParisGroundY - 0.03f * river;
+        }
+
+        static bool ParisBlockAllowed(Vector2 c, float seed)
+        {
+            if (Mathf.Abs(c.x) > 0.44f || Mathf.Abs(c.y) > 0.44f) return false;
+            if (Mathf.Abs(c.x) < 0.05f && c.y > -0.12f) return false;
+            if ((c - new Vector2(0f, 0.27f)).magnitude < 0.11f) return false;
+            if (c.y > -0.22f && c.y < -0.09f) return false;
+            if (c.x > -0.32f && c.x < 0.08f && c.y < -0.2f) return false;
+            return Hash21(c.x * 7.3f + seed, c.y * 7.3f + seed) < 0.92f;
+        }
+
+        static List<Prop> ParisProps(float seed)
+        {
+            var list = new List<Prop>();
+            const float cell = 0.06f;
+            for (int cz = -8; cz <= 7; cz++)
+            {
+                for (int cx = -8; cx <= 7; cx++)
+                {
+                    var c = new Vector2((cx + 0.5f) * cell, (cz + 0.5f) * cell);
+                    if (!ParisBlockAllowed(c, seed)) continue;
+                    float h = 0.045f + 0.02f * Hash21(c.x * 3.1f + seed + 5f, c.y * 3.1f + seed + 5f);
+                    list.Add(Prop.Box(new Vector3(c.x, ParisGroundY + h * 0.5f, c.y), new Vector3(0.044f, h, 0.044f), 0f));
+                }
+            }
+            // 凱旋門: アーチの両側の柱 (アーチの下は通り抜けられる)
+            for (int side = -1; side <= 1; side += 2)
+                list.Add(Prop.Box(new Vector3(side * 0.0165f, ParisGroundY + 0.025f, 0.27f), new Vector3(0.015f, 0.05f, 0.024f), 0f));
+            // エッフェル塔の 4 本の脚
+            for (int sx = -1; sx <= 1; sx += 2)
+                for (int sz = -1; sz <= 1; sz += 2)
+                    list.Add(Prop.Capsule(new Vector3(-0.12f + sx * 0.063f, ParisGroundY, -0.32f + sz * 0.063f), 0.05f, 0.012f));
+            return list;
+        }
+
+        // ---------------------------------------------------------------- ピサの斜塔 (DioramaPisa.shader と同じ場所)
+
+        static List<Prop> PisaProps()
+        {
+            const float g = -0.3f;
+            return new List<Prop>
+            {
+                Prop.Capsule(new Vector3(0.27f, g, 0.12f), 0.16f, 0.0245f),                            // 斜塔
+                Prop.Capsule(new Vector3(-0.3f, g, -0.12f), 0.1f, 0.05f),                              // 洗礼堂
+                Prop.Box(new Vector3(0f, g + 0.0325f, -0.13f), new Vector3(0.34f, 0.065f, 0.08f), 0f),  // 大聖堂の身廊と側廊
+                Prop.Box(new Vector3(0.09f, g + 0.03f, -0.13f), new Vector3(0.056f, 0.06f, 0.18f), 0f), // 翼廊
+                Prop.Box(new Vector3(0f, g + 0.015f, -0.43f), new Vector3(0.94f, 0.03f, 0.016f), 0f),   // 城壁
+            };
         }
 
         // ---------------------------------------------------------------- シェーダーと同じノイズ

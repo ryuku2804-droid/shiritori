@@ -36,6 +36,8 @@ namespace NightShards.Museum
                 case "DeepSea": return new Color(0.2f, 0.5f, 1f, 0.8f);     // 生物発光の青
                 case "Terraces": return new Color(0.35f, 0.4f, 0.8f, 0.5f);  // 夜の青
                 case "Torii": return new Color(1f, 0.55f, 0.25f, 0.55f);     // 夕日の金色
+                case "Paris": return new Color(1f, 0.8f, 0.45f, 0.5f);       // エッフェル塔の金色
+                case "Pisa": return new Color(1f, 0.9f, 0.7f, 0.35f);        // 午後の光
                 default: return Color.clear;
             }
         }
@@ -134,7 +136,7 @@ namespace NightShards.Museum
             source.PlayOneShot(clip, volume);
         }
 
-        static AudioClip rumble, roar, calving, shimmer, tide, glow, evening, shrine;
+        static AudioClip rumble, roar, calving, shimmer, tide, glow, evening, shrine, sparkle, bells;
 
         static AudioClip SoundFor(string workName)
         {
@@ -164,6 +166,12 @@ namespace NightShards.Museum
                 case "Torii":
                     if (shrine == null) shrine = MakeShrineBell(10f);
                     return shrine;
+                case "Paris":
+                    if (sparkle == null) sparkle = MakeSparkle(10f);
+                    return sparkle;
+                case "Pisa":
+                    if (bells == null) bells = MakeChurchBells(12f);
+                    return bells;
                 default:
                     return null;
             }
@@ -349,6 +357,74 @@ namespace NightShards.Museum
             foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
             for (int i = 0; i < n; i++) data[i] *= 0.7f / peak;
             var clip = AudioClip.Create("Shrine Bell", n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        // パリの夜: 遠くの街のざわめきの上で、塔のきらめきに合わせて、小さな鈴のような音がきらきら鳴る
+        static AudioClip MakeSparkle(float seconds)
+        {
+            const int rate = 22050;
+            int n = Mathf.RoundToInt(seconds * rate);
+            var data = new float[n];
+            var random = new System.Random(31);
+            float city = 0f;
+            float noteStart = -10f, noteFreq = 0f;
+            float[] notes = { 1568f, 1760f, 2093f, 2349f, 2637f, 3136f };
+            for (int i = 0; i < n; i++)
+            {
+                float time = (float)i / rate;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                city += (white - city) * 0.02f;
+                if (time - noteStart > 0.06f && random.NextDouble() < 0.003)
+                {
+                    noteStart = time;
+                    noteFreq = notes[random.Next(notes.Length)];
+                }
+                float twinkle = Mathf.Sin(2f * Mathf.PI * noteFreq * (time - noteStart)) * Mathf.Exp(-(time - noteStart) * 18f);
+                float fade = Mathf.Clamp01(time / 0.5f) * Mathf.Clamp01((seconds - time) / 2f);
+                data[i] = (city * 2f + twinkle * 0.25f) * fade;
+            }
+            float peak = 0.0001f;
+            foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
+            for (int i = 0; i < n; i++) data[i] *= 0.6f / peak;
+            var clip = AudioClip.Create("Paris Sparkle", n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        // ピサの鐘: 大きさのちがう 3 つの鐘が、交互にゴーン・カーンと鳴り響き、鳩の羽音がばさばさと重なる
+        static AudioClip MakeChurchBells(float seconds)
+        {
+            const int rate = 22050;
+            int n = Mathf.RoundToInt(seconds * rate);
+            var data = new float[n];
+            var random = new System.Random(41);
+            float[] bellFreq = { 196f, 247f, 294f };
+            float flutter = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float time = (float)i / rate;
+                float sum = 0f;
+                for (int k = 0; k < 9; k++)
+                {
+                    float strike = 0.2f + k * 1.1f;
+                    float bt = time - strike;
+                    if (bt < 0f) continue;
+                    float f = bellFreq[k % 3];
+                    // 鐘の音: 基音と、少しずれた倍音 (2.4 倍・3 倍) が、長く尾を引く
+                    sum += (Mathf.Sin(2f * Mathf.PI * f * bt) + 0.6f * Mathf.Sin(2f * Mathf.PI * f * 2.4f * bt) + 0.3f * Mathf.Sin(2f * Mathf.PI * f * 3f * bt)) * Mathf.Exp(-bt * 0.8f);
+                }
+                float white = (float)random.NextDouble() * 2f - 1f;
+                flutter += (white - flutter) * 0.3f;
+                float wings = flutter * Mathf.Max(0f, Mathf.Sin(time * 2f * Mathf.PI * 9f)) * Mathf.Exp(-Mathf.Max(0f, time - 0.8f) * 1.5f) * Mathf.Clamp01((time - 0.4f) * 3f);
+                float fade = Mathf.Clamp01((seconds - time) / 2f);
+                data[i] = (sum * 0.3f + wings * 0.5f) * fade;
+            }
+            float peak = 0.0001f;
+            foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
+            for (int i = 0; i < n; i++) data[i] *= 0.75f / peak;
+            var clip = AudioClip.Create("Pisa Bells", n, 1, rate, false);
             clip.SetData(data, 0);
             return clip;
         }

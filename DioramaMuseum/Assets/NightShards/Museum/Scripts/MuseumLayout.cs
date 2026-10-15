@@ -124,6 +124,8 @@ namespace NightShards.Museum
                 case "海の断面": return "DeepSea";
                 case "黄昏の棚田": return "Terraces";
                 case "千本鳥居の山": return "Torii";
+                case "夜のパリ": return "Paris";
+                case "ピサの斜塔": return "Pisa";
                 case "青い火の焦土": return "BlueFire";
                 case "青い火の火口湖": return "BlueFire"; // 前の名前 (前に保存した設計図のため)
                 default: return "";
