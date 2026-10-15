@@ -34,6 +34,8 @@ namespace NightShards.Museum
                 case "Aurora": return new Color(0.3f, 1f, 0.55f, 0.75f);    // オーロラの緑
                 case "Atoll": return new Color(0.45f, 0.95f, 1f, 0.45f);    // 浅瀬のターコイズ
                 case "DeepSea": return new Color(0.2f, 0.5f, 1f, 0.8f);     // 生物発光の青
+                case "Terraces": return new Color(0.35f, 0.4f, 0.8f, 0.5f);  // 夜の青
+                case "Torii": return new Color(1f, 0.55f, 0.25f, 0.55f);     // 夕日の金色
                 default: return Color.clear;
             }
         }
@@ -132,7 +134,7 @@ namespace NightShards.Museum
             source.PlayOneShot(clip, volume);
         }
 
-        static AudioClip rumble, roar, calving, shimmer, tide, glow;
+        static AudioClip rumble, roar, calving, shimmer, tide, glow, evening, shrine;
 
         static AudioClip SoundFor(string workName)
         {
@@ -156,6 +158,12 @@ namespace NightShards.Museum
                 case "DeepSea":
                     if (glow == null) glow = MakeDeepGlow(12f);
                     return glow;
+                case "Terraces":
+                    if (evening == null) evening = MakeEvening(14f);
+                    return evening;
+                case "Torii":
+                    if (shrine == null) shrine = MakeShrineBell(10f);
+                    return shrine;
                 default:
                     return null;
             }
@@ -272,6 +280,75 @@ namespace NightShards.Museum
             foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
             for (int i = 0; i < n; i++) data[i] *= 0.7f / peak;
             var clip = AudioClip.Create("Deep Sea Glow", n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        // 里の夜の音: 遠くのお寺の鐘がゴーンと鳴り、だんだんカエルとコオロギの声がにぎやかになる
+        static AudioClip MakeEvening(float seconds)
+        {
+            const int rate = 22050;
+            int n = Mathf.RoundToInt(seconds * rate);
+            var data = new float[n];
+            var random = new System.Random(21);
+            float frogStart = -10f, frogPitch = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float time = (float)i / rate;
+                // 鐘: 低い音と、少しずれた倍音が、長く尾を引く
+                float bell = (Mathf.Sin(2f * Mathf.PI * 110f * time) + 0.5f * Mathf.Sin(2f * Mathf.PI * 221.5f * time) + 0.25f * Mathf.Sin(2f * Mathf.PI * 331f * time))
+                           * Mathf.Exp(-time * 0.35f) * Mathf.Clamp01(time / 0.02f);
+                // カエル: ケロケロと短く鳴く。時間がたつほど、よく鳴く
+                float night = Mathf.Clamp01((time - 2f) / 5f);
+                if (time - frogStart > 0.25f && random.NextDouble() < 0.0004 * night)
+                {
+                    frogStart = time;
+                    frogPitch = 300f + (float)random.NextDouble() * 200f;
+                }
+                float ft = time - frogStart;
+                float frog = ft < 0.18f ? Mathf.Sin(2f * Mathf.PI * frogPitch * ft) * Mathf.Sin(ft * Mathf.PI / 0.18f) * (0.5f + 0.5f * Mathf.Sign(Mathf.Sin(ft * 2f * Mathf.PI * 25f))) : 0f;
+                // コオロギ: 高い音が、リリリと小刻みに
+                float cricket = Mathf.Sin(2f * Mathf.PI * 4200f * time) * Mathf.Max(0f, Mathf.Sin(time * 2f * Mathf.PI * 30f)) * Mathf.Max(0f, Mathf.Sin(time * 2f * Mathf.PI * 0.7f)) * night;
+                float fade = Mathf.Clamp01((seconds - time) / 2f);
+                data[i] = (bell * 0.5f + frog * 0.3f + cricket * 0.08f) * fade;
+            }
+            float peak = 0.0001f;
+            foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
+            for (int i = 0; i < n; i++) data[i] *= 0.7f / peak;
+            var clip = AudioClip.Create("Terraces Evening", n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        // 神社の音: 杉の森を渡る風の音の中で、鈴がシャンシャンと鳴る
+        static AudioClip MakeShrineBell(float seconds)
+        {
+            const int rate = 22050;
+            int n = Mathf.RoundToInt(seconds * rate);
+            var data = new float[n];
+            var random = new System.Random(17);
+            float wind = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float time = (float)i / rate;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                wind += (white - wind) * 0.04f;
+                float gust = 0.5f + 0.5f * Mathf.Sin(time * 0.8f) * Mathf.Sin(time * 0.33f + 1f);
+                // 鈴: 0.5 秒ごとに 4 回、高い金属の音
+                float bells = 0f;
+                for (int k = 0; k < 4; k++)
+                {
+                    float bt = time - 0.4f - k * 0.5f;
+                    if (bt > 0f)
+                        bells += (Mathf.Sin(2f * Mathf.PI * 2350f * bt) + 0.6f * Mathf.Sin(2f * Mathf.PI * 3720f * bt)) * Mathf.Exp(-bt * 5f) * (0.75f + 0.25f * Mathf.Sin(k * 2.1f));
+                }
+                float fade = Mathf.Clamp01(time / 1f) * Mathf.Clamp01((seconds - time) / 2f);
+                data[i] = (wind * 3f * gust + bells * 0.25f) * fade;
+            }
+            float peak = 0.0001f;
+            foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
+            for (int i = 0; i < n; i++) data[i] *= 0.7f / peak;
+            var clip = AudioClip.Create("Shrine Bell", n, 1, rate, false);
             clip.SetData(data, 0);
             return clip;
         }

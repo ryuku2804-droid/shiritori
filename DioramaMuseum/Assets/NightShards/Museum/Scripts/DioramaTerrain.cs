@@ -96,6 +96,28 @@ namespace NightShards.Museum
                         spawn = new Vector2(-0.3f, 0f),
                     };
                     return true;
+                case "Terraces":
+                    // 手前の里に立ち、奥へ重なる棚田を見上げる
+                    info = new Info
+                    {
+                        height = xz => TerracesHeight(xz, seed),
+                        water = -10f,
+                        center = new Vector2(-0.05f, -0.2f),
+                        hasSpawn = true,
+                        spawn = new Vector2(0.22f, 0.36f),
+                    };
+                    return true;
+                case "Torii":
+                    // 参道の入口に立ち、鳥居のトンネルの奥 (参道の進む向き) を向く
+                    info = new Info
+                    {
+                        height = xz => ToriiHeight(xz, seed),
+                        water = -10f,
+                        center = new Vector2(-0.1f, ToriiR0),
+                        hasSpawn = true,
+                        spawn = new Vector2(-0.012f, ToriiR0), // 入口の少し先 (参道の上)
+                    };
+                    return true;
                 default:
                     info = default;
                     return false;
@@ -333,6 +355,67 @@ namespace NightShards.Museum
         static float DeepSeaHeight(Vector2 xz, float seed)
         {
             return xz.x < CliffX(0.15f, xz.y, seed) ? ShelfTop(xz, seed) : AbyssFloor(xz, seed);
+        }
+
+        // ---------------------------------------------------------------- 黄昏の棚田 (DioramaTerraces.shader と同じ)
+
+        const float TerraceStep = 0.022f;
+
+        static float TerraceSlope(Vector2 xz, float seed)
+        {
+            float back = SmoothStep(0.42f, -0.45f, xz.y);
+            return -0.24f + 0.34f * back + 0.05f * Mathf.Sin(xz.x * 4f + seed) * back
+                 + 0.04f * (Fbm3(new Vector2(xz.x * 3f + seed, xz.y * 3f + seed)) - 0.45f);
+        }
+
+        static float TerracesHeight(Vector2 xz, float seed)
+        {
+            float S = TerraceSlope(xz, seed);
+            float u = S / TerraceStep;
+            float k = Mathf.Floor(u);
+            float f = u - k;
+            float terr = (k + SmoothStep(0.75f, 1f, f)) * TerraceStep;
+            float bund = (f - 0.7f) / 0.035f;
+            terr += 0.004f * Mathf.Exp(-bund * bund);
+            float mask = SmoothStep(-0.21f, -0.18f, S) * SmoothStep(0.08f, 0.04f, S);
+            float h = Mathf.Lerp(S, terr, mask);
+            h += 0.003f * Fbm3(new Vector2(xz.x * 30f + seed, xz.y * 30f + seed)) * (1f - mask * 0.8f);
+            return h;
+        }
+
+        // ---------------------------------------------------------------- 千本鳥居の山 (DioramaTorii.shader と同じ)
+
+        const float ToriiR0 = 0.37f, ToriiR1 = 0.045f, ToriiTurns = 2.25f, ToriiTh0 = 1.5707963f;
+
+        static float MountainBase(float r) => -0.26f + 0.5f * Mathf.Pow(Mathf.Clamp01(1f - r / 0.48f), 1.6f);
+
+        static Vector2 ToriiPathCoord(Vector2 xz)
+        {
+            float total = ToriiTurns * 2f * Mathf.PI;
+            float r = xz.magnitude;
+            float th = Mathf.Atan2(xz.y, xz.x);
+            float sr = (ToriiR0 - r) / (ToriiR0 - ToriiR1);
+            float m = Mathf.Round((sr * total - (th - ToriiTh0)) / (2f * Mathf.PI));
+            float sRaw = (th - ToriiTh0 + 2f * Mathf.PI * m) / total;
+            float s = Mathf.Clamp01(sRaw);
+            float across = r - Mathf.Lerp(ToriiR0, ToriiR1, s);
+            if (sRaw < -0.002f || sRaw > 1.002f) across = 1f;
+            return new Vector2(s, across);
+        }
+
+        static float ToriiPathY(float s) => MountainBase(Mathf.Lerp(ToriiR0, ToriiR1, s));
+
+        static float ToriiHeight(Vector2 xz, float seed)
+        {
+            float r = xz.magnitude;
+            float th = Mathf.Atan2(xz.y, xz.x);
+            float h = MountainBase(r) + 0.035f * (Fbm3(new Vector2(xz.x * 5f + seed, xz.y * 5f + seed)) - 0.45f);
+            h += 0.008f * Mathf.Sin(th * 9f + Fbm3(new Vector2(xz.x * 7f, xz.y * 7f)) * 4f) * SmoothStep(0.05f, 0.2f, r);
+            Vector2 pc = ToriiPathCoord(xz);
+            float onPath = SmoothStep(0.016f, 0.009f, Mathf.Abs(pc.y));
+            h = Mathf.Lerp(h, ToriiPathY(pc.x) - 0.001f, onPath);
+            h = Mathf.Lerp(h, ToriiPathY(1f) + 0.002f, SmoothStep(0.05f, 0.035f, r));
+            return h;
         }
 
         // ---------------------------------------------------------------- シェーダーと同じノイズ
