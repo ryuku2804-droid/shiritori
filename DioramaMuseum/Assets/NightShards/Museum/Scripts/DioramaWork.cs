@@ -32,6 +32,8 @@ namespace NightShards.Museum
                 case "BlueFire": return new Color(0.3f, 0.55f, 1f, 0.85f); // 青い炎
                 case "Glacier": return new Color(0.75f, 0.88f, 1f, 0.4f);   // 月の光の青白さ
                 case "Aurora": return new Color(0.3f, 1f, 0.55f, 0.75f);    // オーロラの緑
+                case "Atoll": return new Color(0.45f, 0.95f, 1f, 0.45f);    // 浅瀬のターコイズ
+                case "DeepSea": return new Color(0.2f, 0.5f, 1f, 0.8f);     // 生物発光の青
                 default: return Color.clear;
             }
         }
@@ -130,7 +132,7 @@ namespace NightShards.Museum
             source.PlayOneShot(clip, volume);
         }
 
-        static AudioClip rumble, roar, calving, shimmer;
+        static AudioClip rumble, roar, calving, shimmer, tide, glow;
 
         static AudioClip SoundFor(string workName)
         {
@@ -148,6 +150,12 @@ namespace NightShards.Museum
                 case "Aurora":
                     if (shimmer == null) shimmer = MakeShimmer(12f);
                     return shimmer;
+                case "Atoll":
+                    if (tide == null) tide = MakeTide(12f);
+                    return tide;
+                case "DeepSea":
+                    if (glow == null) glow = MakeDeepGlow(12f);
+                    return glow;
                 default:
                     return null;
             }
@@ -207,6 +215,63 @@ namespace NightShards.Museum
             foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
             for (int i = 0; i < n; i++) data[i] *= 0.7f / peak;
             var clip = AudioClip.Create("Aurora Shimmer", n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        // 潮が引く音: 寄せては返す波の音が、ゆっくり遠ざかっていく
+        static AudioClip MakeTide(float seconds)
+        {
+            const int rate = 22050;
+            int n = Mathf.RoundToInt(seconds * rate);
+            var data = new float[n];
+            var random = new System.Random(9);
+            float wash = 0f, low = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float time = (float)i / rate;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                wash += (white - wash) * 0.15f;  // ザーッという波の音
+                low += (white - low) * 0.02f;
+                float wave = Mathf.Pow(0.5f + 0.5f * Mathf.Sin(time * 2f * Mathf.PI / 3.2f - 1.5f), 3f); // 3.2 秒ごとに寄せて返す
+                float away = Mathf.Lerp(1f, 0.35f, time / seconds);                                      // だんだん遠ざかる
+                float fade = Mathf.Clamp01(time / 0.5f) * Mathf.Clamp01((seconds - time) / 1.5f);
+                data[i] = (wash * 0.8f + low * 2f) * (0.25f + wave) * away * fade;
+            }
+            float peak = 0.0001f;
+            foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
+            for (int i = 0; i < n; i++) data[i] *= 0.7f / peak;
+            var clip = AudioClip.Create("Atoll Tide", n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        // 深海の光の音: 低く深いうなりの上に、きらきらと光る粒のような高い音が、次々に鳴っては消える
+        static AudioClip MakeDeepGlow(float seconds)
+        {
+            const int rate = 22050;
+            int n = Mathf.RoundToInt(seconds * rate);
+            var data = new float[n];
+            var random = new System.Random(13);
+            float[] notes = { 523.3f, 659.3f, 784f, 987.8f, 1174.7f, 1318.5f }; // 高いきらきらの音
+            float noteStart = -10f, noteFreq = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float time = (float)i / rate;
+                float swell = Mathf.Sin(Mathf.Clamp01(time / seconds) * Mathf.PI);
+                float hum = Mathf.Sin(2f * Mathf.PI * 55f * time) * 0.5f + Mathf.Sin(2f * Mathf.PI * 82.4f * time) * 0.3f;
+                if (time - noteStart > 0.18f && random.NextDouble() < 0.0006)
+                {
+                    noteStart = time;
+                    noteFreq = notes[random.Next(notes.Length)];
+                }
+                float bell = Mathf.Sin(2f * Mathf.PI * noteFreq * (time - noteStart)) * Mathf.Exp(-(time - noteStart) * 4f);
+                data[i] = (hum * 0.35f + bell * 0.5f) * swell;
+            }
+            float peak = 0.0001f;
+            foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
+            for (int i = 0; i < n; i++) data[i] *= 0.7f / peak;
+            var clip = AudioClip.Create("Deep Sea Glow", n, 1, rate, false);
             clip.SetData(data, 0);
             return clip;
         }

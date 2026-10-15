@@ -89,8 +89,8 @@ namespace NightShards.Museum
                 ("ギザのピラミッド", "エジプト・ギザ", "砂嵐が過ぎると満天の星。三つ星がピラミッドの並びと重なる。", -1),
                 ("死海", "ヨルダン・イスラエル", "白い塩の結晶の岸と青緑の水。時が流れ、塩の結晶が育つ。", -1)));
             layout.rooms.Add(MakeRoom("海の間", RoomTheme.Sea, 4, new Color(0.35f, 0.9f, 0.85f),
-                ("環礁", "南太平洋", "ターコイズの浅瀬に雲の影が流れる。潮が引くと砂州の道が現れる。", 3),
-                ("海の断面", "珊瑚の海", "水面の上は小さな島、下は珊瑚と魚の群れ。クジラの影が横切る。", 3)));
+                ("環礁", "南太平洋", "空に浮かぶ環礁。縁から海がこぼれ落ち、潮が引くと砂州の道が現れる。", 3),
+                ("海の断面", "珊瑚の海から深海へ", "明るい珊瑚の浅瀬から、光の届かない深海まで。生き物たちが一斉に光る。", 3)));
             layout.rooms.Add(MakeRoom("アンデスの間", RoomTheme.Andes, 5, new Color(0.7f, 0.85f, 1f),
                 ("ウユニ塩湖", "ボリビア", "雨が来ると水が張り、空が完全に映って、空の中に浮かぶ。", -1),
                 ("マチュピチュ", "ペルー", "雲海が引いて、山の上の遺跡を朝日が照らし出す。", -1)));
@@ -120,6 +120,8 @@ namespace NightShards.Museum
                 case "大噴火": return "Eruption";
                 case "月下の氷河": return "Glacier";
                 case "オーロラの夜": return "Aurora";
+                case "環礁": return "Atoll";
+                case "海の断面": return "DeepSea";
                 case "青い火の焦土": return "BlueFire";
                 case "青い火の火口湖": return "BlueFire"; // 前の名前 (前に保存した設計図のため)
                 default: return "";

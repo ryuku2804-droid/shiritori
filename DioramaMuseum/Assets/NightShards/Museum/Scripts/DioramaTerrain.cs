@@ -72,6 +72,30 @@ namespace NightShards.Museum
                         spawn = new Vector2(0f, 0.36f),
                     };
                     return true;
+                case "Atoll":
+                    // 小島のひとつに立ち、礁湖を見わたす。島の縁から外へ出ると、空へ落ちる (落ちたら小島に戻る)
+                    info = new Info
+                    {
+                        height = xz => AtollWalk(xz, seed),
+                        bakeHeight = xz => AtollSeabed(xz, seed),
+                        water = -10f, // 水面は AtollWalk の中で扱う
+                        center = Vector2.zero,
+                        hasSpawn = true,
+                        spawn = new Vector2(Mathf.Cos(0.3f), Mathf.Sin(0.3f)) * AtollRing(0.3f, seed),
+                    };
+                    return true;
+                case "DeepSea":
+                    // 珊瑚の棚の上 (水の中) に立ち、崖の先の深い海のほうを向く。崖から出ると、深い底へ落ちる
+                    info = new Info
+                    {
+                        height = xz => DeepSeaHeight(xz, seed),
+                        bakeHeight = xz => ShelfTop(xz, seed),
+                        water = -10f,
+                        center = new Vector2(0.4f, 0f),
+                        hasSpawn = true,
+                        spawn = new Vector2(-0.3f, 0f),
+                    };
+                    return true;
                 default:
                     info = default;
                     return false;
@@ -227,6 +251,87 @@ namespace NightShards.Museum
             h += 0.03f * Fbm3(new Vector2(xz.x * 6f + seed * 1.3f, xz.y * 6f + seed * 1.3f)) * SmoothStep(0.25f, 0.35f, r);
             h += 0.006f * Fbm3(new Vector2(xz.x * 20f + seed, xz.y * 20f + seed)) - 0.003f;
             return h;
+        }
+
+        // ---------------------------------------------------------------- 環礁 (DioramaAtoll.shader と同じ)
+
+        const float AtollSea = 0.05f;
+        static readonly float[] MotuA = { 0.3f, 1.55f, 2.7f, 3.95f, 5.15f };
+        static readonly float[] FallA = { 0.95f, 2.2f, 3.35f, 4.6f };
+
+        static float AtollDisk(float th, float seed) => 0.35f + 0.02f * Mathf.Sin(th * 3f + seed) + 0.012f * Mathf.Sin(th * 7f + seed * 2.1f);
+        static float AtollRing(float th, float seed) => 0.21f + 0.015f * Mathf.Sin(th * 3f + seed * 1.7f);
+
+        static float SpillDip(float th)
+        {
+            float s = 0f;
+            foreach (float a in FallA)
+            {
+                float d = AngDist(th, a) / 0.1f;
+                s = Mathf.Max(s, Mathf.Exp(-d * d));
+            }
+            return s;
+        }
+
+        static float AngDist(float a, float b) => Mathf.Abs(Mathf.Atan2(Mathf.Sin(a - b), Mathf.Cos(a - b)));
+
+        static float AtollSeabed(Vector2 xz, float seed)
+        {
+            float r = xz.magnitude;
+            float th = Mathf.Atan2(xz.y, xz.x);
+            float R = AtollDisk(th, seed);
+            float ring = AtollRing(th, seed);
+            float outer = Mathf.Lerp(AtollSea - 0.055f, AtollSea - 0.02f, SmoothStep(R - 0.02f, ring + 0.05f, r));
+            float lagoon = AtollSea - 0.022f + 0.006f * Fbm3(new Vector2(xz.x * 12f + seed, xz.y * 12f + seed));
+            float h = Mathf.Lerp(lagoon, outer, SmoothStep(ring - 0.01f, ring + 0.01f, r));
+            float rd = (r - ring) / 0.022f;
+            h = Mathf.Max(h, AtollSea - 0.006f + 0.004f * ValueNoise(new Vector2(xz.x * 60f + seed, xz.y * 60f + seed)) - 0.03f * (1f - Mathf.Exp(-rd * rd)));
+            for (int k = 0; k < MotuA.Length; k++)
+            {
+                float a = MotuA[k];
+                Vector2 c = new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * AtollRing(a, seed);
+                Vector2 d = (xz - c) / (0.038f + 0.006f * (1f + Mathf.Sin(k * 2.3f + seed)));
+                h = Mathf.Max(h, AtollSea - 0.012f + (0.035f + 0.006f * ValueNoise(new Vector2(xz.x * 40f, xz.y * 40f))) * Mathf.Exp(-Vector2.Dot(d, d)));
+            }
+            float lip = (r - (R - 0.008f)) / 0.007f;
+            h = Mathf.Max(h, AtollSea + 0.002f - 0.009f * SpillDip(th) - 0.06f * (1f - Mathf.Exp(-lip * lip)));
+            return h;
+        }
+
+        // 歩く地面: 島の上は、海の底と水面の高いほう (浅瀬を歩く)。島の外は、はるか下 (落ちる)
+        static float AtollWalk(Vector2 xz, float seed)
+        {
+            float th = Mathf.Atan2(xz.y, xz.x);
+            if (xz.magnitude > AtollDisk(th, seed) - 0.006f) return -10f;
+            return Mathf.Max(AtollSeabed(xz, seed), AtollSea - 0.004f);
+        }
+
+        // ---------------------------------------------------------------- 海の断面 (DioramaDeepSea.shader と同じ)
+
+        static float ShelfTop(Vector2 xz, float seed)
+        {
+            float h = 0.15f + 0.02f * Fbm3(new Vector2(xz.x * 5f + seed, xz.y * 5f + seed));
+            float c1 = 1f - Mathf.Abs(ValueNoise(new Vector2(xz.x * 22f + seed, xz.y * 22f + seed)) * 2f - 1f);
+            float c2 = 1f - Mathf.Abs(ValueNoise(new Vector2(xz.x * 50f + seed * 1.3f, xz.y * 50f + seed * 1.3f)) * 2f - 1f);
+            float coral = c1 * c1 * 0.8f + c2 * c2 * 0.4f;
+            h += 0.03f * coral * SmoothStep(0.35f, 0.6f, ValueNoise(new Vector2(xz.x * 7f + seed * 2f, xz.y * 7f + seed * 2f)));
+            return h;
+        }
+
+        static float CliffX(float y, float z, float seed)
+        {
+            return 0.02f + 0.05f * Mathf.Sin(z * 5f + seed) + 0.06f * (ValueNoise(new Vector2(z * 12f + seed, y * 10f + seed)) - 0.5f);
+        }
+
+        static float AbyssFloor(Vector2 xz, float seed)
+        {
+            return -0.38f + 0.03f * Fbm3(new Vector2(xz.x * 4f + seed, xz.y * 4f + seed));
+        }
+
+        // 歩く地面: 崖より手前は珊瑚の棚、先は深い底 (崖の面の高さによるでこぼこは、棚の高さで代表させる)
+        static float DeepSeaHeight(Vector2 xz, float seed)
+        {
+            return xz.x < CliffX(0.15f, xz.y, seed) ? ShelfTop(xz, seed) : AbyssFloor(xz, seed);
         }
 
         // ---------------------------------------------------------------- シェーダーと同じノイズ
