@@ -4,7 +4,10 @@
 // 見どころ:
 //   ・奥へ高くなる斜面に、水を張った棚田が段々に重なる。田んぼのひとつひとつの水面が、夕焼けの空を映す鏡になる
 //   ・田んぼのふちのあぜ道 (草)、段の土手、斜面の上の杉の森
-//   ・手前の平らな所に、かやぶき屋根の家が 4 軒
+//   ・手前の平らな所に、かやぶき屋根の家が 4 軒。かまどの煙が立ちのぼる
+//   ・田んぼの水面には、空だけでなく、山やあぜや森も逆さに映る。風のさざ波が、田んぼから田んぼへ渡っていく
+//   ・斜面をただよう夕もやに、山の端を抜けた夕日の光の筋が差す
+//   ・材質ごとのつや (草は逆光で透け、木の壁はしっとり、わらは粗い)
 // 仕掛け (_Event 0〜1): 日が沈んで夜になる。家の障子に灯がともり、田んぼの上を蛍が舞い、水面に星が映る
 //
 // 外から見たとき、地形のない所 (空) は透明にして、ガラスケースの向こうの部屋が見えるようにする。
@@ -106,6 +109,9 @@ Shader "NightShards/Diorama/Terraces"
                 return frac(sin(float2(dot(p, float2(127.1, 311.7)), dot(p, float2(269.5, 183.3)))) * 43758.5453);
             }
 
+            // 木の場所に使う乱数 (C# と同じ結果になるよう、sin を使わない)
+            float2 Hash22b(float2 p) { return float2(Hash21(p), Hash21(p + 17.3)); }
+
             float Hash31(float3 p)
             {
                 p = frac(p * 0.3183099 + 0.1);
@@ -197,7 +203,7 @@ Shader "NightShards/Diorama/Terraces"
                 float bound = max(min(toEdge.x, toEdge.y), 0.0) + 0.003;
                 float2 id = cell + _Seed * 0.37;
                 if (Hash21(id) > 0.7) return bound;
-                float2 base = (cell + 0.5) * TREE_CELL + (Hash22(id + 1.3) - 0.5) * TREE_CELL * 0.5;
+                float2 base = (cell + 0.5) * TREE_CELL + (Hash22b(id + 1.3) - 0.5) * TREE_CELL * 0.5;
                 if (abs(base.x) > INNER - 0.02 || abs(base.y) > INNER - 0.02) return bound;
                 if (Slope(base) < 0.06) return bound; // 森は斜面の上のほうだけ
                 float height = 0.05 + 0.03 * Hash21(id + 3.3);
@@ -348,82 +354,241 @@ Shader "NightShards/Diorama/Terraces"
                 return col * night;
             }
 
+            // ---------------------------------------------------------------- 質感 (つやのある、本物らしい光り方)
+
+            // 表面の細かい凹凸で、向きを少しゆらす (近くで見ると、手ざわりのある陰影が出る)
+            float3 BumpNormal(float3 n, float3 p, float freq, float amount)
+            {
+                float e = 0.35 / freq;
+                float n0 = Noise3(p * freq);
+                float3 g = float3(Noise3((p + float3(e, 0, 0)) * freq), Noise3((p + float3(0, e, 0)) * freq), Noise3((p + float3(0, 0, e)) * freq)) - n0;
+                g -= n * dot(g, n);
+                return normalize(n - g * amount);
+            }
+
+            // 材質ごとの光り方。
+            //   rough: 0 つるつる 〜 1 ざらざら (つるつるほど、光の照り返しが小さく強い)
+            //   f0: 正面から見たときの映り込みの強さ (ななめから見るほど、空が強く映る)
+            //   sss: 光が透ける強さ (葉・草・紙は、逆光で光って見える)
+            float3 Surface(float3 albedo, float3 n, float3 v, float3 L, float3 sunCol, float sh, float ao,
+                           float rough, float f0, float sss, float3 skyTop, float3 skyLow)
+            {
+                float ndl = saturate(dot(n, L));
+                float ndv = saturate(dot(n, v)) + 1e-4;
+                float3 h = normalize(L + v);
+                float ndh = saturate(dot(n, h));
+                float a = max(rough * rough, 0.002);
+                float a2 = a * a;
+                float dd = ndh * ndh * (a2 - 1.0) + 1.0;
+                float D = a2 / (3.14159 * dd * dd);
+                float k = a * 0.5;
+                float Vis = 0.25 / ((ndl * (1.0 - k) + k) * (ndv * (1.0 - k) + k));
+                float F = f0 + (1.0 - f0) * pow(1.0 - saturate(dot(h, v)), 5.0);
+                float3 direct = sunCol * sh * ndl * (albedo * (1.0 - F) + D * Vis * F);
+                // まわりの空の光: 上を向く面ほど空の上の色、横向きは地平線の色。ななめから見ると空が映る
+                float3 skyDiffuse = lerp(skyLow, skyTop, saturate(n.y * 0.5 + 0.5));
+                float3 r = reflect(-v, n);
+                float3 skySpec = lerp(skyLow, skyTop, saturate(r.y));
+                float Fv = f0 + (1.0 - f0) * pow(1.0 - ndv, 5.0);
+                float3 ambient = (albedo * skyDiffuse * (1.0 - Fv) + skySpec * Fv * (1.0 - rough * 0.8)) * ao;
+                // 光が透ける: 逆光の葉や草が、明るく光って見える
+                float back = pow(saturate(dot(v, -L)), 4.0) * sss;
+                float3 trans = albedo * sunCol * back * (0.5 + 0.5 * sh) * 0.8;
+                return direct + ambient + trans;
+            }
+
+            // ---------------------------------------------------------------- 水鏡 (田んぼに映る景色)
+
+            // 水面で反射した線を、地形 (と森の高さ) を相手にもう一度進める。当たれば山やあぜの色、当たらなければ空
+            float3 ReflectTerrain(float3 p, float3 r, float night, float3 sunDir, float3 sunCol, float3 skyLow)
+            {
+                float t = 0.003;
+                for (int i = 0; i < 36; i++)
+                {
+                    float3 q = p + r * t;
+                    if (abs(q.x) > INNER || abs(q.z) > INNER || q.y > 0.35) break;
+                    float h = HeightFast(q.xz);
+                    float forest = smoothstep(0.05, 0.09, h);
+                    float d = (q.y - (h + 0.045 * forest)) * 0.4;
+                    if (d < 0.0008)
+                    {
+                        float hx = HeightFast(q.xz + float2(0.004, 0)) - h;
+                        float hz = HeightFast(q.xz + float2(0, 0.004)) - h;
+                        float3 n = normalize(float3(-hx, 0.004, -hz));
+                        float3 albedo = lerp(float3(0.2, 0.32, 0.1), float3(0.05, 0.1, 0.05), forest);
+                        float lit = saturate(dot(n, sunDir));
+                        return albedo * (sunCol * lit * 0.9 + skyLow * 0.5);
+                    }
+                    t += max(d, 0.002);
+                }
+                return Sky(r, night);
+            }
+
+            // ---------------------------------------------------------------- 夕もやと光の筋とかまどの煙
+
+            // 日の光がそこまで届くか (山と森の高さだけで調べる、軽い影)
+            float SunVisible(float3 p, float3 L)
+            {
+                for (int k = 1; k <= 5; k++)
+                {
+                    float3 q = p + L * (0.05 * k);
+                    if (abs(q.x) > INNER || abs(q.z) > INNER) break;
+                    float h = HeightFast(q.xz);
+                    if (q.y < h + 0.045 * smoothstep(0.05, 0.09, h)) return 0.0;
+                }
+                return 1.0;
+            }
+
+            float MistDensity(float3 p, out float smoke)
+            {
+                float t = _Time.y;
+                // 夕もや: 地面のすぐ上にたまり、風に流れる
+                float above = p.y - HeightFast(p.xz);
+                float n = Noise3(float3(p.x * 8.0 - t * 0.02, p.y * 12.0, p.z * 8.0)) * 0.6 + Noise3(p * 20.0 + t * 0.01) * 0.4;
+                float mist = max(0.0, exp(-max(above, 0.0) / 0.03) * 1.2 + n - 1.1) * 18.0;
+                // かまどの煙: 家の屋根から細く立ちのぼり、風下へたなびく
+                smoke = 0.0;
+                for (int i = 0; i < HOUSES; i++)
+                {
+                    float3 hs = HOUSE[i];
+                    float base = HeightFast(hs.xy) + 0.028;
+                    float sy = p.y - base;
+                    if (sy < 0.0 || sy > 0.12) continue;
+                    float2 c = p.xz - hs.xy - float2(-0.06, -0.02) * sy * 2.0;
+                    float rad = 0.003 + sy * 0.15;
+                    float sh = saturate(1.0 - length(c) / rad) * smoothstep(0.12, 0.04, sy);
+                    if (sh <= 0.0) continue;
+                    float sn = Noise3(float3(c.x * 120.0, sy * 60.0 - t * 1.5, c.y * 120.0));
+                    smoke += max(0.0, sh * 1.2 + sn * 0.7 - 0.9) * 60.0;
+                }
+                return mist + smoke;
+            }
+
+            float4 Mist(float3 ro, float3 rd, float tMax, float night, float3 sunDir, float3 sunCol, float3 skyLow)
+            {
+                float3 bmin = float3(-INNER, -0.26, -INNER);
+                float3 bmax = float3(INNER, 0.22, INNER);
+                float3 inv = 1.0 / rd;
+                float3 t0 = (bmin - ro) * inv, t1 = (bmax - ro) * inv;
+                float3 tsmall = min(t0, t1), tbig = max(t0, t1);
+                float tin = max(max(max(tsmall.x, tsmall.y), tsmall.z), 0.0);
+                float tout = min(min(min(tbig.x, tbig.y), tbig.z), tMax);
+                if (tout <= tin) return float4(0, 0, 0, 1);
+                const int steps = 16;
+                float dt = (tout - tin) / steps;
+                float t = tin + dt * Hash21(rd.xy * 517.0 + _Time.y);
+                // 夕日のほうを向くほど、もやが明るく輝く (光が前へ散らばる)
+                float phase = 0.35 + 2.5 * pow(saturate(dot(rd, sunDir)), 8.0);
+                float3 col = 0;
+                float trans = 1.0;
+                for (int i = 0; i < steps; i++)
+                {
+                    float3 p = ro + rd * t;
+                    float smoke;
+                    float dens = MistDensity(p, smoke);
+                    if (dens > 0.0)
+                    {
+                        float vis = SunVisible(p, sunDir);
+                        float3 light = skyLow * 0.6 + sunCol * vis * phase * 0.6;
+                        light = lerp(light, float3(0.35, 0.33, 0.33) * (0.4 + 0.6 * (1.0 - night)), smoke / max(dens, 1e-4) * 0.5);
+                        float a = 1.0 - exp(-dens * dt);
+                        col += trans * a * light;
+                        trans *= 1.0 - a;
+                        if (trans < 0.02) break;
+                    }
+                    t += dt;
+                }
+                return float4(col, trans);
+            }
+
             // ---------------------------------------------------------------- 色を塗る
 
             float3 Shade(float3 ro, float3 rd, float3 p, float id, bool outside, float3 faceNormal)
             {
                 float night = Night();
-                float3 sunDir = normalize(SUN_DIR);
+                float3 L = normalize(SUN_DIR);
                 float3 sunCol = lerp(float3(1.6, 0.85, 0.45), float3(0.0, 0.0, 0.0), night);
-                float3 amb = lerp(float3(0.28, 0.2, 0.3), float3(0.02, 0.03, 0.07), night);
+                float3 skyTop = lerp(float3(0.25, 0.22, 0.38), float3(0.012, 0.016, 0.04), night);
+                float3 skyLow = lerp(float3(0.75, 0.42, 0.28), float3(0.02, 0.025, 0.05), night);
+                float3 v = -rd;
                 float t = _Time.y;
 
                 if (id == ID_BASE)
                     return float3(0.015, 0.014, 0.014) + 0.03 * pow(saturate(1.0 - abs(dot(rd, faceNormal))), 4.0);
 
                 float3 n = SceneNormal(p);
-                float sh = SoftShadow(p + n * 0.002, sunDir);
+                float sh = SoftShadow(p + n * 0.002, L);
                 float ao = AmbientOcclusion(p, n);
-                float diffuse = saturate(dot(n, sunDir)) * sh;
-                float3 lit = sunCol * diffuse + amb * (0.5 + 0.5 * saturate(n.y));
 
                 if (id == ID_TREE)
                 {
+                    float3 nb = BumpNormal(n, p, 700.0, 0.8);
                     float3 albedo = float3(0.06, 0.12, 0.06) * (0.8 + 0.4 * Noise3(p * 600.0));
-                    return albedo * lit * ao;
+                    return Surface(albedo, nb, v, L, sunCol, sh, ao, 0.75, 0.03, 0.6, skyTop, skyLow);
                 }
 
                 if (id == ID_HOUSE)
                 {
                     int which;
                     Houses(p, which);
-                    float3 h = HOUSE[which];
-                    float3 q = p - float3(h.x, HeightFast(h.xy) - 0.002, h.y);
-                    float c = cos(h.z), s = sin(h.z);
+                    float3 hs = HOUSE[which];
+                    float3 q = p - float3(hs.x, HeightFast(hs.xy) - 0.002, hs.y);
+                    float c = cos(hs.z), s = sin(hs.z);
                     q = float3(q.x * c + q.z * s, q.y, -q.x * s + q.z * c);
                     if (q.y > 0.0175)
                     {
-                        // かやぶき屋根: 茶色いわらの筋
+                        // かやぶき屋根: 茶色いわらの筋。粗く、光はほとんど照り返さない
                         float straw = 0.75 + 0.25 * sin((q.y * 1.3 + abs(q.z)) * 2500.0 + Noise3(p * 900.0) * 3.0);
-                        return float3(0.45, 0.34, 0.2) * straw * lit * ao;
+                        float3 nb = BumpNormal(n, p, 1500.0, 1.2);
+                        return Surface(float3(0.45, 0.34, 0.2) * straw, nb, v, L, sunCol, sh, ao, 0.95, 0.02, 0.15, skyTop, skyLow);
                     }
-                    // 壁: 黒っぽい板と、白い障子の窓。夜は障子に灯がともる
-                    float window = step(abs(q.x), 0.012) * step(0.004, q.y) * step(q.y, 0.014) * step(0.0105, abs(q.z)); // 長い側の壁だけ
+                    // 壁: 黒っぽい板 (しっとりしたつや) と、白い障子の窓 (光が透ける)。夜は障子に灯がともる
+                    float window = step(abs(q.x), 0.012) * step(0.004, q.y) * step(q.y, 0.014) * step(0.0105, abs(q.z));
                     float frame = step(0.4, frac(q.x * 600.0)) * step(0.4, frac(q.y * 600.0));
-                    float3 wood = float3(0.16, 0.11, 0.07);
-                    float3 paper = float3(0.8, 0.75, 0.62);
-                    float3 albedo = lerp(wood, paper, window * frame);
-                    float3 col = albedo * lit * ao;
+                    float paper = window * frame;
+                    float grain = 0.85 + 0.15 * sin(q.y * 4000.0 + Noise3(p * 800.0) * 2.0);
+                    float3 albedo = lerp(float3(0.16, 0.11, 0.07) * grain, float3(0.8, 0.75, 0.62), paper);
+                    float3 col = Surface(albedo, n, v, L, sunCol, sh, ao, lerp(0.5, 0.85, paper), 0.04, paper * 0.7, skyTop, skyLow);
                     float flicker = 0.9 + 0.1 * sin(t * 7.0 + which * 3.0) * sin(t * 4.3);
-                    col += float3(1.8, 0.9, 0.35) * window * frame * smoothstep(0.3, 0.8, night) * flicker;
+                    col += float3(1.8, 0.9, 0.35) * paper * smoothstep(0.3, 0.8, night) * flicker;
                     return col;
                 }
 
-                // 田んぼの水面: 空 (夕焼け・夜は星) を鏡のように映す。小さなさざ波
+                // 田んぼの水面: 空と、まわりの山・あぜ・森を逆さに映す。風が通ると、さざ波が田んぼを渡っていく
                 float paddy = PaddyMask(p.xz);
-                float3 col = 0;
+                float3 water = 0;
                 if (paddy > 0.01)
                 {
-                    float2 q = p.xz * 140.0;
-                    float2 slope = (float2(ValueNoise(q + t * 0.4), ValueNoise(q.yx + 3.0 - t * 0.35)) - 0.5) * 0.02;
+                    float2 windDir = normalize(float2(0.8, -0.6));
+                    float gust = smoothstep(0.45, 0.75, Noise3(float3(p.xz * 6.0 - windDir * t * 0.25, t * 0.1)));
+                    float wave = sin(dot(p.xz, windDir) * 420.0 - t * 6.0 + ValueNoise(p.xz * 60.0) * 3.0);
+                    float2 slope = windDir * wave * gust * 0.05;
+                    slope += (float2(ValueNoise(p.xz * 140.0 + t * 0.4), ValueNoise(p.xz.yx * 140.0 + 3.0 - t * 0.35)) - 0.5) * 0.012;
                     float3 wn = normalize(float3(slope.x, 1.0, slope.y));
                     float3 r = reflect(rd, wn);
-                    float fres = 0.04 + 0.96 * pow(1.0 - saturate(dot(-rd, wn)), 5.0);
-                    float3 refl = Sky(r, night);
-                    // 稲の苗: 水面から点々と出ている緑
+                    float fres = 0.02 + 0.98 * pow(1.0 - saturate(dot(v, wn)), 5.0);
+                    float3 refl = ReflectTerrain(p + wn * 0.001, r, night, L, sunCol, skyLow);
+                    float sd = saturate(dot(r, L));
+                    refl += sunCol * pow(sd, 600.0) * 8.0;                      // 夕日のきらめき
+                    float3 mud = float3(0.1, 0.08, 0.05) * (skyLow * 0.6 + sunCol * 0.2);
+                    water = lerp(mud, refl, 0.3 + 0.7 * fres);
+                    // 稲の苗: 水面から点々と出ている緑 (逆光で透ける)
                     float seedling = smoothstep(0.7, 0.85, abs(sin(p.x * 900.0)) * abs(sin(p.z * 900.0)));
-                    float3 mud = float3(0.12, 0.09, 0.06);
-                    float3 water = lerp(mud * lit, refl, 0.35 + 0.65 * fres);
-                    water = lerp(water, float3(0.25, 0.45, 0.12) * lit, seedling * 0.5);
-                    col = water;
+                    float3 sprout = Surface(float3(0.25, 0.45, 0.12), n, v, L, sunCol, sh, ao, 0.6, 0.03, 0.8, skyTop, skyLow);
+                    water = lerp(water, sprout, seedling * 0.5);
                 }
-                // あぜと土手と里: 草の緑と、土。土手は急なので土が出る
+                // あぜと土手と里: 草 (逆光で透けて光る)。急な土手は、苔むした石垣
                 float steep = smoothstep(0.8, 0.5, n.y);
-                float3 grass = lerp(float3(0.18, 0.3, 0.09), float3(0.3, 0.38, 0.12), Noise3(p * 500.0));
-                float3 soil = float3(0.32, 0.24, 0.16) * (0.8 + 0.3 * Noise3(p * 800.0));
-                float3 albedo = lerp(grass, soil, steep * 0.7);
-                float3 land = albedo * lit * ao;
-                return lerp(land, col, paddy);
+                float3 grass = lerp(float3(0.18, 0.3, 0.09), float3(0.3, 0.4, 0.12), Noise3(p * 500.0));
+                float2 sw = float2(p.x * 260.0 + p.z * 180.0, p.y * 520.0);
+                float2 cellId = floor(float2(sw.x + floor(sw.y) * 0.5, sw.y));
+                float joint = smoothstep(0.06, 0.0, min(frac(sw.x + floor(sw.y) * 0.5), frac(sw.y)));
+                float3 stone = float3(0.42, 0.38, 0.32) * (0.75 + 0.35 * Hash21(cellId)) * (1.0 - 0.6 * joint);
+                stone = lerp(stone, float3(0.2, 0.3, 0.1), smoothstep(0.55, 0.75, Noise3(p * 300.0)) * 0.6); // 苔
+                float3 albedo = lerp(grass, stone, steep);
+                float3 nb = BumpNormal(n, p, steep > 0.5 ? 600.0 : 900.0, steep > 0.5 ? 0.7 : 0.9);
+                float3 land = Surface(albedo, nb, v, L, sunCol, sh, ao, lerp(0.7, 0.6, steep), 0.03, lerp(0.55, 0.0, steep), skyTop, skyLow);
+                return lerp(land, water, paddy);
             }
 
             // ---------------------------------------------------------------- 本体
@@ -501,6 +666,15 @@ Shader "NightShards/Diorama/Terraces"
                 if (hit) col = lerp(col, haze, (1.0 - exp(-travel * 0.6)) * 0.6);
 
                 float alpha = (hit || !outside) ? 1.0 : 0.0;
+
+                // 夕もや・光の筋・かまどの煙を重ねる
+                float3 sunDirF = normalize(SUN_DIR);
+                float3 sunColF = lerp(float3(1.6, 0.85, 0.45), float3(0.0, 0.0, 0.0), night);
+                float3 skyLowF = lerp(float3(0.75, 0.42, 0.28), float3(0.02, 0.025, 0.05), night);
+                float4 mist = Mist(ro, rd, tHit, night, sunDirF, sunColF, skyLowF);
+                col = col * mist.a + mist.rgb;
+                alpha = 1.0 - (1.0 - alpha) * mist.a;
+
                 col += Fireflies(ro, rd, tHit, night);
 
                 if (outside)

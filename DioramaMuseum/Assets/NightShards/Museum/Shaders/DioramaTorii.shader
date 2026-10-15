@@ -5,6 +5,8 @@
 //   ・杉の森におおわれた円すいの山。そのまわりを、石の参道が 2 周と少し、らせんに巻いて登る
 //   ・参道には朱の鳥居が約 600 基、すき間なく並んでトンネルになる (黒い笠木、柱の根元も黒)。12 基ごとに石灯籠
 //   ・山頂には朱の社。山の中腹には、霧の帯がかかる
+//   ・くっきりした影: 鳥居のすき間から差す夕日が、石段に光と影の縞を作る
+//   ・材質ごとのつや (朱塗りはつやつやで空を映し、石は少し、杉の葉は逆光で透ける)
 // 仕掛け (_Event 0〜1): 霧が晴れて、夕日が強く差し、灯籠に火がともる。鳥居のトンネルが金色に輝く
 //
 // 外から見たとき、地形のない所 (空) は透明にして、ガラスケースの向こうの部屋が見えるようにする。
@@ -104,6 +106,9 @@ Shader "NightShards/Diorama/Torii"
             {
                 return frac(sin(float2(dot(p, float2(127.1, 311.7)), dot(p, float2(269.5, 183.3)))) * 43758.5453);
             }
+
+            // 木の場所に使う乱数 (C# と同じ結果になるよう、sin を使わない)
+            float2 Hash22b(float2 p) { return float2(Hash21(p), Hash21(p + 17.3)); }
 
             float Hash31(float3 p)
             {
@@ -261,7 +266,7 @@ Shader "NightShards/Diorama/Torii"
                 float bound = max(min(toEdge.x, toEdge.y), 0.0) + 0.003;
                 float2 id = cell + _Seed * 0.37;
                 if (Hash21(id) > 0.65) return bound;
-                float2 base = (cell + 0.5) * TREE_CELL + (Hash22(id + 1.3) - 0.5) * TREE_CELL * 0.5;
+                float2 base = (cell + 0.5) * TREE_CELL + (Hash22b(id + 1.3) - 0.5) * TREE_CELL * 0.5;
                 if (abs(base.x) > INNER - 0.02 || abs(base.y) > INNER - 0.02) return bound;
                 if (abs(PathCoord(base).y) < 0.026 || length(base) < 0.06) return bound; // 参道と山頂には生えない
                 float height = 0.05 + 0.035 * Hash21(id + 3.3);
@@ -307,14 +312,14 @@ Shader "NightShards/Diorama/Torii"
             float SoftShadow(float3 p, float3 l)
             {
                 float res = 1.0;
-                float t = 0.003;
-                int n = (int)_ShadowSteps;
+                float t = 0.0015;
+                int n = max((int)_ShadowSteps, 8);
                 for (int i = 0; i < 32; i++)
                 {
                     if (i >= n) break;
                     float h = Map(p + l * t).x;
-                    res = min(res, 12.0 * h / t);
-                    t += clamp(h, 0.002, 0.04);
+                    res = min(res, 32.0 * h / t); // くっきりした影 (鳥居の細い柱の影も、はっきり落ちる)
+                    t += clamp(h, 0.0012, 0.04);
                     if (res < 0.01 || t > 0.8) break;
                 }
                 return saturate(res);
@@ -359,6 +364,8 @@ Shader "NightShards/Diorama/Torii"
                 int steps = clamp((int)(_Steps / 6.0), 8, 22);
                 float dt = (tout - tin) / steps;
                 float t = tin + dt * Hash21(rd.xy * 517.0 + _Time.y);
+                // 夕日のほうを向くほど、霧が明るく輝く (光が前へ散らばる)
+                float phase = 0.3 + 2.2 * pow(saturate(dot(rd, normalize(SUN_DIR))), 8.0);
                 float3 col = 0;
                 float trans = 1.0;
                 for (int i = 0; i < 22; i++)
@@ -369,7 +376,7 @@ Shader "NightShards/Diorama/Torii"
                     if (dens > 0.0)
                     {
                         float a = 1.0 - exp(-dens * dt);
-                        col += trans * a * (float3(0.55, 0.45, 0.45) + sunCol * 0.2);
+                        col += trans * a * (float3(0.5, 0.42, 0.44) + sunCol * 0.25 * phase);
                         trans *= 1.0 - a;
                         if (trans < 0.02) break;
                     }
@@ -391,25 +398,66 @@ Shader "NightShards/Diorama/Torii"
                 return c;
             }
 
+            // ---------------------------------------------------------------- 質感 (つやのある、本物らしい光り方)
+
+            // 表面の細かい凹凸で、向きを少しゆらす (近くで見ると、手ざわりのある陰影が出る)
+            float3 BumpNormal(float3 n, float3 p, float freq, float amount)
+            {
+                float e = 0.35 / freq;
+                float n0 = Noise3(p * freq);
+                float3 g = float3(Noise3((p + float3(e, 0, 0)) * freq), Noise3((p + float3(0, e, 0)) * freq), Noise3((p + float3(0, 0, e)) * freq)) - n0;
+                g -= n * dot(g, n);
+                return normalize(n - g * amount);
+            }
+
+            // 材質ごとの光り方。
+            //   rough: 0 つるつる 〜 1 ざらざら (つるつるほど、光の照り返しが小さく強い)
+            //   f0: 正面から見たときの映り込みの強さ (ななめから見るほど、空が強く映る)
+            //   sss: 光が透ける強さ (葉・草・紙は、逆光で光って見える)
+            float3 Surface(float3 albedo, float3 n, float3 v, float3 L, float3 sunCol, float sh, float ao,
+                           float rough, float f0, float sss, float3 skyTop, float3 skyLow)
+            {
+                float ndl = saturate(dot(n, L));
+                float ndv = saturate(dot(n, v)) + 1e-4;
+                float3 h = normalize(L + v);
+                float ndh = saturate(dot(n, h));
+                float a = max(rough * rough, 0.002);
+                float a2 = a * a;
+                float dd = ndh * ndh * (a2 - 1.0) + 1.0;
+                float D = a2 / (3.14159 * dd * dd);
+                float k = a * 0.5;
+                float Vis = 0.25 / ((ndl * (1.0 - k) + k) * (ndv * (1.0 - k) + k));
+                float F = f0 + (1.0 - f0) * pow(1.0 - saturate(dot(h, v)), 5.0);
+                float3 direct = sunCol * sh * ndl * (albedo * (1.0 - F) + D * Vis * F);
+                // まわりの空の光: 上を向く面ほど空の上の色、横向きは地平線の色。ななめから見ると空が映る
+                float3 skyDiffuse = lerp(skyLow, skyTop, saturate(n.y * 0.5 + 0.5));
+                float3 r = reflect(-v, n);
+                float3 skySpec = lerp(skyLow, skyTop, saturate(r.y));
+                float Fv = f0 + (1.0 - f0) * pow(1.0 - ndv, 5.0);
+                float3 ambient = (albedo * skyDiffuse * (1.0 - Fv) + skySpec * Fv * (1.0 - rough * 0.8)) * ao;
+                // 光が透ける: 逆光の葉や草が、明るく光って見える
+                float back = pow(saturate(dot(v, -L)), 4.0) * sss;
+                float3 trans = albedo * sunCol * back * (0.5 + 0.5 * sh) * 0.8;
+                return direct + ambient + trans;
+            }
+
             // ---------------------------------------------------------------- 色を塗る
 
             float3 Shade(float3 ro, float3 rd, float3 p, float id, float3 faceNormal)
             {
                 float e = smoothstep(0.0, 1.0, _Event);
-                float3 sunDir = normalize(SUN_DIR);
+                float3 L = normalize(SUN_DIR);
                 float3 sunCol = lerp(float3(1.1, 0.62, 0.38), float3(2.1, 1.1, 0.5), e); // 霧が晴れると、夕日が強く差す
-                float3 amb = float3(0.22, 0.17, 0.24);
+                float3 skyTop = float3(0.22, 0.2, 0.36);
+                float3 skyLow = float3(0.7, 0.42, 0.3);
+                float3 v = -rd;
 
                 if (id == ID_BASE)
                     return float3(0.015, 0.014, 0.014) + 0.03 * pow(saturate(1.0 - abs(dot(rd, faceNormal))), 4.0);
 
                 float3 n = SceneNormal(p);
-                float sh = SoftShadow(p + n * 0.0015, sunDir);
+                float sh = SoftShadow(p + n * 0.001, L);
                 float ao = AmbientOcclusion(p, n);
-                float diffuse = saturate(dot(n, sunDir)) * sh;
-                float3 lit = sunCol * diffuse + amb * (0.5 + 0.5 * saturate(n.y));
-                float3 h = normalize(sunDir - rd);
-                float spec = pow(saturate(dot(n, h)), 50.0) * sh;
 
                 if (id == ID_TORII)
                 {
@@ -418,40 +466,49 @@ Shader "NightShards/Diorama/Torii"
                     ToriiRow(p, local, isLantern);
                     if (isLantern > 0.5)
                     {
-                        // 石灯籠: 灰色の石。火袋は、仕掛けで火がともる
+                        // 石灯籠: ざらっとした灰色の石。火袋は、仕掛けで火がともる
                         float3 q = local - float3(0.0128, 0, 0);
                         float fire = step(abs(q.y - 0.0072), 0.0011) * step(max(abs(q.x), abs(q.z)), 0.00155);
                         float3 stone = float3(0.45, 0.43, 0.4) * (0.85 + 0.2 * Noise3(p * 1500.0));
+                        float3 nb = BumpNormal(n, p, 2000.0, 0.8);
                         float flicker = 0.85 + 0.15 * sin(_Time.y * 9.0 + p.x * 900.0);
-                        return stone * lit * ao + float3(2.4, 1.2, 0.4) * fire * e * flicker;
+                        return Surface(stone, nb, v, L, sunCol, sh, ao, 0.75, 0.03, 0.0, skyTop, skyLow) + float3(2.4, 1.2, 0.4) * fire * e * flicker;
                     }
-                    // 鳥居: 朱塗り (つやがある)。笠木と柱の根元は黒
-                    float black = step(0.0171, local.y) + step(local.y, 0.0018);
-                    float3 albedo = lerp(float3(0.82, 0.16, 0.05), float3(0.03, 0.025, 0.025), saturate(black));
-                    return albedo * lit * ao + spec * sunCol * 0.35;
+                    // 鳥居: つやのある朱塗り (空と夕日がつやに映る)。笠木と柱の根元は黒塗り。ところどころ塗りが古びる
+                    float black = saturate(step(0.0171, local.y) + step(local.y, 0.0018));
+                    float wear = smoothstep(0.6, 0.8, Noise3(p * 3000.0)) * 0.3;
+                    float3 albedo = lerp(float3(0.82, 0.16, 0.05), float3(0.03, 0.025, 0.025), black);
+                    albedo = lerp(albedo, albedo * 0.6 + float3(0.05, 0.03, 0.02), wear);
+                    return Surface(albedo, n, v, L, sunCol, sh, ao, lerp(0.25, 0.6, wear), 0.05, 0.0, skyTop, skyLow);
                 }
 
                 if (id == ID_SHRINE)
                 {
                     float roof = step(PathY(1.0) + 0.002 + 0.0165, p.y);
                     float3 albedo = lerp(float3(0.8, 0.18, 0.06), float3(0.08, 0.07, 0.07), roof);
-                    return albedo * lit * ao + spec * sunCol * 0.25;
+                    return Surface(albedo, n, v, L, sunCol, sh, ao, lerp(0.3, 0.5, roof), 0.05, 0.0, skyTop, skyLow);
                 }
 
                 if (id == ID_TREE)
                 {
+                    float3 nb = BumpNormal(n, p, 700.0, 0.8);
                     float3 albedo = float3(0.05, 0.1, 0.05) * (0.8 + 0.4 * Noise3(p * 600.0));
-                    return albedo * lit * ao;
+                    return Surface(albedo, nb, v, L, sunCol, sh, ao, 0.75, 0.03, 0.6, skyTop, skyLow);
                 }
 
-                // 地面: 参道は石段 (段の線が入る)、それ以外は杉の落ち葉とこけ
+                // 地面: 参道は石段 (段の線、すり減った所はつるつる、苔)。それ以外は杉の落ち葉とこけ
                 float2 pc = PathCoord(p.xz);
-                float onPath = smoothstep(0.012, 0.008, abs(pc.y)) + smoothstep(0.05, 0.035, length(p.xz));
+                float onPath = saturate(smoothstep(0.012, 0.008, abs(pc.y)) + smoothstep(0.05, 0.035, length(p.xz)));
                 float stepLine = smoothstep(0.08, 0.0, frac(PathArc(pc.x) / 0.003));
+                float worn = smoothstep(0.006, 0.0, abs(pc.y)); // 人が歩く真ん中は、すり減ってなめらか
+                float moss = smoothstep(0.55, 0.75, Noise3(p * 400.0)) * (1.0 - worn);
                 float3 stone = float3(0.42, 0.4, 0.36) * (0.85 + 0.2 * Noise3(p * 900.0)) * (1.0 - 0.35 * stepLine);
+                stone = lerp(stone, float3(0.18, 0.28, 0.1), moss * 0.6);
                 float3 floorCol = lerp(float3(0.18, 0.13, 0.08), float3(0.12, 0.2, 0.08), Noise3(p * 300.0));
-                float3 albedo = lerp(floorCol, stone, saturate(onPath));
-                return albedo * lit * ao;
+                float3 albedo = lerp(floorCol, stone, onPath);
+                float3 nb = BumpNormal(n, p, 1200.0, lerp(0.9, 0.4 + 0.4 * (1.0 - worn), onPath));
+                float rough = lerp(0.9, lerp(0.6, 0.4, worn), onPath);
+                return Surface(albedo, nb, v, L, sunCol, sh, ao, rough, 0.04, lerp(0.3, 0.0, onPath), skyTop, skyLow);
             }
 
             // ---------------------------------------------------------------- 本体

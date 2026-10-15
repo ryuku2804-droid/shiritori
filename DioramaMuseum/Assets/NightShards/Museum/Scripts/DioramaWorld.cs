@@ -165,6 +165,7 @@ namespace NightShards.Museum
             }
             BuildGround(info);
             BuildEdges(info);
+            BuildProps(info);
             FindSpawn(info);
         }
 
@@ -203,6 +204,34 @@ namespace NightShards.Museum
             var ground = new GameObject("Ground");
             ground.transform.SetParent(world.transform, false);
             ground.AddComponent<MeshCollider>().sharedMesh = mesh;
+        }
+
+        // ぶつかる物: 鳥居の柱・灯籠・木の幹・家や社。見た目はシェーダーが描くので、当たり判定だけを置く
+        void BuildProps(DioramaTerrain.Info info)
+        {
+            if (info.props == null) return;
+            var holder = new GameObject("Props").transform;
+            holder.SetParent(world.transform, false);
+            foreach (var prop in info.props())
+            {
+                var go = new GameObject(prop.box ? "Box" : "Pillar");
+                go.transform.SetParent(holder, false);
+                go.transform.localPosition = prop.bottom * scale;
+                if (prop.box)
+                {
+                    // シェーダーの向きの決め方 (x 軸が (cos, sin)) を、Unity の回転 (y 軸まわり) に直す
+                    go.transform.localRotation = Quaternion.Euler(0f, -prop.yaw * Mathf.Rad2Deg, 0f);
+                    go.AddComponent<BoxCollider>().size = prop.size * scale;
+                }
+                else
+                {
+                    var capsule = go.AddComponent<CapsuleCollider>();
+                    capsule.direction = 1; // 縦
+                    capsule.radius = prop.radius * scale;
+                    capsule.height = (prop.height + prop.radius * 2f) * scale;
+                    capsule.center = Vector3.up * (prop.height * 0.5f * scale);
+                }
+            }
         }
 
         // 世界の端: ガラスの内側に、見えない壁を 4 枚

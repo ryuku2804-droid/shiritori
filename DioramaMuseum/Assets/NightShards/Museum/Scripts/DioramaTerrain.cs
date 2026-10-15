@@ -21,6 +21,24 @@ namespace NightShards.Museum
             public Vector2 spawn;                // 立つ場所 (xz)
             public Func<Vector2, float> bakeHeight; // シェーダーの高さの表に焼く式 (null なら height と同じ)
             public Func<Vector2, bool> icy;         // そこが氷の上か (つるつる滑る)。null なら氷はない
+            public Func<List<Prop>> props;          // ぶつかる物 (柱・木・建物) の一覧。null ならなし
+        }
+
+        // ぶつかる物 1 つ分。ジオラマの箱の座標 (-0.5〜0.5) で表す
+        public struct Prop
+        {
+            public bool box;       // true なら箱、false なら縦のカプセル (柱・木の幹)
+            public Vector3 bottom; // カプセルの下の端 / 箱の中心
+            public float height;   // カプセルの高さ
+            public float radius;   // カプセルの半径
+            public Vector3 size;   // 箱の大きさ
+            public float yaw;      // 箱の向き (ラジアン。シェーダーと同じ向きの決め方)
+
+            public static Prop Capsule(Vector3 bottom, float height, float radius) =>
+                new Prop { bottom = bottom, height = height, radius = radius };
+
+            public static Prop Box(Vector3 center, Vector3 size, float yaw) =>
+                new Prop { box = true, bottom = center, size = size, yaw = yaw };
         }
 
         // 中に入れる作品なら true。work は作品専用シェーダーの名前 (例: Eruption)、seed は作品名から決めた数
@@ -105,6 +123,7 @@ namespace NightShards.Museum
                         center = new Vector2(-0.05f, -0.2f),
                         hasSpawn = true,
                         spawn = new Vector2(0.22f, 0.36f),
+                        props = () => TerracesProps(seed),
                     };
                     return true;
                 case "Torii":
@@ -116,6 +135,7 @@ namespace NightShards.Museum
                         center = new Vector2(-0.1f, ToriiR0),
                         hasSpawn = true,
                         spawn = new Vector2(-0.012f, ToriiR0), // 入口の少し先 (参道の上)
+                        props = () => ToriiProps(seed),
                     };
                     return true;
                 default:
@@ -416,6 +436,82 @@ namespace NightShards.Museum
             h = Mathf.Lerp(h, ToriiPathY(pc.x) - 0.001f, onPath);
             h = Mathf.Lerp(h, ToriiPathY(1f) + 0.002f, SmoothStep(0.05f, 0.035f, r));
             return h;
+        }
+
+        // ---------------------------------------------------------------- ぶつかる物 (シェーダーと同じ置き方)
+
+        static float Hash21(Vector2 p) => Hash21(p.x, p.y);
+        static Vector2 Hash22b(Vector2 p) => new Vector2(Hash21(p), Hash21(p + new Vector2(17.3f, 17.3f)));
+
+        // シェーダーの Cedars と同じ置き方で、杉の幹のカプセルを並べる
+        static void AddCedars(List<Prop> list, float cellSize, float skip, float seed, Func<Vector2, bool> allowed, Func<Vector2, float> ground, float minH, float rangeH)
+        {
+            const float inner = 0.47f;
+            int c0 = Mathf.FloorToInt(-inner / cellSize), c1 = Mathf.FloorToInt(inner / cellSize);
+            for (int cz = c0; cz <= c1; cz++)
+            {
+                for (int cx = c0; cx <= c1; cx++)
+                {
+                    var cell = new Vector2(cx, cz);
+                    var id = cell + new Vector2(seed * 0.37f, seed * 0.37f);
+                    if (Hash21(id) > skip) continue;
+                    Vector2 jitter = Hash22b(id + new Vector2(1.3f, 1.3f)) - new Vector2(0.5f, 0.5f);
+                    Vector2 b = (cell + new Vector2(0.5f, 0.5f)) * cellSize + jitter * cellSize * 0.5f;
+                    if (Mathf.Abs(b.x) > inner - 0.02f || Mathf.Abs(b.y) > inner - 0.02f) continue;
+                    if (!allowed(b)) continue;
+                    float height = minH + rangeH * Hash21(id + new Vector2(3.3f, 3.3f));
+                    list.Add(Prop.Capsule(new Vector3(b.x, ground(b) - 0.003f, b.y), height * 0.6f, 0.003f));
+                }
+            }
+        }
+
+        static List<Prop> TerracesProps(float seed)
+        {
+            var list = new List<Prop>();
+            // 家 (シェーダーの HOUSE と同じ場所と向き)
+            Vector3[] houses = { new Vector3(0.17f, 0.3f, 0.3f), new Vector3(0.31f, 0.23f, -0.4f), new Vector3(0.08f, 0.39f, 0.1f), new Vector3(0.33f, 0.38f, 1.2f) };
+            foreach (var h in houses)
+            {
+                float y = TerracesHeight(new Vector2(h.x, h.y), seed) - 0.002f;
+                list.Add(Prop.Box(new Vector3(h.x, y + 0.014f, h.y), new Vector3(0.034f, 0.028f, 0.024f), h.z));
+            }
+            AddCedars(list, 0.045f, 0.7f, seed, b => TerraceSlope(b, seed) >= 0.06f, b => TerracesHeight(b, seed), 0.05f, 0.03f);
+            return list;
+        }
+
+        static List<Prop> ToriiProps(float seed)
+        {
+            var list = new List<Prop>();
+            float total = ToriiTurns * 2f * Mathf.PI;
+            const float sp = 0.0055f;
+            float arcMax = total * (ToriiR0 - 0.5f * (ToriiR0 - ToriiR1));
+            for (int i = 0; i * sp <= arcMax; i++)
+            {
+                // 入口からの長さ i * sp の所の s (道の長さの式を、s について解く)
+                float A = i * sp;
+                float disc = ToriiR0 * ToriiR0 - 2f * (ToriiR0 - ToriiR1) * A / total;
+                if (disc < 0f) break;
+                float s = (ToriiR0 - Mathf.Sqrt(disc)) / (ToriiR0 - ToriiR1);
+                if (s < 0.012f || s > 0.93f) continue;
+                float r = Mathf.Lerp(ToriiR0, ToriiR1, s);
+                float th = ToriiTh0 + s * total;
+                var dir = new Vector2(Mathf.Cos(th), Mathf.Sin(th));
+                float y = ToriiPathY(s);
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    Vector2 c = dir * (r + side * 0.0062f);
+                    list.Add(Prop.Capsule(new Vector3(c.x, y, c.y), 0.0172f, 0.0008f)); // 鳥居の柱
+                }
+                if (i % 12 == 0)
+                {
+                    Vector2 c = dir * (r + 0.0128f);
+                    list.Add(Prop.Capsule(new Vector3(c.x, y, c.y), 0.0097f, 0.0022f));  // 石灯籠
+                }
+            }
+            AddCedars(list, 0.04f, 0.65f, seed, b => Mathf.Abs(ToriiPathCoord(b).y) >= 0.026f && b.magnitude >= 0.06f, b => ToriiHeight(b, seed), 0.05f, 0.035f);
+            // 山頂の社
+            list.Add(Prop.Box(new Vector3(0f, ToriiPathY(1f) + 0.002f + 0.012f, 0f), new Vector3(0.026f, 0.024f, 0.02f), 0f));
+            return list;
         }
 
         // ---------------------------------------------------------------- シェーダーと同じノイズ
