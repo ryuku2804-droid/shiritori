@@ -459,26 +459,66 @@ Shader "NightShards/Diorama/Atoll"
 
                 if (id == ID_WATER)
                 {
-                    // 海: 浅いほど明るいターコイズ、深いほど濃い青。底の光の網目と、雲の影
-                    float bed = Seabed(p.xz);
-                    float depth = max(p.y - bed, 0.0);
-                    float2 q = p.xz * 90.0;
-                    float2 slope = (float2(ValueNoise(q + t * 0.7), ValueNoise(q.yx * 1.2 - t * 0.6)) - 0.5) * 0.08;
+                    // 波: 向きと大きさのちがう波を 3 つ重ねる
+                    float2 w1 = float2(ValueNoise(p.xz * 60.0 + float2(t * 0.6, t * 0.2)), ValueNoise(p.xz * 60.0 + 7.0 - float2(t * 0.3, t * 0.5)));
+                    float2 w2 = float2(ValueNoise(p.xz * 150.0 + float2(-t * 0.9, t * 0.4)), ValueNoise(p.xz * 150.0 + 3.0 + float2(t * 0.5, -t * 0.8)));
+                    float2 w3 = float2(ValueNoise(p.xz * 330.0 + t * 1.4), ValueNoise(p.xz * 330.0 + 11.0 - t * 1.2));
+                    float2 slope = (w1 - 0.5) * 0.07 + (w2 - 0.5) * 0.05 + (w3 - 0.5) * 0.025;
                     float3 n = normalize(float3(slope.x, 1.0, slope.y));
                     float3 r = reflect(rd, n);
                     float fres = 0.02 + 0.98 * pow(1.0 - saturate(dot(-rd, n)), 5.0);
-                    float shallow = exp(-depth * 45.0);
-                    float3 body = lerp(float3(0.0, 0.12, 0.32), float3(0.25, 0.85, 0.78), shallow);
-                    float c1 = 1.0 - abs(ValueNoise(p.xz * 70.0 + t * 0.5) - 0.5) * 2.0;
-                    float c2 = 1.0 - abs(ValueNoise(p.xz * 110.0 - t * 0.4 + 3.0) - 0.5) * 2.0;
-                    float caustic = pow(c1, 8.0) + pow(c2, 8.0);
-                    body += float3(0.6, 0.75, 0.7) * caustic * shallow * 0.5;
-                    body *= sunCol * shade * 0.75 + 0.25;
-                    float3 c = lerp(body, skyCol * 0.9, fres);
-                    c += sunCol * pow(saturate(dot(r, sunDir)), 300.0) * 4.0 * shade; // 日のきらめき
-                    // サンゴ礁の縁の白い波
-                    float foam = smoothstep(0.006, 0.0, depth) * (0.5 + 0.5 * sin(t * 2.0 - depth * 900.0 + ValueNoise(p.xz * 80.0) * 5.0));
-                    c += foam * 0.6 * shade;
+
+                    // 屈折: 水の中へ曲がって入る線で、底の少しずれた所を見る (波で底がゆらいで見える)
+                    float3 rr = refract(rd, n, 0.75);
+                    float down = max(-rr.y, 0.2);
+                    float depth0 = max(p.y - SeabedFast(p.xz), 0.0);
+                    float3 bp = p + rr * (depth0 / down);
+                    float depth = max(p.y - SeabedFast(bp.xz), 0.0);
+                    float path = depth / down + depth; // 日の光が底まで届く道のりと、底から目まで戻る道のり
+
+                    // 底: 白い砂の波紋、海草の茂み、サンゴのかたまり
+                    float ripple = 0.5 + 0.5 * sin(dot(bp.xz, float2(0.7, 0.7)) * 500.0 + ValueNoise(bp.xz * 40.0) * 5.0);
+                    float grass = smoothstep(0.55, 0.7, Fbm3(bp.xz * 9.0 + _Seed));
+                    float coral = smoothstep(0.62, 0.75, ValueNoise(bp.xz * 25.0 + 3.0));
+                    float3 bedCol = float3(0.95, 0.9, 0.78) * (0.86 + 0.14 * ripple);
+                    bedCol = lerp(bedCol, float3(0.16, 0.3, 0.1), grass * 0.8);
+                    bedCol = lerp(bedCol, float3(0.55, 0.42, 0.38), coral * 0.7);
+                    // 浅瀬を泳ぐ魚の影
+                    float fishShadow = 1.0;
+                    for (int k = 0; k < 6; k++)
+                    {
+                        float fk = k;
+                        float a = t * (0.25 + 0.04 * fk) + fk * 1.1;
+                        float rad = 0.08 + 0.05 * sin(fk * 1.7);
+                        float2 fc = float2(cos(a), sin(a)) * rad;
+                        float2 dir = float2(-sin(a), cos(a));
+                        float2 dv = bp.xz - fc;
+                        float along = dot(dv, dir) / 0.007;
+                        float across = (dv.x * dir.y - dv.y * dir.x) / 0.0025;
+                        fishShadow *= 1.0 - 0.45 * exp(-(along * along + across * across));
+                    }
+                    // 底の光の網目: くっきりした細い線が、ゆらゆら動く
+                    float c1 = 1.0 - abs(ValueNoise(bp.xz * 70.0 + t * 0.5) - 0.5) * 2.0;
+                    float c2 = 1.0 - abs(ValueNoise(bp.xz * 110.0 - t * 0.4 + 3.0) - 0.5) * 2.0;
+                    float caustic = (pow(c1, 12.0) + pow(c2, 12.0)) * 1.5;
+                    float3 bedLit = bedCol * (sunCol * shade * (0.55 + caustic * exp(-depth * 20.0)) * fishShadow + 0.25);
+
+                    // 水の色: 赤い光ほど早く吸われる。浅い所は透明で底が見え、深くなるとターコイズ、さらに深いと青
+                    float3 absorb = exp(-float3(38.0, 9.0, 5.5) * path);
+                    float3 scatterCol = float3(0.04, 0.4, 0.5) * (sunCol.g * shade * 0.6 + 0.3);
+                    float3 under = bedLit * absorb + scatterCol * (1.0 - absorb.g);
+
+                    // 空の映り込みと、日のきらめき
+                    float3 sky = lerp(float3(0.75, 0.85, 0.95), float3(0.25, 0.5, 0.9), saturate(r.y));
+                    float3 c = lerp(under, sky, fres);
+                    float sd = saturate(dot(r, sunDir));
+                    c += sunCol * (pow(sd, 800.0) * 10.0 + pow(sd, 80.0) * 0.25) * shade;
+
+                    // 白い波: サンゴ礁と小島の浅い縁で砕け、岸へ寄せる筋になる
+                    float edge = smoothstep(0.008, 0.0, depth0);
+                    float surf = smoothstep(0.35, 0.75, Noise3(float3(p.xz * 120.0, t * 0.8))) * (0.6 + 0.4 * sin(t * 2.0 - depth0 * 900.0));
+                    float foam = saturate(edge * surf * 1.4);
+                    c = lerp(c, float3(0.95, 0.97, 1.0) * (sunCol * shade * 0.55 + 0.3), foam * 0.85);
                     return c;
                 }
 
@@ -503,7 +543,14 @@ Shader "NightShards/Diorama/Atoll"
                 if (p.y > SEA - 0.035)
                 {
                     float green = smoothstep(0.008, 0.016, above + 0.004 * ValueNoise(p.xz * 80.0)) * smoothstep(0.4, 0.75, n.y);
-                    albedo = lerp(float3(0.92, 0.87, 0.72), float3(0.18, 0.42, 0.14), green);
+                    // 砂浜: 細かい砂粒のむらと、風の波紋。波打ち際は濡れて暗い
+                    float grain = 0.9 + 0.1 * Noise3(p * 2500.0);
+                    float windRipple = 0.95 + 0.05 * sin(dot(p.xz, float2(0.6, 0.8)) * 700.0);
+                    float3 sand = float3(0.94, 0.89, 0.74) * grain * windRipple;
+                    sand *= 1.0 - 0.35 * smoothstep(0.006, 0.0, above);
+                    // 草地: 緑のむらと、ところどころの土
+                    float3 leafy = lerp(float3(0.12, 0.34, 0.1), float3(0.25, 0.48, 0.15), Noise3(p * 400.0));
+                    albedo = lerp(sand, leafy, green);
                     // 水の中だった所 (潮が引いて出てきた所) は、少し濡れて暗い
                     albedo *= above < 0.012 * smoothstep(0.0, 1.0, _Event) ? 0.75 : 1.0;
                 }
