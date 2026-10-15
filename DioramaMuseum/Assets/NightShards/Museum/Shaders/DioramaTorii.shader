@@ -218,11 +218,11 @@ Shader "NightShards/Diorama/Torii"
             }
 
             // 参道の鳥居と灯籠 (距離)。いちばん近い鳥居 1 基だけを調べる。lanternLight は灯籠の火袋の中か
-            float ToriiRow(float3 p, out float3 local, out float isLantern)
+            // pc は p の真下の参道の位置 (PathCoord)。呼ぶ側で 1 回だけ計算して渡す (計算を使い回して軽くする)
+            float ToriiRow(float3 p, float2 pc, out float3 local, out float isLantern)
             {
                 local = 0;
                 isLantern = 0;
-                float2 pc = PathCoord(p.xz);
                 float across = abs(pc.y);
                 if (across > 0.02) return min((across - 0.018) * 0.8, 0.02); // 参道から遠い所では、参道までのだいたいの距離 (大きすぎないように)
                 float y = p.y - PathY(pc.x);
@@ -257,7 +257,7 @@ Shader "NightShards/Diorama/Torii"
 
             // ---------------------------------------------------------------- 杉
 
-            float Cedars(float3 p, float groundH)
+            float Cedars(float3 p, float groundH, float2 pc)
             {
                 if (p.y - groundH > 0.095) return p.y - groundH - 0.085;
                 float2 cell = floor(p.xz / TREE_CELL);
@@ -268,7 +268,9 @@ Shader "NightShards/Diorama/Torii"
                 if (Hash21(id) > 0.65) return bound;
                 float2 base = (cell + 0.5) * TREE_CELL + (Hash22b(id + 1.3) - 0.5) * TREE_CELL * 0.5;
                 if (abs(base.x) > INNER - 0.02 || abs(base.y) > INNER - 0.02) return bound;
-                if (abs(PathCoord(base).y) < 0.026 || length(base) < 0.06) return bound; // 参道と山頂には生えない
+                // 参道と山頂には生えない。木の根元の参道からのずれは、p の参道の位置から近似して求める (らせんの計算をやり直さない)
+                float acrossBase = pc.y > 0.9 ? 1.0 : pc.y + dot(base - p.xz, p.xz / max(length(p.xz), 1e-4));
+                if (abs(acrossBase) < 0.026 || length(base) < 0.06) return bound;
                 float height = 0.05 + 0.035 * Hash21(id + 3.3);
                 float3 q = p - float3(base.x, HeightFast(base) - 0.003, base.y);
                 float k = saturate(q.y / height);
@@ -288,11 +290,12 @@ Shader "NightShards/Diorama/Torii"
                 else h = HeightFast(p.xz);
                 float ground = max((p.y - h) * 0.4, column);
                 if (ground < res.x) res = float2(ground, ID_GROUND);
-                float tree = max(Cedars(p, h), column);
+                float2 pc = PathCoord(p.xz); // 参道の位置は、ここで 1 回だけ計算して使い回す
+                float tree = max(Cedars(p, h, pc), column);
                 if (tree < res.x) res = float2(tree, ID_TREE);
                 float3 local;
                 float lantern;
-                float torii = ToriiRow(p, local, lantern);
+                float torii = ToriiRow(p, pc, local, lantern);
                 if (torii < res.x) res = float2(torii, ID_TORII);
                 float shrine = Shrine(p);
                 if (shrine < res.x) res = float2(shrine, ID_SHRINE);
@@ -314,13 +317,24 @@ Shader "NightShards/Diorama/Torii"
                 float res = 1.0;
                 float t = 0.0015;
                 int n = max((int)_ShadowSteps, 8);
-                for (int i = 0; i < 32; i++)
+                // 近く (鳥居の柱の影の縞が落ちる範囲) だけ、鳥居も木も入れて細かく調べる
+                for (int i = 0; i < 24; i++)
                 {
-                    if (i >= n) break;
+                    if (i >= n || t > 0.05) break;
                     float h = Map(p + l * t).x;
                     res = min(res, 32.0 * h / t); // くっきりした影 (鳥居の細い柱の影も、はっきり落ちる)
-                    t += clamp(h, 0.0012, 0.04);
-                    if (res < 0.01 || t > 0.8) break;
+                    t += clamp(h, 0.0012, 0.02);
+                    if (res < 0.01) return 0.0;
+                }
+                // 遠くは、山の高さの表だけで、山の陰に入るかを大まかに調べる (軽い)
+                for (int j = 0; j < 10; j++)
+                {
+                    float3 q = p + l * t;
+                    if (abs(q.x) > INNER || abs(q.z) > INNER || q.y > 0.3) break;
+                    float d = q.y - HeightFast(q.xz);
+                    res = min(res, 8.0 * d / t);
+                    if (res < 0.01) return 0.0;
+                    t += 0.04;
                 }
                 return saturate(res);
             }
@@ -361,7 +375,7 @@ Shader "NightShards/Diorama/Torii"
                 float tin = max(max(max(tsmall.x, tsmall.y), tsmall.z), 0.0);
                 float tout = min(min(min(tbig.x, tbig.y), tbig.z), tMax);
                 if (tout <= tin) return float4(0, 0, 0, 1);
-                int steps = clamp((int)(_Steps / 6.0), 8, 22);
+                int steps = clamp((int)(_Steps / 11.0), 6, 12); // 霧は細かく調べなくても見た目が変わらないので、少なめに
                 float dt = (tout - tin) / steps;
                 float t = tin + dt * Hash21(rd.xy * 517.0 + _Time.y);
                 // 夕日のほうを向くほど、霧が明るく輝く (光が前へ散らばる)
@@ -463,7 +477,7 @@ Shader "NightShards/Diorama/Torii"
                 {
                     float3 local;
                     float isLantern;
-                    ToriiRow(p, local, isLantern);
+                    ToriiRow(p, PathCoord(p.xz), local, isLantern);
                     if (isLantern > 0.5)
                     {
                         // 石灯籠: ざらっとした灰色の石。火袋は、仕掛けで火がともる
