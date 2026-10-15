@@ -320,7 +320,8 @@ namespace NightShards.Museum
 
         static float CliffX(float y, float z, float seed)
         {
-            return 0.02f + 0.05f * Mathf.Sin(z * 5f + seed) + 0.06f * (ValueNoise(new Vector2(z * 12f + seed, y * 10f + seed)) - 0.5f);
+            return 0.03f + 0.04f * Mathf.Sin(z * 4f + seed) + 0.016f * (ValueNoise(new Vector2(z * 5f + seed, y * 3f + seed)) - 0.5f)
+                 + 0.004f * Mathf.Sin(y * 55f + Mathf.Sin(z * 3f) * 2f);
         }
 
         static float AbyssFloor(Vector2 xz, float seed)

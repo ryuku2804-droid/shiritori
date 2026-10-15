@@ -84,8 +84,10 @@ Shader "NightShards/Diorama/DeepSea"
             #define N_CREATURES 38   // 全部の数 (上の合計)
             #define FISH_LEN 0.014
 
-            // 水のにごり (赤・緑・青)。赤ほど大きい = 赤い光ほど早く吸われる
-            static const float3 SIGMA = float3(2.8, 1.25, 0.85);
+            // 見る線にかかる水のにごり (赤・緑・青)。小さいほど透き通った水。赤ほど大きい = 赤い光ほど早く吸われる
+            static const float3 SIGMA = float3(1.5, 0.55, 0.36);
+            // 水面からの日の光が、深さで弱まる速さ (こちらは強めにして、深海はちゃんと暗くする)
+            static const float3 LIGHT_SIGMA = float3(3.2, 1.45, 1.0);
             static const float3 GLOW_CENTER = float3(0.15, -0.1, 0.0); // 生物発光が広がり始める所
 
             struct Attributes
@@ -192,9 +194,11 @@ Shader "NightShards/Diorama/DeepSea"
                 return ShelfTop(xz);
             }
 
+            // 崖の面: ゆるやかにうねり、横に重なる岩の層が、少しずつ段になる
             float CliffX(float y, float z)
             {
-                return 0.02 + 0.05 * sin(z * 5.0 + _Seed) + 0.06 * (ValueNoise(float2(z * 12.0, y * 10.0) + _Seed) - 0.5);
+                return 0.03 + 0.04 * sin(z * 4.0 + _Seed) + 0.016 * (ValueNoise(float2(z * 5.0, y * 3.0) + _Seed) - 0.5)
+                     + 0.004 * sin(y * 55.0 + sin(z * 3.0) * 2.0);
             }
 
             float AbyssFloor(float2 xz)
@@ -242,7 +246,7 @@ Shader "NightShards/Diorama/DeepSea"
             // ---------------------------------------------------------------- 光
 
             // 水面からの日の光が、深さ y まで届く量 (赤・緑・青)。深いほど青だけが残り、やがて消える
-            float3 SunReach(float y) { return exp(-SIGMA * max(SURF - y, 0.0) * 1.15); }
+            float3 SunReach(float y) { return exp(-LIGHT_SIGMA * max(SURF - y, 0.0)); }
 
             // 光の届かない深海でも、生き物の形がほんのり分かるくらいの、ごく弱い青い明るさ
             static const float3 DEEP_AMBIENT = float3(0.004, 0.014, 0.03);
@@ -677,16 +681,16 @@ Shader "NightShards/Diorama/DeepSea"
                     float3 p = ro + rd * t;
                     float depth = SURF - p.y;
                     float3 reach = SunReach(p.y);
-                    // 光の筋: 水面のゆらぎが作る、ななめに差し込む明るい帯 (浅いほどはっきり)
-                    float ray = Noise3(float3(p.x * 9.0 + p.y * 3.0, p.z * 9.0 + p.y * 2.0, time * 0.25));
-                    float shafts = 0.55 + 1.8 * pow(ray, 4.0) * exp(-depth * 2.5);
-                    float3 scatter = reach * float3(0.35, 0.75, 0.85) * shafts + DEEP_AMBIENT;
-                    // マリンスノー: ゆっくり沈む白い粒
-                    float snow = pow(Noise3(p * 140.0 + float3(0, time * 0.03, 0)), 22.0) * 40.0;
-                    // プランクトン: 深いところで、ちらちら光る青い粒。生物発光で一斉に光る
-                    float spark = pow(Noise3(p * 55.0 + float3(0, time * 0.05, 0)), 12.0);
+                    // 光の筋: 水面のゆらぎが作る、ななめに差し込むやわらかい帯 (浅いほどはっきり)
+                    float ray = Noise3(float3(p.x * 4.5 + p.y * 1.5, p.z * 4.5 + p.y * 1.0, time * 0.15));
+                    float shafts = 0.7 + 1.0 * ray * ray * exp(-depth * 2.5);
+                    float3 scatter = reach * float3(0.3, 0.7, 0.8) * shafts * 0.8 + DEEP_AMBIENT;
+                    // マリンスノー: ゆっくり沈む、ごく小さな白い粒 (ほんの少しだけ)
+                    float snow = pow(Noise3(p * 200.0 + float3(0, time * 0.03, 0)), 30.0) * 25.0;
+                    // プランクトン: ふだんはほとんど見えず、生物発光で一斉に光る
+                    float spark = pow(Noise3(p * 70.0 + float3(0, time * 0.05, 0)), 14.0);
                     float glow = GlowWave(p);
-                    float3 emit = float3(0.2, 0.6, 1.4) * spark * (0.3 * smoothstep(0.1, -0.25, p.y) + 25.0 * glow) + float3(0.02, 0.08, 0.2) * glow;
+                    float3 emit = float3(0.2, 0.6, 1.4) * spark * (0.08 * smoothstep(0.1, -0.25, p.y) + 25.0 * glow) + float3(0.02, 0.08, 0.2) * glow;
                     emit += (reach * 0.8 + 0.02) * snow;
                     col += trans * ((1.0 - stepTrans) * scatter + emit * dt * 6.0);
                     trans *= stepTrans;
@@ -734,11 +738,12 @@ Shader "NightShards/Diorama/DeepSea"
                 }
                 else
                 {
-                    // 崖と深い底: 暗い岩と、きめ細かい泥。崖には海綿や貝のかけらの色。底には生き物のはった跡
-                    float sponge = smoothstep(0.65, 0.8, Noise3(p * 40.0 + _Seed));
-                    float speck = smoothstep(0.8, 0.9, Noise3(p * 600.0));
-                    albedo = lerp(float3(0.16, 0.15, 0.14), float3(0.55, 0.32, 0.22), sponge * saturate(sun.g * 2.0));
-                    albedo += speck * 0.08;
+                    // 崖と深い底: 崖は、横に重なる岩の層の縞 (色の濃さが少しずつちがう)。浅い所にだけ、海綿の色がうっすら
+                    float strata = 0.5 + 0.5 * sin(p.y * 55.0 + sin(p.z * 3.0) * 2.0);
+                    float tone = ValueNoise(float2(p.y * 25.0, p.z * 4.0) + _Seed);
+                    albedo = lerp(float3(0.14, 0.13, 0.12), float3(0.24, 0.22, 0.2), strata * 0.6 + tone * 0.4);
+                    float sponge = smoothstep(0.7, 0.85, ValueNoise(float2(p.z * 12.0, p.y * 12.0) + _Seed * 3.0));
+                    albedo = lerp(albedo, float3(0.5, 0.32, 0.24), sponge * saturate(sun.g * 2.0) * 0.6);
                     if (p.y < -0.3)
                     {
                         float track = smoothstep(0.03, 0.0, abs(sin(p.x * 60.0 + p.z * 25.0 + ValueNoise(p.xz * 20.0) * 3.0)));
