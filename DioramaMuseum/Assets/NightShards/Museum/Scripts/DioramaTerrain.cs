@@ -221,6 +221,34 @@ namespace NightShards.Museum
                         worldScale = 1000f,
                     };
                     return true;
+                case "GreatWall":
+                    // いちばん手前の望楼のそばの、城壁の通路に立ち、奥へうねる長城を見る。
+                    // 形は 1 m = 0.004 (城壁を 2 倍) なので、250 倍で実物の大きさ
+                    info = new Info
+                    {
+                        height = xz => WallWalkHeight(xz),
+                        bakeHeight = xz => WallHeight(xz),
+                        water = -10f,
+                        center = new Vector2(WallPath(-0.3f), -0.3f),
+                        hasSpawn = true,
+                        spawn = new Vector2(WallPath(0.36f), 0.36f),
+                        worldScale = 250f,
+                    };
+                    return true;
+                case "Kinkaku":
+                    // 池の南の岸に立ち、池ごしに金閣を見る。1 m = 0.008 なので、125 倍で実物の大きさ (金閣は 2 倍)
+                    info = new Info
+                    {
+                        height = xz => KinkakuHeight(xz),
+                        bakeHeight = xz => KinkakuBakeHeight(xz),
+                        water = KinkakuWater,
+                        center = new Vector2(KinkakuPos.x, KinkakuPos.y),
+                        hasSpawn = true,
+                        spawn = new Vector2(0f, 0.38f),
+                        props = () => KinkakuProps(),
+                        worldScale = 125f,
+                    };
+                    return true;
                 default:
                     info = default;
                     return false;
@@ -842,6 +870,106 @@ namespace NightShards.Museum
             list.Add(Prop.Capsule(new Vector3(Torreon.x, MachuHeight(Torreon) - 0.002f, Torreon.y), 0.008f, 0.005f));
             list.Add(Prop.Box(new Vector3(Guard.x, MachuHeight(Guard) + 0.003f, Guard.y), new Vector3(0.008f, 0.006f, 0.0052f), 0f));
             return list;
+        }
+
+        // ---------------------------------------------------------------- 万里の長城 (DioramaGreatWall.shader と同じ)
+
+        const float WallValleyY = -0.42f;
+        const float WallScale = 2f;                 // 城壁を大きくする倍率 (シェーダーの WS)
+        const float WallHalfW = 0.0035f * WallScale; // 城壁の半分の幅
+        const float WallWalkH = 0.014f * WallScale;  // 通路の高さ
+
+        static float WallPath(float z) => 0.1f * Mathf.Sin(z * 3.7f + 0.4f) + 0.035f * Mathf.Sin(z * 9.1f + 1f);
+        static float WallPathD(float z) => 0.37f * Mathf.Cos(z * 3.7f + 0.4f) + 0.3185f * Mathf.Cos(z * 9.1f + 1f);
+        static float WallCrest(float z) => -0.12f + 0.07f * Mathf.Sin(z * 4.6f + 2f) + 0.03f * Mathf.Sin(z * 10.3f + 0.7f);
+        static float WallSide(Vector2 xz) => (xz.x - WallPath(xz.y)) / Mathf.Sqrt(1f + WallPathD(xz.y) * WallPathD(xz.y));
+
+        static float Ridged(Vector2 p)
+        {
+            float a = 1f - Mathf.Abs(ValueNoise(p) * 2f - 1f);
+            float b = 1f - Mathf.Abs(ValueNoise(new Vector2(p.x * 2.1f + 5.3f, p.y * 2.1f + 5.3f)) * 2f - 1f);
+            return a * a * 0.65f + b * b * 0.35f;
+        }
+
+        // 地形だけの高さ (シェーダーの Height と同じ)
+        static float WallHeight(Vector2 xz)
+        {
+            float d = Mathf.Abs(WallSide(xz));
+            float c = WallCrest(xz.y);
+            float ridge = c - 0.004f - 0.95f * Mathf.Max(d - 0.014f, 0f) + 0.45f * Mathf.Max(d - 0.12f, 0f);
+            ridge += (Ridged(xz * 14f) - 0.5f) * 0.035f * SmoothStep(0.015f, 0.06f, d);
+            float other = WallValleyY + 0.26f * Ridged(new Vector2(xz.x * 4.5f + 2f, xz.y * 4.5f + 2f)) + 0.06f * Fbm3(xz * 12f);
+            other = Mathf.Min(other, c - 0.03f - 0.5f * Mathf.Max(0.12f - d, 0f));
+            return Mathf.Max(Mathf.Max(ridge, other), WallValleyY);
+        }
+
+        // 歩く地面: 城壁の上は、通路の高さ
+        static float WallWalkHeight(Vector2 xz)
+        {
+            float h = WallHeight(xz);
+            if (Mathf.Abs(WallSide(xz)) < WallHalfW) h = Mathf.Max(h, WallCrest(xz.y) + WallWalkH);
+            return h;
+        }
+
+        // ---------------------------------------------------------------- 日本の庭・金閣寺 (DioramaKinkaku.shader と同じ。1 m = 0.008)
+
+        const float KinkakuGround = -0.28f, KinkakuWater = -0.286f;
+        static readonly Vector2 KinkakuPos = new Vector2(0.02f, -0.2f);
+
+        static float KinkakuPond(Vector2 xz)
+        {
+            float qx = xz.x / 0.44f, qz = (xz.y - 0.07f) / 0.24f;
+            float wob = 0.12f * (ValueNoise(new Vector2(xz.x * 6f + 2f, xz.y * 6f + 2f)) - 0.5f) + 0.06f * Mathf.Sin(xz.x * 14f);
+            return Mathf.Sqrt(qx * qx + qz * qz) + wob;
+        }
+
+        static float KinkakuIslands(Vector2 xz)
+        {
+            float ax = xz.x + 0.17f, az = (xz.y - 0.08f) * 1.4f;
+            float a = 1f - SmoothStep(0.03f, 0.06f, Mathf.Sqrt(ax * ax + az * az));
+            float b = 1f - SmoothStep(0.008f, 0.02f, (xz - new Vector2(0.2f, 0.02f)).magnitude);
+            float c = 1f - SmoothStep(0.006f, 0.016f, (xz - new Vector2(0.3f, 0.12f)).magnitude);
+            float d = 1f - SmoothStep(0.005f, 0.013f, (xz - new Vector2(0.1f, 0.16f)).magnitude);
+            return Mathf.Max(Mathf.Max(a, b), Mathf.Max(c, d));
+        }
+
+        static float KinkakuTrees(Vector2 xz)
+        {
+            float shore = SmoothStep(1.05f, 1.18f, KinkakuPond(xz));
+            float nearK = SmoothStep(0.05f, 0.08f, Mathf.Max(Mathf.Abs(xz.x - KinkakuPos.x) - 0.14f, Mathf.Abs(xz.y - KinkakuPos.y) - 0.11f));
+            float path = SmoothStep(0.26f, 0.3f, xz.y) * (1f - SmoothStep(0.36f, 0.42f, Mathf.Abs(xz.x)));
+            float island = SmoothStep(0.3f, 0.6f, KinkakuIslands(xz));
+            return Mathf.Max(shore * nearK * (1f - path), island);
+        }
+
+        static float KinkakuHeight(Vector2 xz)
+        {
+            float pond = KinkakuPond(xz);
+            float h = KinkakuGround + 0.004f * ValueNoise(xz * 10f) + 0.22f * SmoothStep(0.22f, 0.47f, -xz.y) * (0.7f + 0.3f * Fbm3(xz * 5f));
+            h = Mathf.Lerp(KinkakuGround - 0.022f, h, SmoothStep(0.92f, 1.02f, pond));
+            h = Mathf.Max(h, Mathf.Lerp(KinkakuGround - 0.03f, KinkakuGround - 0.002f + 0.002f * ValueNoise(xz * 80f), SmoothStep(0f, 0.6f, KinkakuIslands(xz))));
+            float k = 1f - SmoothStep(0f, 0.015f, Mathf.Max(Mathf.Abs(xz.x - KinkakuPos.x) - 0.14f, Mathf.Abs(xz.y - KinkakuPos.y) - 0.11f));
+            h = Mathf.Lerp(h, KinkakuGround, k);
+            // 木々の上は歩かない (木の幹のあいだを歩くように、地面の高さのまま)
+            return h;
+        }
+
+        // シェーダーの高さの表に焼く高さ: 地面に、木々のこんもりした上面を足したもの (シェーダーの Height と同じ)
+        static float KinkakuBakeHeight(Vector2 xz)
+        {
+            float canopy = 0.018f + 0.03f * (0.5f * ValueNoise(xz * 70f) + 0.3f * ValueNoise(new Vector2(xz.x * 150f + 3f, xz.y * 150f + 3f))
+                                           + 0.2f * ValueNoise(new Vector2(xz.x * 25f + 9f, xz.y * 25f + 9f)));
+            float isl = KinkakuIslands(xz);
+            return KinkakuHeight(xz) + canopy * KinkakuTrees(xz) * Mathf.Lerp(1f, 0.6f * isl, SmoothStep(0.05f, 0.3f, isl));
+        }
+
+        static List<Prop> KinkakuProps()
+        {
+            return new List<Prop>
+            {
+                // 舎利殿 (2 倍に大きくしたもの)
+                Prop.Box(new Vector3(KinkakuPos.x, KinkakuGround + 0.11f, KinkakuPos.y), new Vector3(0.25f, 0.22f, 0.2f), 0f),
+            };
         }
 
         // ---------------------------------------------------------------- シェーダーと同じノイズ

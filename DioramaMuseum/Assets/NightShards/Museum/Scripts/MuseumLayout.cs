@@ -98,8 +98,8 @@ namespace NightShards.Museum
                 ("黄昏の棚田", "日本の里山", "夕日を映す棚田。日が沈むと家々に灯がともり、蛍が舞う。", 2),
                 ("千本鳥居の山", "霧の参道", "霧の山を、朱の鳥居の参道がどこまでも登っていく。", 2)));
             layout.rooms.Add(MakeRoom("アジアの間", RoomTheme.Asia, 7, new Color(0.95f, 0.45f, 0.35f),
-                ("万里の長城", "中国", "雲海の上の尾根を城壁が縫う。烽火台に次々と火がともる。", -1),
-                ("日本の庭", "日本", "もみじと五重塔、朱の太鼓橋と池の鯉。風が吹くと、もみじが舞う。", -1)));
+                ("万里の長城", "中国", "秋の山の尾根を、望楼をつないでうねる城壁。夕暮れ、のろしが次々にともって尾根を伝う。", -1),
+                ("日本の庭", "日本・京都 (金閣寺)", "鏡湖池に映る金色の舎利殿と、もみじの山。風が吹くと、もみじが舞い散って池に浮かぶ。", -1)));
             return layout;
         }
 
@@ -130,6 +130,8 @@ namespace NightShards.Museum
                 case "死海": return "DeadSea";
                 case "ウユニ塩湖": return "Uyuni";
                 case "マチュピチュ": return "MachuPicchu";
+                case "万里の長城": return "GreatWall";
+                case "日本の庭": return "Kinkaku";
                 case "青い火の焦土": return "BlueFire";
                 case "青い火の火口湖": return "BlueFire"; // 前の名前 (前に保存した設計図のため)
                 default: return "";

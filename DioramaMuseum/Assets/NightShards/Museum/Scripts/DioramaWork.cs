@@ -42,6 +42,8 @@ namespace NightShards.Museum
                 case "DeadSea": return new Color(0.6f, 0.95f, 0.95f, 0.4f);  // 浅瀬の青緑
                 case "Uyuni": return new Color(0.35f, 0.4f, 0.85f, 0.6f);     // 夕焼けから星空の青
                 case "MachuPicchu": return new Color(1f, 0.82f, 0.55f, 0.45f); // 朝日の金色
+                case "GreatWall": return new Color(1f, 0.5f, 0.25f, 0.6f);   // 夕暮れと、のろしの炎
+                case "Kinkaku": return new Color(1f, 0.6f, 0.25f, 0.45f);    // もみじと金色
                 default: return Color.clear;
             }
         }
@@ -140,7 +142,7 @@ namespace NightShards.Museum
             source.PlayOneShot(clip, volume);
         }
 
-        static AudioClip rumble, roar, calving, shimmer, tide, glow, evening, shrine, sparkle, bells, sandstorm, saltGrow, starNight, quena;
+        static AudioClip rumble, roar, calving, shimmer, tide, glow, evening, shrine, sparkle, bells, sandstorm, saltGrow, starNight, quena, beacon, temple;
 
         static AudioClip SoundFor(string workName)
         {
@@ -188,6 +190,12 @@ namespace NightShards.Museum
                 case "MachuPicchu":
                     if (quena == null) quena = MakeQuena(16f);
                     return quena;
+                case "GreatWall":
+                    if (beacon == null) beacon = MakeBeacon(12f);
+                    return beacon;
+                case "Kinkaku":
+                    if (temple == null) temple = MakeTempleBell(14f);
+                    return temple;
                 default:
                     return null;
             }
@@ -542,6 +550,75 @@ namespace NightShards.Museum
             foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
             for (int i = 0; i < n; i++) data[i] *= 0.55f / peak;
             var clip = AudioClip.Create("Machu Picchu Quena", n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        // のろし: 山の風に、低い角笛が響き、のろしの火がぱちぱちと燃えはじめる (望楼ごとに、少しずつ遠く)
+        static AudioClip MakeBeacon(float seconds)
+        {
+            const int rate = 22050;
+            int n = Mathf.RoundToInt(seconds * rate);
+            var data = new float[n];
+            var random = new System.Random(97);
+            float wind = 0f, crack = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float time = (float)i / rate;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                wind += (white - wind) * 0.012f;
+                // 角笛: 1 秒目から 2.5 秒、低い音がゆっくり高まって消える
+                float hornT = time - 1f;
+                float horn = hornT > 0f && hornT < 2.5f
+                    ? (Mathf.Sin(2f * Mathf.PI * 146.8f * hornT) + 0.4f * Mathf.Sin(2f * Mathf.PI * 293.6f * hornT)) * Mathf.Sin(Mathf.PI * hornT / 2.5f) * 0.35f
+                    : 0f;
+                // 火のぱちぱち: のろしがともるたび (2.5 秒目から 1.3 秒おき)、ふえていく
+                int lit = Mathf.Clamp(Mathf.FloorToInt((time - 2.5f) / 1.3f) + 1, 0, 4);
+                if (random.NextDouble() < 0.0006 * lit) crack = 1f;
+                crack *= 0.995f;
+                float fade = Mathf.Clamp01(time / 0.8f) * Mathf.Clamp01((seconds - time) / 2.5f);
+                data[i] = (wind * 3f + horn + white * crack * 0.25f) * fade;
+            }
+            float peak = 0.0001f;
+            foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
+            for (int i = 0; i < n; i++) data[i] *= 0.55f / peak;
+            var clip = AudioClip.Create("Great Wall Beacon", n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        // 秋の庭: 風が木々をざわっと鳴らし、遠くでお寺の鐘がゴーンと長く響く
+        static AudioClip MakeTempleBell(float seconds)
+        {
+            const int rate = 22050;
+            int n = Mathf.RoundToInt(seconds * rate);
+            var data = new float[n];
+            var random = new System.Random(101);
+            float rustle = 0f, low = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float time = (float)i / rate;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                rustle += (white - rustle) * 0.35f;
+                low += (white - low) * 0.02f;
+                float gust = Mathf.Clamp01(time / 1.5f) * (0.6f + 0.4f * Mathf.Sin(time * 1.3f)) * Mathf.Clamp01((9f - time) / 3f);
+                // 鐘: 2 秒目に 1 回。低い音 (うなり) と、高い倍音がゆっくり消える
+                float bt = time - 2f;
+                float bell = 0f;
+                if (bt > 0f)
+                {
+                    float env = Mathf.Exp(-bt * 0.35f);
+                    bell = (Mathf.Sin(2f * Mathf.PI * 110f * bt) * (1f + 0.3f * Mathf.Sin(2f * Mathf.PI * 0.8f * bt))
+                          + 0.5f * Mathf.Sin(2f * Mathf.PI * 236f * bt) * Mathf.Exp(-bt * 0.6f)
+                          + 0.25f * Mathf.Sin(2f * Mathf.PI * 397f * bt) * Mathf.Exp(-bt * 1.2f)) * env * 0.4f;
+                }
+                float fade = Mathf.Clamp01((seconds - time) / 2f);
+                data[i] = (rustle * 0.35f * gust + low * 1.5f * gust + bell) * fade;
+            }
+            float peak = 0.0001f;
+            foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
+            for (int i = 0; i < n; i++) data[i] *= 0.55f / peak;
+            var clip = AudioClip.Create("Kinkaku Autumn", n, 1, rate, false);
             clip.SetData(data, 0);
             return clip;
         }
