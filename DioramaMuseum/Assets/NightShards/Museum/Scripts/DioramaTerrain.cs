@@ -656,8 +656,8 @@ namespace NightShards.Museum
                 AddPyramid(list, new Vector2(Khufu.x - 0.06f + i * 0.06f, Khufu.y + 0.162f), khufuY, 0.024f, 0.03f);
                 AddPyramid(list, new Vector2(Menkaure.x + 0.0867f, Menkaure.y - 0.045f + i * 0.045f), menkaureY, 0.016f, 0.02f);
             }
-            // スフィンクス
-            list.Add(Prop.Box(new Vector3(SphinxPos.x, PyrGround - 0.008f + 0.011f, SphinxPos.y), new Vector3(0.021f, 0.022f, 0.082f), 0f));
+            // スフィンクス (漫画の形で、頭が大きめ)
+            list.Add(Prop.Box(new Vector3(SphinxPos.x, PyrGround - 0.008f + 0.013f, SphinxPos.y), new Vector3(0.022f, 0.026f, 0.082f), 0f));
             return list;
         }
 

@@ -5,11 +5,9 @@
 //   ・クフ王のピラミッド: 底辺 230 m・今の高さ 139 m (頂上は平ら。元の頂点の高さに、目印の柱)。北の面に入口。東に 3 つの王妃のピラミッド
 //   ・カフラー王のピラミッド: 底辺 215 m・高さ 136 m。10 m 高い岩盤の上に立つので、いちばん高く見える。頂上に、なめらかな化粧石が残る
 //   ・メンカウラー王のピラミッド: 底辺 102 m・高さ 65 m。下の段は赤い花こう岩。南に 3 つの王妃のピラミッド
-//   ・大スフィンクス: 長さ 73 m・高さ 20 m・幅 19 m。東を向いて、掘り下げた岩の囲いの中に伏せる。
-//     顔: 幅 4.1 m。眉、深く彫られたアーモンド形の目 (まぶたと眼球)、付け根だけ残って欠けた鼻、幅 2.3 m の唇と口の線、あご、耳。
-//     ネメス頭巾: 平らぎみの頭頂、額のふち、聖蛇 (ウラエウス) のあと、下ほど広がる左右の垂れ布、後ろの束。横じまの溝
-//     胴: 風で削られた地層の段、腰、たたんだ後ろ足、右の腰に巻きつく尾。前にのびる前足と 4 つの指。
-//     前足のあいだに夢の碑文 (花こう岩の石碑)。足元は、あとから修理した石積み
+//   ・大スフィンクス: 漫画の絵のスフィンクス。長さ 73 m・高さ 20 m で、東を向いて岩の囲いの中に伏せる。
+//     平らな橙色の 2 段の塗り (セル塗り) と黒い輪郭線。頭は大きめ。二重の丸い目、困ったようなまぶた、
+//     たての鼻、くねっとした小さな口、額の「U」、丸い耳の「C」、前足の 3 本の指の線
 //   ・石は 1.5 m ほどの段に積まれ、近くで見ると階段のようにギザギザ。砂丘と風紋、ラクダの隊列
 // 仕掛け (_Event 0〜1): 西から砂嵐が吹き抜け、ピラミッドがかすむ。過ぎ去ると、夕日がいっそう強く赤く差す
 //
@@ -283,92 +281,53 @@ Shader "NightShards/Diorama/Pyramids"
 
             float SMax(float a, float b, float k) { return -SMin(-a, -b, k); }
 
-            // 頭: 顔 (目・鼻のあと・唇・あご・耳) とネメス頭巾。part: 0 石 / 1 顔 / 2 目のくぼみ
-            float SphinxHead(float3 m, inout float part)
+            // 頭: 漫画のスフィンクス。つるんとした顔 (目・鼻・口は、あとで線で描く)、丸い耳、ネメス頭巾。
+            // 頭は体より大きめ (首の付け根を中心に HEADK 倍)。m は頭の座標 (メートル)
+            #define HEADK 1.35
+            float SphinxHead(float3 m)
             {
                 float3 s = float3(abs(m.x), m.y, m.z);
-                // 顔の土台: 幅 4.1 m、生え際からあごまで 5 m
-                float face = SdEllipsoidLite(m - float3(0, 15.9, 4.45), float3(2.0, 2.75, 2.05));
-                float chin = SdEllipsoidLite(m - float3(0, 13.9, 5.3), float3(1.25, 0.85, 0.95));
-                float cheek = SdEllipsoidLite(s - float3(1.1, 15.3, 5.0), float3(0.95, 1.2, 1.1));
-                float d = SMin(SMin(face, chin, 0.5), cheek, 0.6);
-                // 眉の張り出しと、深く彫られたアーモンド形の目 (上まぶた・下まぶた・眼球)
-                float brow = SdEllipsoidLite(s - float3(0.95, 17.2, 5.95), float3(0.7, 0.17, 0.32));
-                d = SMin(d, brow, 0.3);
-                float socket = SdEllipsoidLite(s - float3(0.85, 16.75, 6.4), float3(0.6, 0.28, 0.28));
-                d = SMax(d, -socket, 0.15);
-                float eyeball = SdEllipsoidLite(s - float3(0.85, 16.75, 6.08), float3(0.48, 0.22, 0.2));
-                if (eyeball < d) part = 2;
-                d = min(d, eyeball);
-                // 鼻: 付け根だけ残り、先は欠けて平らに削れている (幅 1.7 m)
-                float nose = SdCapsule(m, float3(0, 17.0, 6.15), float3(0, 15.9, 6.4), 0.38);
-                nose = max(nose, m.z - 6.38);
-                d = SMin(d, nose, 0.3);
-                // 唇 (幅 2.3 m): 上唇と下唇、そのあいだの口の線、口の両はしのくぼみ
-                float lipU = SdEllipsoidLite(m - float3(0, 14.95, 6.15), float3(1.15, 0.3, 0.4));
-                float lipL = SdEllipsoidLite(m - float3(0, 14.45, 6.0), float3(1.0, 0.32, 0.38));
-                d = SMin(d, min(lipU, lipL), 0.2);
-                d = max(d, -SdBox(m - float3(0, 14.7, 6.45), float3(1.05, 0.05, 0.45)));
-                // 耳: 頭巾の前に出る (高さ 1.4 m)
-                float ear = SdEllipsoidLite(s - float3(1.95, 16.4, 4.4), float3(0.28, 0.85, 0.55));
-                d = SMin(d, ear, 0.15);
-                if (d < 0.3) part = max(part, 1.0);
-                // ネメス頭巾: 頭をおおう布。額の帯から、耳の後ろを通り、肩の上で広がる垂れ布
-                // 頭のてっぺんは平らぎみ。後ろへ少し下がる
-                float crown = SdBox(m - float3(0, 17.9, 3.2), float3(2.35, 1.6, 2.6) - 0.9) - 0.9;
-                crown = max(crown, (m.y - 19.6) + max(3.0 - m.z, 0.0) * 0.25);
-                crown = max(crown, -(SdEllipsoidLite(m - float3(0, 15.8, 6.0), float3(2.05, 2.75, 2.2)))); // 顔の前をあける
-                float band = SdCapsule(s, float3(0, 18.5, 5.1), float3(2.0, 18.0, 4.2), 0.12);           // 額の帯 (頭巾のふち)
-                // 左右の垂れ布: 耳の後ろから肩へ、下ほど外へ広がる台形 (正面から見ると、頭全体が台形になる)
-                float outer = s.x - (2.25 + max(17.6 - m.y, 0.0) * 0.32);
-                float lappet = max(max(outer, 1.7 - s.x), max(abs(m.y - 14.4) - 3.3, abs(m.z - 4.0) - 1.0));
-                lappet = max(lappet, -(SdEllipsoidLite(m - float3(0, 15.6, 6.0), float3(2.15, 3.2, 2.0))));
-                lappet *= 0.9;
-                float queue = SdCapsule(m, float3(0, 16.0, 1.0), float3(0, 12.5, 0.2), 0.9);            // 後ろに垂れる束
-                float nemes = min(min(crown, band), min(lappet, queue));
-                // 額の聖蛇 (ウラエウス) のあと
-                float uraeus = length(m - float3(0, 18.55, 5.45)) - 0.22;
-                nemes = min(nemes, uraeus);
-                if (nemes < d) part = 0;
-                return min(d, nemes);
+                // 顔: 前が平らぎみの、まるい顔
+                float face = SdEllipsoidLite(m - float3(0, 16.2, 4.6), float3(2.05, 2.9, 1.9));
+                float d = face;
+                // 丸い耳 (頭巾の前に、ぽこっと出る)
+                float ear = SdEllipsoidLite(s - float3(2.15, 16.6, 4.6), float3(0.35, 0.75, 0.55));
+                d = SMin(d, ear, 0.2);
+                // ネメス頭巾: まるい頭頂から、左右の垂れ布が肩の上へ広がる
+                float crown = SdEllipsoidLite(m - float3(0, 18.0, 2.8), float3(2.9, 2.6, 3.6));
+                crown = max(crown, 15.4 - m.y);
+                float outer = s.x - (2.4 + max(17.6 - m.y, 0.0) * 0.38);
+                float lappet = max(max(outer, 1.6 - s.x), max(abs(m.y - 14.2) - 3.4, abs(m.z - 2.6) - 2.4)) * 0.9;
+                float nemes = SMin(crown, lappet, 0.8);
+                nemes = max(nemes, -(SdEllipsoidLite(m - float3(0, 16.0, 6.0), float3(2.0, 2.8, 2.0))));
+                return SMin(d, nemes, 0.25);
             }
+
+            float3 SphinxHeadSpace(float3 m) { return (m - float3(0, 12.0, 3.0)) / HEADK + float3(0, 12.0, 3.0); }
 
             float SphinxM(float3 m, out float part)
             {
                 part = 0;
                 float3 s = float3(abs(m.x), m.y, m.z);
-                // 胴: 伏せた獅子の長い背中 (背中は高さ 14 m ほど、腰へ向かって少し下がる)
-                float back = 13.0 - max(-m.z - 20.0, 0.0) * 0.06;
-                float body = SdBox(m - float3(0, back * 0.5, -24.0), float3(5.6, back * 0.5, 26.0) - 2.5) - 2.5;
-                // 風で削られた地層: やわらかい層ほど深くへこみ、横の縞の段になる
-                body += 0.35 * (0.5 + 0.5 * sin(m.y * 2.4)) * smoothstep(3.5, 5.0, m.y);
+                // 胴: 伏せた獅子の、まるくなめらかな背中
+                float back = 12.5 - max(-m.z - 20.0, 0.0) * 0.05;
+                float body = SdBox(m - float3(0, back * 0.5, -24.0), float3(5.6, back * 0.5, 26.0) - 3.0) - 3.0;
                 float haunch = SdEllipsoidLite(s - float3(5.0, 5.5, -40.0), float3(4.3, 5.5, 8.0));
                 float hindLeg = SdEllipsoidLite(s - float3(6.8, 2.0, -33.0), float3(2.4, 2.0, 9.0));
-                float chest = SdEllipsoidLite(m - float3(0, 7.8, 2.5), float3(6.2, 7.6, 5.2));
-                float neck = SdEllipsoidLite(m - float3(0, 12.6, 2.4), float3(4.2, 4.2, 3.6));
-                float d = SMin(body, chest, 2.0);
+                float chest = SdEllipsoidLite(m - float3(0, 7.8, 2.5), float3(6.0, 7.6, 5.0));
+                float d = SMin(body, chest, 2.5);
                 d = SMin(d, SMin(haunch, hindLeg, 1.0), 1.5);
-                d = SMin(d, neck, 1.5);
-                // 前足: 胸から前へ 15 m。指先は 4 つのふくらみ
-                float foreleg = SdEllipsoidLite(s - float3(5.2, 3.6, 2.5), float3(2.8, 3.6, 4.0));
-                float paw = SdBox(s - float3(5.0, 1.9, 13.0), float3(2.6, 1.9, 9.0) - 1.0) - 1.0;
-                float toes = 1e5;
-                for (int k = 0; k < 4; k++)
-                    toes = min(toes, SdEllipsoidLite(s - float3(3.3 + k * 1.15, 1.3, 21.7), float3(0.6, 1.2, 0.8)));
-                float legs = SMin(SMin(foreleg, paw, 1.0), toes, 0.4);
-                d = SMin(d, legs, 1.0);
+                // 前足: まっすぐ前へのび、先はまるい
+                float foreleg = SdEllipsoidLite(s - float3(5.0, 3.6, 2.5), float3(2.8, 3.6, 4.0));
+                float paw = SdBox(s - float3(4.9, 1.8, 13.0), float3(2.6, 1.8, 9.0) - 1.6) - 1.6;
+                d = SMin(d, SMin(foreleg, paw, 1.2), 1.0);
                 // 尾: 右の腰に巻きつく
                 d = min(d, SdCapsule(m, float3(4.0, 1.0, -48.0), float3(8.6, 1.4, -38.0), 0.65));
                 d = min(d, SdCapsule(m, float3(8.6, 1.4, -38.0), float3(8.9, 2.4, -30.0), 0.55));
-                // 夢の碑文 (トトメス 4 世の石碑): 前足のあいだに立つ、上の丸い花こう岩の板 (高さ 3.6 m)
-                float stela = max(SdBox(m - float3(0, 1.8, 6.6), float3(1.1, 1.8, 0.35)), length(m.xy - float2(0, 2.5)) - 1.95);
-                if (stela < d) part = 3;
-                d = min(d, stela);
-                // 頭
-                float hp = 0;
-                float head = SphinxHead(m, hp);
-                if (head < d) part = hp;
-                return min(d, head);
+                // 頭 (大きめ)
+                float head = SphinxHead(SphinxHeadSpace(m)) * HEADK;
+                if (head < d) part = 1;
+                return SMin(d, head, 1.0);
             }
 
             float Sphinx(float3 p, out float part)
@@ -612,46 +571,59 @@ Shader "NightShards/Diorama/Pyramids"
 
                 if (id == ID_SPHINX)
                 {
-                    float part;
-                    Sphinx(p, part);
+                    // 漫画のスフィンクス: 平らな橙色を 2 段の明るさで塗り (セル塗り)、黒い線で輪郭と顔を描く
                     float3 m = (p - float3(SPHINX.x, GROUND - 0.008, SPHINX.y + 0.0155)) / 0.0011; // メートルの座標
-                    if (part > 2.5)
+                    float3 h = SphinxHeadSpace(m);                                                    // 頭の座標
+                    float3 orange = float3(0.92, 0.52, 0.18);
+                    float lit = smoothstep(0.05, 0.15, dot(n, L) * sh);
+                    float3 col = orange * lerp(float3(0.78, 0.66, 0.6), float3(1.0, 1.0, 1.0), lit) * (0.9 + 0.1 * ao);
+                    float ink = 0.0;
+                    // 輪郭: 見る向きに対して横を向いた所を、黒い線にする
+                    ink = max(ink, 1.0 - smoothstep(0.2, 0.3, abs(dot(n, v))));
+                    // 顔の線 (頭の前を向いた所だけ)
+                    if (n.z > 0.3 && h.z > 5.0 && h.y > 13.5)
                     {
-                        // 夢の碑文: 赤みのある花こう岩に、文字と絵の彫りの行
-                        float3 gr = float3(0.48, 0.36, 0.33) * (0.85 + 0.2 * Noise3(p * 6000.0));
-                        gr *= 1.0 - 0.25 * step(0.75, frac(m.y / 0.25)) * step(m.y, 2.6);
-                        return Surface(gr, n, v, L, sunCol, sh, ao, 0.5, 0.05, 0.0, skyTop, skyLow);
+                        float w = 0.075;
+                        float2 f = h.xy;
+                        float2 e = float2(abs(f.x) - 0.95, f.y - 16.7);
+                        float r = length(e);
+                        // 目: 二重の丸と、まん中の黒い点
+                        ink = max(ink, 1.0 - smoothstep(w, w + 0.03, abs(r - 0.5)));
+                        ink = max(ink, 1.0 - smoothstep(w, w + 0.03, abs(r - 0.22)));
+                        ink = max(ink, 1.0 - smoothstep(0.08, 0.11, r));
+                        // 困ったような、ななめのまぶた (内側が上がる)
+                        float2 a = float2(0.35, 17.55), b = float2(1.55, 17.25);
+                        float2 pa = float2(abs(f.x), f.y) - a, ba = b - a;
+                        float lid = length(pa - ba * saturate(dot(pa, ba) / dot(ba, ba)));
+                        ink = max(ink, 1.0 - smoothstep(w, w + 0.03, lid));
+                        // 鼻: たての短い線と、下の小さなかぎ
+                        float noseLine = length(float2(f.x - 0.05, max(abs(f.y - 16.15) - 0.45, 0.0)));
+                        float hook = length(float2(max(abs(f.x + 0.08) - 0.13, 0.0), f.y - 15.7));
+                        ink = max(ink, 1.0 - smoothstep(w, w + 0.03, min(noseLine, hook)));
+                        // 口: 小さな、くねっとした線
+                        float my = 15.15 + 0.08 * sin(f.x * 9.0);
+                        float mouth = length(float2(max(abs(f.x) - 0.42, 0.0), f.y - my));
+                        ink = max(ink, 1.0 - smoothstep(w, w + 0.03, mouth));
+                        // 額の「U」(聖蛇の印)
+                        float2 u = float2(f.x, f.y - 18.55);
+                        float uLine = u.y > 0.0 ? abs(abs(u.x) - 0.32) + max(u.y - 0.75, 0.0) : abs(length(u) - 0.32);
+                        ink = max(ink, 1.0 - smoothstep(w, w + 0.03, uLine));
+                        // 顔のふち (頭巾との境目) の、たての長い線
+                        float edge = abs(abs(f.x) - 2.05) + (step(18.6, f.y) + step(f.y, 14.6)) * 9.0;
+                        ink = max(ink, 1.0 - smoothstep(w, w + 0.03, edge));
                     }
-                    // 石灰岩の地層: 下 (硬い灰色がかった層)、胴 (風で削られた黄土色と白の縞)、頭 (きめの細かい層)
-                    float band = frac(m.y / 1.3);
-                    float3 rock = lerp(float3(0.8, 0.62, 0.42), float3(0.64, 0.48, 0.32), smoothstep(0.35, 0.65, band));
-                    if (m.y < 3.5) rock = float3(0.66, 0.58, 0.48);
-                    if (m.y > 13.5) rock = float3(0.82, 0.66, 0.46);
-                    rock *= 0.85 + 0.2 * Noise3(p * 2500.0);
-                    // 足元と前足の、あとから修理した石積み (明るい四角い石)
-                    if (m.y < 3.8 && (abs(m.x) > 2.4 || m.z < 4.0))
+                    // 耳の「C」の線
+                    float2 ec = float2(abs(h.x) - 2.15, h.y - 16.6);
+                    if (h.z > 4.2) ink = max(ink, 1.0 - smoothstep(0.07, 0.1, abs(length(ec / float2(0.6, 1.0)) - 0.6)));
+                    // 前足の指の線 (先の 3 本)
+                    if (m.y < 3.6 && m.z > 17.5)
                     {
-                        float row = floor(m.y / 0.7);
-                        float2 b = frac(float2((m.z + abs(m.x)) / 1.1 + row * 0.5, m.y / 0.7));
-                        float joint = step(0.9, max(b.x, b.y));
-                        rock = lerp(float3(0.84, 0.74, 0.6), float3(0.5, 0.42, 0.33), joint) * (0.9 + 0.15 * Hash21(floor(float2((m.z + abs(m.x)) / 1.1 + row * 0.5, row))));
+                        float fx = abs(m.x) - 4.9;
+                        float toe = abs(abs(fx) - 0.85) * step(abs(fx), 1.4);
+                        toe = min(toe, abs(fx));
+                        ink = max(ink, (1.0 - smoothstep(0.08, 0.12, toe)) * step(m.y, 2.6));
                     }
-                    // ネメス頭巾の縞 (横の溝)。顔にかすかに残る赤い顔料
-                    if (part < 0.5 && m.y > 12.0) rock *= 1.0 - 0.2 * step(0.55, frac(m.y / 0.55));
-                    if (part > 0.5 && part < 1.5) rock = lerp(rock, float3(0.78, 0.5, 0.36), 0.25);
-                    if (part > 1.5) rock *= 0.6;
-                    // 欠けた鼻のあと: ざらざらの割れ口
-                    if (part > 0.5 && abs(m.x) < 0.55 && m.y > 15.5 && m.y < 17.1 && m.z > 6.35) rock *= 0.8 + 0.2 * Noise3(p * 20000.0);
-                    // 顔の細かいくぼみ (目・唇・耳のまわり) を暗くする: 小さな距離で調べる陰
-                    float cav = 0.0;
-                    for (int k = 1; k <= 3; k++)
-                    {
-                        float dd = 0.00025 * k;
-                        cav += (dd - Map(p + n * dd).x) / dd;
-                    }
-                    rock *= saturate(1.0 - cav * 0.35);
-                    float3 nb = BumpNormal(n, p, 3000.0, m.y > 13.5 ? 0.25 : 0.7);
-                    return Surface(rock, nb, v, L, sunCol, sh, ao, 0.9, 0.03, 0.0, skyTop, skyLow);
+                    return lerp(col, float3(0.03, 0.025, 0.02), saturate(ink));
                 }
 
                 if (id == ID_CAMEL)
