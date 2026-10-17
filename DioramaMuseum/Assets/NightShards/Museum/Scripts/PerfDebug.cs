@@ -7,7 +7,7 @@ namespace NightShards.Museum
     //   F1  左上の表示を出す・消す
     //   F2  ジオラマを描く・描かない
     //   F3  スポットライトの影を付ける・付けない
-    //   F4  画面の解像度を 100% → 75% → 50% と下げる (URP の Render Scale)
+    //   F4  画面の細かさを、自動 → 100% → 75% → 50% と切りかえる (URP の Render Scale。自動は AutoQuality が FPS に合わせる)
     //   F5  部屋のアート (火の粉・光の糸・月・障子・光のスリット) を出す・消す
     // 止めて大きく FPS が上がったものが、重さの原因
     public class PerfDebug : MonoBehaviour
@@ -18,9 +18,8 @@ namespace NightShards.Museum
         float smoothedDt = 1f / 60f;
         bool dioramasOff, shadowsOff, artOff;
         int scaleIndex;
-        static readonly float[] Scales = { 1f, 0.75f, 0.5f };
+        static readonly float[] Scales = { -1f, 1f, 0.75f, 0.5f }; // -1 は自動
 
-        float originalRenderScale = -1f;
         readonly List<Light> shadowLights = new List<Light>();
         readonly List<GameObject> hiddenArt = new List<GameObject>();
         GUIStyle style;
@@ -68,14 +67,12 @@ namespace NightShards.Museum
             }
         }
 
-        // URP の設定の Render Scale を変える。設定ファイルそのものを書き換えるので、再生をやめたら元に戻す
+        // 画面の細かさを切りかえる。元にもどすのは AutoQuality が受け持つ
         void CycleRenderScale()
         {
-            var urp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
-            if (urp == null) return;
-            if (originalRenderScale < 0f) originalRenderScale = urp.renderScale;
             scaleIndex = (scaleIndex + 1) % Scales.Length;
-            urp.renderScale = Scales[scaleIndex];
+            if (Scales[scaleIndex] < 0f) AutoQuality.Enabled = true;
+            else AutoQuality.SetManual(Scales[scaleIndex]);
         }
 
         // 部屋のアート (各部屋の Art と、ホールの光のスリット) を消す。ライトは残す
@@ -115,8 +112,6 @@ namespace NightShards.Museum
         void OnDisable()
         {
             DioramaLOD.HideAll = false;
-            var urp = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline as UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset;
-            if (urp != null && originalRenderScale > 0f) urp.renderScale = originalRenderScale;
         }
 
         void OnGUI()
@@ -133,7 +128,7 @@ namespace NightShards.Museum
                 $"{fps:0} fps   {smoothedDt * 1000f:0.0} ms   画面 {Screen.width}×{Screen.height}\n" +
                 $"F2 ジオラマ  {(dioramasOff ? "オフ" : "オン")}\n" +
                 $"F3 スポットライトの影  {(shadowsOff ? "オフ" : "オン")}\n" +
-                $"F4 解像度  {Scales[scaleIndex] * 100f:0}%\n" +
+                $"F4 細かさ  {(AutoQuality.Enabled ? "自動 " : "")}{AutoQuality.CurrentScale * 100f:0}%\n" +
                 $"F5 部屋のアート  {(artOff ? "オフ" : "オン")}\n" +
                 "F1 この表示を消す";
 

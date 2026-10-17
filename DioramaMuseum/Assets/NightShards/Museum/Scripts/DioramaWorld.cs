@@ -149,8 +149,8 @@ namespace NightShards.Museum
             rend.receiveShadows = false;
             var block = new MaterialPropertyBlock();
             stand.Diorama.GetPropertyBlock(block); // 作品の形 (_Seed) を引き継ぐ
-            block.SetFloat("_Steps", 180f);       // 中では遠くまで見えるので、いちばん細かく
-            block.SetFloat("_ShadowSteps", 24f);
+            block.SetFloat("_Steps", 140f);       // 中では遠くまで見えるので、細かく (多すぎると重いので 140)
+            block.SetFloat("_ShadowSteps", 16f);
             block.SetFloat("_Event", 0f);
             rend.SetPropertyBlock(block);
             worldWork = cube.AddComponent<DioramaWork>();
