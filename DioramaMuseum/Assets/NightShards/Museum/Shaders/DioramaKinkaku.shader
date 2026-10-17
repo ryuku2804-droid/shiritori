@@ -8,7 +8,7 @@
 //   ・まわり: 赤・橙・黄色のもみじと、緑の松。奥は衣笠山
 //   ・池には、紅白・大正三色・黄金・山吹・緋鯉・烏鯉の、44 匹の鯉が泳ぐ
 // 仕掛け (_Event 0〜1): 風が吹き、もみじの葉が舞い散って、池の水面に浮かんでいく
-// 鯉 (_KoiCall): 池をクリックすると、その場所へ鯉が集まってきて、水面で口をぱくぱくさせる (DioramaWork が場所を入れる)
+// 鯉 (_KoiCall): 池をクリックすると、その近くの鯉が泳いで集まってきて、水面で口をぱくぱくさせる (DioramaWork が場所を入れる)
 //
 // 外から見たとき、何もない所 (空) は透明にして、ガラスケースの向こうの部屋が見えるようにする。
 // 中に入ったとき (カメラが箱の中) だけ、空を描く
@@ -398,13 +398,21 @@ Shader "NightShards/Diorama/Kinkaku"
             #define KOI 56
             #define KOI_LEN 0.016                                   // 鯉の長さ (大きな鯉 1 m を、金閣と同じ 2 倍に)
 
-            // 呼ばれて集まる強さ (0〜1)。遠い鯉ほど遅れて来る。12 秒ほどで、またもとの泳ぎにもどる
+            // 呼ばれて集まる強さ (0〜1)。呼んだ場所の近く (約 20 m 以内) の鯉だけが、気づいて泳いでくる。
+            // 鯉ごとに少し遅れて気づき、秒速 1 m ほどで泳いで近づく (遠い鯉ほど、着くのが遅い)。12 秒ほどで、またもとの泳ぎにもどる
+            #define KOI_NOTICE 0.17
             float KoiCallAmount(float fi, float2 home)
             {
                 if (_KoiCall.w < 0.5) return 0.0;
+                float dist = length(home - _KoiCall.xy);
+                if (dist > KOI_NOTICE) return 0.0;
                 float dt = _Time.y - _KoiCall.z;
-                float delay = length(home - _KoiCall.xy) * 6.0 + Hash11(fi + 7.0) * 0.8;
-                return smoothstep(0.0, 3.0, dt - delay) * (1.0 - smoothstep(10.0, 14.0, dt));
+                float react = 0.2 + Hash11(fi + 7.0) * 0.8;
+                float speed = 0.016 + 0.01 * Hash11(fi + 13.0);
+                float go = saturate((dt - react) * speed / max(dist, 0.01));
+                float come = go * go * (3.0 - 2.0 * go);
+                float leave = 1.0 - smoothstep(11.0, 15.0, dt);
+                return come * leave;
             }
 
             // i 番目の鯉の、時刻 t での場所 (x, z)
