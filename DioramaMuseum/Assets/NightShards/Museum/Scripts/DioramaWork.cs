@@ -40,6 +40,8 @@ namespace NightShards.Museum
                 case "Pisa": return new Color(1f, 0.9f, 0.7f, 0.35f);        // 午後の光
                 case "Pyramids": return new Color(1f, 0.55f, 0.28f, 0.6f);   // 砂嵐と夕日の橙
                 case "DeadSea": return new Color(0.6f, 0.95f, 0.95f, 0.4f);  // 浅瀬の青緑
+                case "Uyuni": return new Color(0.35f, 0.4f, 0.85f, 0.6f);     // 夕焼けから星空の青
+                case "MachuPicchu": return new Color(1f, 0.82f, 0.55f, 0.45f); // 朝日の金色
                 default: return Color.clear;
             }
         }
@@ -138,7 +140,7 @@ namespace NightShards.Museum
             source.PlayOneShot(clip, volume);
         }
 
-        static AudioClip rumble, roar, calving, shimmer, tide, glow, evening, shrine, sparkle, bells, sandstorm, saltGrow;
+        static AudioClip rumble, roar, calving, shimmer, tide, glow, evening, shrine, sparkle, bells, sandstorm, saltGrow, starNight, quena;
 
         static AudioClip SoundFor(string workName)
         {
@@ -180,6 +182,12 @@ namespace NightShards.Museum
                 case "DeadSea":
                     if (saltGrow == null) saltGrow = MakeSaltGrow(12f);
                     return saltGrow;
+                case "Uyuni":
+                    if (starNight == null) starNight = MakeStarNight(14f);
+                    return starNight;
+                case "MachuPicchu":
+                    if (quena == null) quena = MakeQuena(16f);
+                    return quena;
                 default:
                     return null;
             }
@@ -458,6 +466,82 @@ namespace NightShards.Museum
             foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
             for (int i = 0; i < n; i++) data[i] *= 0.55f / peak;
             var clip = AudioClip.Create("Dead Sea Salt", n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        // 天空の鏡の夜: 高原の静かな風に、星がまたたくような、やわらかい鈴の和音が重なっていく
+        static AudioClip MakeStarNight(float seconds)
+        {
+            const int rate = 22050;
+            int n = Mathf.RoundToInt(seconds * rate);
+            var data = new float[n];
+            var random = new System.Random(71);
+            float wind = 0f;
+            float[] chord = { 523.25f, 659.25f, 783.99f, 987.77f, 1174.66f, 1567.98f };
+            for (int i = 0; i < n; i++)
+            {
+                float time = (float)i / rate;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                wind += (white - wind) * 0.01f;
+                float bells = 0f;
+                for (int k = 0; k < chord.Length; k++)
+                {
+                    float start = 2.5f + k * 1.1f;
+                    float dt = time - start;
+                    if (dt > 0f) bells += Mathf.Sin(2f * Mathf.PI * chord[k] * dt) * Mathf.Exp(-dt * 0.6f) * 0.25f;
+                }
+                float fade = Mathf.Clamp01(time / 1f) * Mathf.Clamp01((seconds - time) / 3f);
+                data[i] = (wind * 2.5f + bells) * fade;
+            }
+            float peak = 0.0001f;
+            foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
+            for (int i = 0; i < n; i++) data[i] *= 0.5f / peak;
+            var clip = AudioClip.Create("Uyuni Night", n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        // アンデスの笛 (ケーナ): 雲が流れる風の音に、息のまじった素朴な旋律が流れる
+        static AudioClip MakeQuena(float seconds)
+        {
+            const int rate = 22050;
+            int n = Mathf.RoundToInt(seconds * rate);
+            var data = new float[n];
+            var random = new System.Random(83);
+            float wind = 0f, breath = 0f, phase = 0f;
+            // 5 音音階 (ラ・ド・レ・ミ・ソ) の、ゆったりした旋律。(音の高さ, 長さ)
+            float[] notes = { 440f, 523.25f, 587.33f, 659.25f, 587.33f, 523.25f, 440f, 392f, 440f, 523.25f, 659.25f, 783.99f, 659.25f, 587.33f, 440f };
+            float[] lens = { 0.6f, 0.6f, 1.2f, 0.6f, 0.6f, 0.6f, 1.8f, 0.6f, 0.6f, 0.6f, 1.2f, 0.6f, 0.6f, 0.6f, 2.4f };
+            for (int i = 0; i < n; i++)
+            {
+                float time = (float)i / rate;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                wind += (white - wind) * 0.015f;
+                breath += (white - breath) * 0.4f;
+                // 今の音を探す (1 秒たってから吹きはじめる)
+                float tt = time - 1f, acc = 0f, freq = 0f, start = 0f, len = 1f;
+                for (int k = 0; k < notes.Length; k++)
+                {
+                    if (tt >= acc && tt < acc + lens[k]) { freq = notes[k]; start = acc; len = lens[k]; break; }
+                    acc += lens[k];
+                }
+                float tone = 0f;
+                if (freq > 0f)
+                {
+                    float dt = tt - start;
+                    float env = Mathf.Clamp01(dt / 0.06f) * Mathf.Clamp01((len - dt) / 0.12f);
+                    float vib = 1f + 0.006f * Mathf.Sin(2f * Mathf.PI * 5.5f * dt) * Mathf.Clamp01(dt / 0.3f);
+                    phase += 2f * Mathf.PI * freq * vib / rate;
+                    tone = (Mathf.Sin(phase) + 0.25f * Mathf.Sin(phase * 2f) + 0.1f * Mathf.Sin(phase * 3f) + breath * 0.15f) * env;
+                }
+                float fade = Mathf.Clamp01(time / 1f) * Mathf.Clamp01((seconds - time) / 2f);
+                data[i] = (wind * 3f + tone * 0.35f) * fade;
+            }
+            float peak = 0.0001f;
+            foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
+            for (int i = 0; i < n; i++) data[i] *= 0.55f / peak;
+            var clip = AudioClip.Create("Machu Picchu Quena", n, 1, rate, false);
             clip.SetData(data, 0);
             return clip;
         }

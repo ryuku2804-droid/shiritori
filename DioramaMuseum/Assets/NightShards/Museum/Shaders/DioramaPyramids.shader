@@ -409,7 +409,7 @@ Shader "NightShards/Diorama/Pyramids"
             {
                 const float2 e = float2(0.0002, -0.0002);
                 float3 g = e.xyy * MapX(p + e.xyy, true).x + e.yyx * MapX(p + e.yyx, true).x + e.yxy * MapX(p + e.yxy, true).x + e.xxx * MapX(p + e.xxx, true).x;
-                return g / max(length(g), 1e-7);
+                return g / max(length(g), 1e-12); // 1e-7 だと、なだらかな所で向きが短くなってしまう
             }
 
             float SoftShadow(float3 p, float3 l)

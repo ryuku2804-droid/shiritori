@@ -194,6 +194,33 @@ namespace NightShards.Museum
                         worldScale = 90f,
                     };
                     return true;
+                case "Uyuni":
+                    // 鏡の上に立ち、車と人と、奥のトゥヌパ火山を見る。水の上を歩ける。1 m = 0.01 なので、100 倍で実物の大きさ
+                    info = new Info
+                    {
+                        height = xz => UyuniGround,
+                        water = UyuniGround,
+                        center = new Vector2(0.05f, 0f),
+                        hasSpawn = true,
+                        spawn = new Vector2(0f, 0.3f),
+                        props = () => UyuniProps(),
+                        worldScale = 100f,
+                    };
+                    return true;
+                case "MachuPicchu":
+                    // 南の見張り小屋のそばに立ち、都市とワイナピチュを見下ろす。
+                    // 1 m = 0.0007 なので、1000 倍にして人の大きさに近づける
+                    info = new Info
+                    {
+                        height = xz => MachuHeight(xz),
+                        water = -10f,
+                        center = new Vector2(0f, -0.34f),
+                        hasSpawn = true,
+                        spawn = new Vector2(-0.035f, 0.2f),
+                        props = () => MachuProps(),
+                        worldScale = 1000f,
+                    };
+                    return true;
                 default:
                     info = default;
                     return false;
@@ -692,6 +719,112 @@ namespace NightShards.Museum
                 float s = m.z * SaltScale;
                 list.Add(Prop.Capsule(new Vector3(m.x, DeadSeaWater - 0.004f, m.y), 0.004f * s, 0.0078f * s));
             }
+            return list;
+        }
+
+        // ---------------------------------------------------------------- ウユニ塩湖 (DioramaUyuni.shader と同じ。1 m = 0.01)
+
+        const float UyuniGround = -0.2995f;
+
+        static Vector3 UyuniPerson(int i) =>
+            new Vector3(-0.05f + 0.07f * Mathf.Cos(i * 2.1f) + i * 0.02f, UyuniGround, 0.12f + 0.07f * Mathf.Sin(i * 1.7f));
+
+        static List<Prop> UyuniProps()
+        {
+            var list = new List<Prop>
+            {
+                // ランドクルーザー (少し斜めに止まっている。シェーダーと同じ向き)
+                Prop.Box(new Vector3(0.12f, UyuniGround + 0.011f, 0.05f), new Vector3(0.049f, 0.022f, 0.019f), -0.5f), // シェーダーは 0.5 回して車の向きの座標にする。向きとしては -0.5
+            };
+            for (int i = 0; i < 5; i++) list.Add(Prop.Capsule(UyuniPerson(i), 0.012f, 0.0025f));
+            return list;
+        }
+
+        // ---------------------------------------------------------------- マチュピチュ (DioramaMachuPicchu.shader と同じ。1 m = 0.0007)
+
+        const float MachuCityY = -0.07f, MachuRiverY = -0.37f, MachuTerraceH = 0.0021f;
+        const float MachuCellX = 0.016f, MachuCellZ = 0.011f;
+        static readonly Vector2 Huayna = new Vector2(0f, -0.34f);
+        static readonly Vector2 Inti = new Vector2(0.058f, -0.088f);
+        static readonly Vector2 Torreon = new Vector2(0.045f, 0.062f);
+        static readonly Vector2 Guard = new Vector2(-0.058f, 0.205f);
+
+        static float MachuRidgeX(float z) => 0.01f * Mathf.Sin(z * 6f);
+
+        static float MachuCityMask(Vector2 xz)
+        {
+            float ax = Mathf.Abs(xz.x - MachuRidgeX(xz.y));
+            return (1f - SmoothStep(0.085f, 0.095f, ax)) * SmoothStep(-0.13f, -0.11f, xz.y) * (1f - SmoothStep(0.14f, 0.16f, xz.y));
+        }
+
+        static float MachuTerraceMask(Vector2 xz)
+        {
+            float ax = Mathf.Abs(xz.x - MachuRidgeX(xz.y));
+            float slopeBand = SmoothStep(0.09f, 0.1f, ax) * (1f - SmoothStep(0.17f, 0.19f, ax)) * SmoothStep(-0.08f, -0.05f, xz.y);
+            float south = SmoothStep(0.13f, 0.15f, xz.y) * (1f - SmoothStep(0.11f, 0.13f, ax)) * (1f - SmoothStep(0.24f, 0.26f, xz.y));
+            return Mathf.Clamp01(Mathf.Max(slopeBand * (1f - SmoothStep(0.2f, 0.22f, xz.y)), south));
+        }
+
+        static float MachuHeight(Vector2 xz)
+        {
+            float x = xz.x, z = xz.y;
+            float ax = Mathf.Abs(x - MachuRidgeX(z));
+            float north = SmoothStep(0.12f, 0.22f, -z);
+            float top = MachuCityY - 0.03f * north;
+            float w = Mathf.Lerp(0.095f, 0.025f, north);
+            float ridge = top - 1.3f * Mathf.Max(ax - w, 0f);
+            ridge -= 1.5f * Mathf.Max(z - 0.27f, 0f);
+            float hqx = xz.x - Huayna.x, hqz = (xz.y - Huayna.y) * 1.35f;
+            float hl = Mathf.Sqrt(hqx * hqx + hqz * hqz);
+            float shift = 0.01f * Mathf.Clamp01(0.06f - hl) * 10f;
+            float r = Mathf.Sqrt((hqx + shift) * (hqx + shift) + hqz * hqz);
+            float huayna = 0.15f - 0.9f * r - 6f * r * r + 0.04f * (Fbm3(new Vector2(xz.x * 11f + 5f, xz.y * 11f + 5f)) - 0.4f)
+                         + 0.02f * (Fbm3(xz * 30f) - 0.4f);
+            float h = Mathf.Max(ridge, huayna);
+            float city = MachuCityMask(xz);
+            h += 0.035f * (Fbm3(new Vector2(xz.x * 9f + 2f, xz.y * 9f + 2f)) - 0.4f) * SmoothStep(0f, 0.05f, Mathf.Max(ax - w, z - 0.27f)) * (1f - city);
+            float depth = Mathf.Max(Mathf.Max(ax - w, z - 0.27f), 0f);
+            h += depth * 0.45f * (Mathf.Abs(ValueNoise(new Vector2(x * 7f + 3.1f, z * 7f + 3.1f)) * 2f - 1f) - 0.5f) * (1f - city);
+            float rx = x - MachuRidgeX(z);
+            float cityH = MachuCityY + 0.006f * SmoothStep(0.02f, 0.032f, rx) + 0.003f * SmoothStep(0.02f, 0.032f, -rx) - 0.004f * SmoothStep(0.05f, 0.09f, -rx);
+            h = Mathf.Lerp(h, cityH, city);
+            float f = h / MachuTerraceH;
+            float terr = (Mathf.Floor(f) + SmoothStep(0.82f, 1f, f - Mathf.Floor(f))) * MachuTerraceH;
+            h = Mathf.Lerp(h, terr, MachuTerraceMask(xz));
+            return Mathf.Max(h, MachuRiverY);
+        }
+
+        static bool MachuHouseAllowed(Vector2 c)
+        {
+            float rx = c.x - MachuRidgeX(c.y);
+            if (Mathf.Abs(rx) < 0.03f || Mathf.Abs(rx) > 0.085f) return false;
+            if (c.y < -0.1f || c.y > 0.125f) return false;
+            if ((c - Inti).magnitude < 0.025f || (c - Torreon).magnitude < 0.014f) return false;
+            return Hash21(c.x * 5.3f + 1.7f, c.y * 5.3f + 1.7f) < 0.85f;
+        }
+
+        static List<Prop> MachuProps()
+        {
+            var list = new List<Prop>();
+            for (int cz = -12; cz <= 12; cz++)
+            {
+                for (int cx = -7; cx <= 6; cx++)
+                {
+                    var c = new Vector2((cx + 0.5f) * MachuCellX, (cz + 0.5f) * MachuCellZ);
+                    if (!MachuHouseAllowed(c)) continue;
+                    // シェーダーと同じ、家ごとのずれと大きさ
+                    float jx = (Hash21(c.x * 7.7f, c.y * 7.7f) - 0.5f) * 0.004f;
+                    float jz = (Hash21(c.x * 7.7f + 17.3f, c.y * 7.7f + 17.3f) - 0.5f) * 0.0025f;
+                    float k = Hash21(c.x * 2.3f, c.y * 2.3f);
+                    float hx = 0.0034f + k * 0.0012f, hz = 0.0023f + k * 0.0006f;
+                    float baseY = MachuHeight(c) - 0.002f;
+                    list.Add(Prop.Box(new Vector3(c.x + jx, baseY + 0.0035f, c.y + jz), new Vector3(hx * 2f, 0.007f, hz * 2f), 0f));
+                }
+            }
+            // インティワタナの丘・太陽の神殿・見張り小屋
+            list.Add(Prop.Capsule(new Vector3(Inti.x, MachuHeight(Inti) - 0.002f, Inti.y), 0.012f, 0.012f));
+            list.Add(Prop.Capsule(new Vector3(Torreon.x, MachuHeight(Torreon) - 0.002f, Torreon.y), 0.008f, 0.005f));
+            list.Add(Prop.Box(new Vector3(Guard.x, MachuHeight(Guard) + 0.003f, Guard.y), new Vector3(0.008f, 0.006f, 0.0052f), 0f));
             return list;
         }
 

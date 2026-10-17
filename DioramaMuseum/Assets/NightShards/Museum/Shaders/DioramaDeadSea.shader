@@ -315,7 +315,7 @@ Shader "NightShards/Diorama/DeadSea"
             {
                 const float2 e = float2(0.0001, -0.0001);
                 float3 g = e.xyy * MapX(p + e.xyy, true).x + e.yyx * MapX(p + e.yyx, true).x + e.yxy * MapX(p + e.yxy, true).x + e.xxx * MapX(p + e.xxx, true).x;
-                return g / max(length(g), 1e-7);
+                return g / max(length(g), 1e-12); // 1e-7 だと、なだらかな所で向きが短くなってしまう
             }
 
             float SoftShadow(float3 p, float3 l)
@@ -459,7 +459,7 @@ Shader "NightShards/Diorama/DeadSea"
                 {
                     const float2 e = float2(0.0004, -0.0004);
                     float3 g = e.xyy * Map(p + e.xyy).x + e.yyx * Map(p + e.yyx).x + e.yxy * Map(p + e.yxy).x + e.xxx * Map(p + e.xxx).x;
-                    n = g / max(length(g), 1e-7);
+                    n = g / max(length(g), 1e-12);
                 }
                 else n = SceneNormal(p);
                 float rough, sss;

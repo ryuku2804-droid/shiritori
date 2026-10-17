@@ -92,8 +92,8 @@ namespace NightShards.Museum
                 ("環礁", "南太平洋", "空に浮かぶ環礁。縁から海がこぼれ落ち、潮が引くと砂州の道が現れる。", 3),
                 ("海の断面", "珊瑚の海から深海へ", "明るい珊瑚の浅瀬から、光の届かない深海まで。生き物たちが一斉に光る。", 3)));
             layout.rooms.Add(MakeRoom("アンデスの間", RoomTheme.Andes, 5, new Color(0.7f, 0.85f, 1f),
-                ("ウユニ塩湖", "ボリビア", "雨が来ると水が張り、空が完全に映って、空の中に浮かぶ。", -1),
-                ("マチュピチュ", "ペルー", "雲海が引いて、山の上の遺跡を朝日が照らし出す。", -1)));
+                ("ウユニ塩湖", "ボリビア", "天空の鏡。雲も車も人も、空といっしょに足元に映る。夜になると、星の中に浮かぶ。", -1),
+                ("マチュピチュ", "ペルー", "尾根の上の空中都市とワイナピチュ。雲海がわき上がって包み、引くと朝日が照らし出す。", -1)));
             layout.rooms.Add(MakeRoom("夕の間", RoomTheme.Dusk, 6, new Color(1f, 0.62f, 0.35f),
                 ("黄昏の棚田", "日本の里山", "夕日を映す棚田。日が沈むと家々に灯がともり、蛍が舞う。", 2),
                 ("千本鳥居の山", "霧の参道", "霧の山を、朱の鳥居の参道がどこまでも登っていく。", 2)));
@@ -128,6 +128,8 @@ namespace NightShards.Museum
                 case "ピサの斜塔": return "Pisa";
                 case "ギザのピラミッド": return "Pyramids";
                 case "死海": return "DeadSea";
+                case "ウユニ塩湖": return "Uyuni";
+                case "マチュピチュ": return "MachuPicchu";
                 case "青い火の焦土": return "BlueFire";
                 case "青い火の火口湖": return "BlueFire"; // 前の名前 (前に保存した設計図のため)
                 default: return "";
