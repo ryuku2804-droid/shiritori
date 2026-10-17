@@ -166,6 +166,34 @@ namespace NightShards.Museum
                         worldScale = 85f,
                     };
                     return true;
+                case "Pyramids":
+                    // スフィンクスの南東の砂漠に立ち、スフィンクスと三大ピラミッドを見る。
+                    // 実物の寸法 (1 m = 0.0011) なので、600 倍にして人の大きさに近づける
+                    info = new Info
+                    {
+                        height = xz => PyramidsHeight(xz),
+                        water = -10f,
+                        center = new Vector2(-0.008f, -0.169f),
+                        hasSpawn = true,
+                        spawn = new Vector2(0.2f, 0.42f),
+                        props = () => PyramidsProps(),
+                        worldScale = 600f,
+                    };
+                    return true;
+                case "DeadSea":
+                    // 塩の岸に立ち、浅瀬の塩のきのこと、向こう岸の山を見る。水の中は、浅瀬を歩いているように歩ける。
+                    // 1 m = 0.012 なので、90 倍にすると実物の大きさに近い
+                    info = new Info
+                    {
+                        height = xz => DeadSeaHeight(xz),
+                        water = DeadSeaWater,
+                        center = new Vector2(0f, -0.1f),
+                        hasSpawn = true,
+                        spawn = new Vector2(0f, 0.38f),
+                        props = () => DeadSeaProps(),
+                        worldScale = 90f,
+                    };
+                    return true;
                 default:
                     info = default;
                     return false;
@@ -576,6 +604,93 @@ namespace NightShards.Museum
             {
                 Prop.Capsule(new Vector3(0.02f, g, -0.03f), 0.12f * k, 0.0178f * k), // 斜塔
             };
+        }
+
+        // ---------------------------------------------------------------- ギザのピラミッド (DioramaPyramids.shader と同じ。1 m = 0.0011)
+
+        const float PyrGround = -0.3f;
+        static readonly Vector2 Khufu = new Vector2(-0.3f, 0.11f);
+        static readonly Vector2 Khafre = new Vector2(-0.008f, -0.169f);
+        static readonly Vector2 Menkaure = new Vector2(0.332f, -0.39f);
+        static readonly Vector2 SphinxPos = new Vector2(0.068f, 0.389f);
+
+        static float PyrPlateau(float z) => PyrGround + 0.012f * SmoothStep(0.25f, -0.35f, z);
+
+        static float PadMask(Vector2 xz, Vector2 c, Vector2 hs, float w)
+        {
+            float dx = Mathf.Abs(xz.x - c.x) - hs.x, dz = Mathf.Abs(xz.y - c.y) - hs.y;
+            return SmoothStep(0f, w, Mathf.Max(dx, dz));
+        }
+
+        static float PyramidsHeight(Vector2 xz)
+        {
+            float h = PyrPlateau(xz.y) + 0.008f * Fbm3(new Vector2(xz.x * 7f + 3.7f, xz.y * 7f + 3.7f));
+            h = Mathf.Lerp(PyrPlateau(Khufu.y), h, PadMask(xz, new Vector2(-0.3f, 0.15f), new Vector2(0.135f, 0.17f), 0.04f));
+            h = Mathf.Lerp(PyrPlateau(Khafre.y), h, PadMask(xz, Khafre, new Vector2(0.125f, 0.125f), 0.04f));
+            h = Mathf.Lerp(PyrPlateau(Menkaure.y), h, PadMask(xz, new Vector2(0.36f, -0.39f), new Vector2(0.09f, 0.065f), 0.04f));
+            h = Mathf.Lerp(PyrGround - 0.008f, h, PadMask(xz, SphinxPos, new Vector2(0.028f, 0.05f), 0.006f));
+            return h;
+        }
+
+        // ピラミッドを、上へ行くほど小さくなる 4 段の箱で囲む (斜面は登れない)
+        static void AddPyramid(List<Prop> list, Vector2 c, float baseY, float hs, float top)
+        {
+            for (int k = 0; k < 4; k++)
+            {
+                float y0 = top * k / 4f, y1 = top * (k + 1) / 4f;
+                float w = hs * (1f - (y0 + y1) * 0.5f / (top * 1.06f)) * 2f;
+                list.Add(Prop.Box(new Vector3(c.x, baseY + (y0 + y1) * 0.5f, c.y), new Vector3(w, y1 - y0, w), 0f));
+            }
+        }
+
+        static List<Prop> PyramidsProps()
+        {
+            var list = new List<Prop>();
+            AddPyramid(list, Khufu, PyrPlateau(Khufu.y), 0.1267f, 0.1524f);
+            AddPyramid(list, Khafre, PyrPlateau(Khafre.y), 0.1184f, 0.15f);
+            AddPyramid(list, Menkaure, PyrPlateau(Menkaure.y), 0.0567f, 0.067f);
+            for (int i = 0; i < 3; i++)
+            {
+                AddPyramid(list, new Vector2(Khufu.x - 0.06f + i * 0.06f, Khufu.y + 0.162f), PyrPlateau(Khufu.y), 0.024f, 0.03f);
+                AddPyramid(list, new Vector2(Menkaure.x + 0.0867f, Menkaure.y - 0.045f + i * 0.045f), PyrPlateau(Menkaure.y), 0.016f, 0.02f);
+            }
+            // スフィンクス
+            list.Add(Prop.Box(new Vector3(SphinxPos.x, PyrGround - 0.008f + 0.011f, SphinxPos.y), new Vector3(0.021f, 0.022f, 0.082f), 0f));
+            return list;
+        }
+
+        // ---------------------------------------------------------------- 死海 (DioramaDeadSea.shader と同じ)
+
+        const float DeadSeaWater = -0.3f;
+        const float SaltScale = 2.4f; // 塩のきのこを大きくする倍率 (シェーダーの SC と同じ)
+        static readonly Vector3[] SaltMushrooms =
+        {
+            new Vector3(-0.25f, 0.12f, 1.0f), new Vector3(-0.12f, 0.05f, 1.3f), new Vector3(0.02f, 0.15f, 0.8f),
+            new Vector3(0.15f, 0.08f, 1.1f), new Vector3(0.3f, 0.14f, 0.9f), new Vector3(-0.35f, 0.0f, 1.2f),
+            new Vector3(0.38f, -0.02f, 1.0f), new Vector3(-0.05f, -0.02f, 0.7f), new Vector3(0.22f, 0.2f, 0.6f),
+        };
+
+        static float DeadSeaHeight(Vector2 xz)
+        {
+            float z = xz.y + 0.04f * (Fbm3(new Vector2(xz.x * 3f + 1.3f, xz.y * 3f + 1.3f)) - 0.45f);
+            float h = DeadSeaWater - 0.035f + 0.032f * SmoothStep(-0.15f, 0.02f, z) + 0.004f * SmoothStep(0.18f, 0.3f, z) + 0.01f * SmoothStep(0.26f, 0.47f, z);
+            h += 0.0006f * ValueNoise(xz * 60f);
+            float ridge = 1f - Mathf.Abs(ValueNoise(new Vector2(xz.x * 14f + 5f, xz.y * 4f + 5f)) * 2f - 1f);
+            float zm = xz.y + 0.03f * Mathf.Sin(xz.x * 7f);
+            float mountain = DeadSeaWater - 0.04f + 0.22f * SmoothStep(-0.24f, -0.47f, zm)
+                           * (0.5f + 0.35f * Fbm3(new Vector2(xz.x * 5f + 9f, xz.y * 5f + 9f)) + 0.15f * ridge);
+            return Mathf.Max(h, mountain);
+        }
+
+        static List<Prop> DeadSeaProps()
+        {
+            var list = new List<Prop>();
+            foreach (var m in SaltMushrooms)
+            {
+                float s = m.z * SaltScale;
+                list.Add(Prop.Capsule(new Vector3(m.x, DeadSeaWater - 0.004f, m.y), 0.004f * s, 0.0078f * s));
+            }
+            return list;
         }
 
         // ---------------------------------------------------------------- シェーダーと同じノイズ

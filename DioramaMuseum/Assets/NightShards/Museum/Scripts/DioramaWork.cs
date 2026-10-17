@@ -38,6 +38,8 @@ namespace NightShards.Museum
                 case "Torii": return new Color(1f, 0.55f, 0.25f, 0.55f);     // 夕日の金色
                 case "Paris": return new Color(1f, 0.8f, 0.45f, 0.5f);       // エッフェル塔の金色
                 case "Pisa": return new Color(1f, 0.9f, 0.7f, 0.35f);        // 午後の光
+                case "Pyramids": return new Color(1f, 0.55f, 0.28f, 0.6f);   // 砂嵐と夕日の橙
+                case "DeadSea": return new Color(0.6f, 0.95f, 0.95f, 0.4f);  // 浅瀬の青緑
                 default: return Color.clear;
             }
         }
@@ -136,7 +138,7 @@ namespace NightShards.Museum
             source.PlayOneShot(clip, volume);
         }
 
-        static AudioClip rumble, roar, calving, shimmer, tide, glow, evening, shrine, sparkle, bells;
+        static AudioClip rumble, roar, calving, shimmer, tide, glow, evening, shrine, sparkle, bells, sandstorm, saltGrow;
 
         static AudioClip SoundFor(string workName)
         {
@@ -172,6 +174,12 @@ namespace NightShards.Museum
                 case "Pisa":
                     if (bells == null) bells = MakeChurchBells(12f);
                     return bells;
+                case "Pyramids":
+                    if (sandstorm == null) sandstorm = MakeSandstorm(14f);
+                    return sandstorm;
+                case "DeadSea":
+                    if (saltGrow == null) saltGrow = MakeSaltGrow(12f);
+                    return saltGrow;
                 default:
                     return null;
             }
@@ -389,6 +397,67 @@ namespace NightShards.Museum
             foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
             for (int i = 0; i < n; i++) data[i] *= 0.6f / peak;
             var clip = AudioClip.Create("Paris Sparkle", n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        // 砂嵐: 遠くから風がうなりを上げて近づき、ザーッと砂が吹きつけ、8 秒ほどで遠ざかる
+        static AudioClip MakeSandstorm(float seconds)
+        {
+            const int rate = 22050;
+            int n = Mathf.RoundToInt(seconds * rate);
+            var data = new float[n];
+            var random = new System.Random(53);
+            float low = 0f, mid = 0f, gust = 0f;
+            for (int i = 0; i < n; i++)
+            {
+                float time = (float)i / rate;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                low += (white - low) * 0.02f;                    // うなり (低い風の音)
+                mid += (white - mid) * 0.3f;                     // ザーッという砂の音
+                gust += ((float)random.NextDouble() - gust) * 0.0002f; // 風の強弱
+                float storm = Mathf.Clamp01(time / 2.5f) * (1f - Mathf.Clamp01((time - 7f) / 4f));
+                float howl = Mathf.Sin(2f * Mathf.PI * (180f + 60f * Mathf.Sin(time * 0.7f)) * time) * 0.05f;
+                data[i] = (low * 5f + mid * 0.6f * (0.6f + gust) + howl) * storm;
+            }
+            float peak = 0.0001f;
+            foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
+            for (int i = 0; i < n; i++) data[i] *= 0.6f / peak;
+            var clip = AudioClip.Create("Giza Sandstorm", n, 1, rate, false);
+            clip.SetData(data, 0);
+            return clip;
+        }
+
+        // 塩の結晶が育つ音: 静かな水のちゃぷちゃぷに、結晶ができるたび、ガラスのような小さな音がチリン、パキッと重なる
+        static AudioClip MakeSaltGrow(float seconds)
+        {
+            const int rate = 22050;
+            int n = Mathf.RoundToInt(seconds * rate);
+            var data = new float[n];
+            var random = new System.Random(61);
+            float water = 0f;
+            float noteStart = -10f, noteFreq = 0f;
+            float[] notes = { 2093f, 2637f, 3136f, 3520f, 4186f };
+            for (int i = 0; i < n; i++)
+            {
+                float time = (float)i / rate;
+                float white = (float)random.NextDouble() * 2f - 1f;
+                water += (white - water) * 0.05f;
+                float lap = 0.5f + 0.5f * Mathf.Sin(time * 2.1f) * Mathf.Sin(time * 0.7f + 1f);
+                if (time - noteStart > 0.12f && random.NextDouble() < 0.0012 * Mathf.Clamp01(time / 3f))
+                {
+                    noteStart = time;
+                    noteFreq = notes[random.Next(notes.Length)];
+                }
+                float dt = time - noteStart;
+                float ping = Mathf.Sin(2f * Mathf.PI * noteFreq * dt) * Mathf.Exp(-dt * 9f) + (dt < 0.004f ? white * 0.6f : 0f);
+                float fade = Mathf.Clamp01(time / 0.5f) * Mathf.Clamp01((seconds - time) / 2.5f);
+                data[i] = (water * 1.2f * lap + ping * 0.3f) * fade;
+            }
+            float peak = 0.0001f;
+            foreach (float s in data) peak = Mathf.Max(peak, Mathf.Abs(s));
+            for (int i = 0; i < n; i++) data[i] *= 0.55f / peak;
+            var clip = AudioClip.Create("Dead Sea Salt", n, 1, rate, false);
             clip.SetData(data, 0);
             return clip;
         }
