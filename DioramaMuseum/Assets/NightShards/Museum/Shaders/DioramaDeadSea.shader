@@ -10,6 +10,8 @@
 //   ・水はとても静かで、空と山を鏡のように映す
 // 仕掛け (_Event 0〜1): 塩の結晶 (立方体の岩塩) が水の中から次々にせり上がって育ち、日を受けてきらめく
 //
+// 軽くする工夫: きのこの表は [unroll] で決まった番号で読む / きのこの帯の外は調べない / 水の底は影と陰を省く /
+//   水の映り込みは低い角度の線だけたどり、安い向きの測り方を使う / 影は近くだけ / 平らな所は大きめの歩幅で進む
 // 外から見たとき、何もない所 (空) は透明にして、ガラスケースの向こうの部屋が見えるようにする。
 // 中に入ったとき (カメラが箱の中) だけ、空を描く
 Shader "NightShards/Diorama/DeadSea"
@@ -198,8 +200,12 @@ Shader "NightShards/Diorama/DeadSea"
             float Mushrooms(float3 p)
             {
                 if (p.y > WATER + 0.012 * SC * 1.3) return p.y - WATER - 0.012 * SC * 1.3 + 0.001;
+                // きのこが並ぶ帯 (z = -0.07〜0.25、x = -0.44〜0.44) の外なら、帯までの距離だけ返す
+                float band = max(max(-0.08 - p.z, p.z - 0.26), abs(p.x) - 0.44);
+                if (band > 0.002) return band;
                 float d = 1e5;
-                for (int i = 0; i < MUSHROOMS; i++)
+                // [unroll]: 表 (MUSH) を番号で読むと GPU では遅いので、ループを展開して、番号を決まった数にする
+                [unroll] for (int i = 0; i < MUSHROOMS; i++)
                 {
                     float3 m = MUSH[i];
                     float s = m.z * SC;
@@ -209,7 +215,7 @@ Shader "NightShards/Diorama/DeadSea"
                     float cap = SdEllipsoidLite(q - float3(0, 0.0032 * s, 0), float3(0.0078, 0.0033, 0.0078) * s);
                     float ledge = SdEllipsoidLite(q - float3(0, 0.0004 * s, 0), float3(0.0092, 0.0008, 0.0092) * s); // 水面の高さの塩のふち
                     float dd = min(min(stalk, cap), ledge);
-                    dd -= 0.0005 * s * Noise3(q * 900.0 / s);   // カリフラワーのような、ぼこぼこした表面
+                    if (dd < 0.004) dd -= 0.0005 * s * Noise3(q * 900.0 / s);   // カリフラワーのような、ぼこぼこした表面 (近い所だけ)
                     d = min(d, dd * 0.8);
                 }
                 return d;
@@ -221,7 +227,7 @@ Shader "NightShards/Diorama/DeadSea"
                 if (grow < 0.01) return 1.0;
                 if (p.y > WATER + 0.01 * SC) return p.y - WATER - 0.01 * SC + 0.0005;
                 float d = 1e5;
-                for (int i = 0; i < MUSHROOMS; i++)
+                [unroll] for (int i = 0; i < MUSHROOMS; i++)
                 {
                     float3 m = MUSH[i];
                     float2 c = p.xz - m.xy;
@@ -291,7 +297,7 @@ Shader "NightShards/Diorama/DeadSea"
                 float2 res = float2(SdBox(p - float3(0, -0.46, 0), float3(0.5, 0.04, 0.5)), ID_BASE);
                 float column = SdBox(p - float3(0, 0.04, 0), float3(INNER, 0.46, INNER));
                 float h = exact ? Height(p.xz) : HeightFast(p.xz);
-                float ground = max((p.y - h) * 0.6, column);
+                float ground = max((p.y - h) * (p.z < -0.2 ? 0.5 : 0.85), column); // 急な山並みでは、小さめに進む
                 if (ground < res.x) res = float2(ground, ID_GROUND);
                 float mush = Mushrooms(p);
                 if (mush < res.x) res = float2(mush, ID_MUSHROOM);
@@ -316,7 +322,7 @@ Shader "NightShards/Diorama/DeadSea"
             {
                 float res = 1.0;
                 float t = 0.0008;
-                int n = max((int)_ShadowSteps, 8);
+                int n = clamp((int)_ShadowSteps, 8, 16);
                 for (int i = 0; i < 32; i++)
                 {
                     if (i >= n) break;
@@ -324,8 +330,8 @@ Shader "NightShards/Diorama/DeadSea"
                     if (sp.y > 0.0) break;
                     float h = Map(sp).x;
                     res = min(res, 16.0 * h / t);
-                    t += clamp(h, 0.0006, 0.04);
-                    if (res < 0.01 || t > 0.8) break;
+                    t += clamp(h, 0.0012, 0.04);
+                    if (res < 0.01 || t > 0.3) break;
                 }
                 return saturate(res);
             }
@@ -431,7 +437,7 @@ Shader "NightShards/Diorama/DeadSea"
                 float dry = smoothstep(0.0, 0.003, y);
                 salt *= 1.0 - 0.25 * crack * dry;
                 // 岸の上のほうは、塩の少ない砂利 (灰色がかった茶色)
-                salt = lerp(salt, float3(0.62, 0.56, 0.48) * (0.8 + 0.3 * Noise3(p * 1500.0)), smoothstep(0.006, 0.011, y));
+                salt = lerp(salt, float3(0.74, 0.7, 0.63) * (0.9 + 0.15 * Noise3(p * 1500.0)), smoothstep(0.006, 0.011, y));
                 rough = lerp(0.35, 0.85, dry);
                 return salt;
             }
@@ -447,13 +453,23 @@ Shader "NightShards/Diorama/DeadSea"
                 if (id == ID_BASE)
                     return float3(0.015, 0.014, 0.014) + 0.03 * pow(saturate(1.0 - abs(dot(rd, faceNormal))), 4.0);
 
-                float3 n = SceneNormal(p);
+                // 映り込み用 (lite) は、高さの表で向きを測る安い方法にする
+                float3 n;
+                if (lite)
+                {
+                    const float2 e = float2(0.0004, -0.0004);
+                    float3 g = e.xyy * Map(p + e.xyy).x + e.yyx * Map(p + e.yyx).x + e.yxy * Map(p + e.yxy).x + e.xxx * Map(p + e.xxx).x;
+                    n = g / max(length(g), 1e-7);
+                }
+                else n = SceneNormal(p);
                 float rough, sss;
                 float3 albedo = Albedo(p, id, n, rough, sss);
                 if (lite) return Surface(albedo, n, v, L, sunCol, 1.0, 1.0, rough, 0.04, sss, skyTop, skyLow);
 
-                float sh = SoftShadow(p + n * 0.0004, L);
-                float ao = AmbientOcclusion(p, n);
+                // 水の底は、影と陰を省く (水ごしでは、ほとんど見分けがつかない)
+                bool underwater = p.y < WATER - 0.0005;
+                float sh = underwater ? 1.0 : SoftShadow(p + n * 0.0004, L);
+                float ao = underwater ? 1.0 : AmbientOcclusion(p, n);
                 if (id == ID_GROUND && max(abs(p.x), abs(p.z)) > INNER - 0.0015 && abs(n.y) < 0.5)
                     return Surface(float3(0.55, 0.45, 0.35) * (0.8 + 0.4 * Noise3(p * 900.0)), n, v, L, sunCol, 1.0, 1.0, 0.9, 0.03, 0.0, skyTop, skyLow); // 地面の切り口
                 float3 nb = BumpNormal(n, p, 3000.0, id == ID_GROUND ? 0.2 : (id == ID_MUSHROOM ? 0.7 : 0.05));
@@ -534,7 +550,7 @@ Shader "NightShards/Diorama/DeadSea"
                     float2 m = Map(pos);
                     lastD = m.x;
                     lastId = m.y;
-                    if (m.x < 0.00002 + 0.0002 * t)
+                    if (m.x < 0.00003 + 0.0003 * t)
                     {
                         hit = true;
                         id = m.y;
@@ -569,18 +585,22 @@ Shader "NightShards/Diorama/DeadSea"
                     float3 wn = WaterNormal(wp.xz);
                     float3 rr = reflect(rd, wn);
                     float3 refl = Sky(rr);
-                    float tr = 0.0005;
-                    for (int k = 0; k < 48; k++)
+                    float tr = 0.001;
+                    // 上を向いてはね返る線は、空しか映らないので、たどらない (山ときのこは、低い角度の線にだけ映る)
+                    if (rr.y < 0.3)
                     {
-                        float3 q = wp + rr * tr;
-                        if (q.y > maxHeight || max(abs(q.x), abs(q.z)) > INNER) break;
-                        float2 m = Map(q);
-                        if (m.x < 0.0002 + 0.0003 * tr)
+                        for (int k = 0; k < 28; k++)
                         {
-                            refl = Shade(wp, rr, q, m.y, faceNormal, true);
-                            break;
+                            float3 q = wp + rr * tr;
+                            if (q.y > maxHeight || max(abs(q.x), abs(q.z)) > INNER) break;
+                            float2 m = Map(q);
+                            if (m.x < 0.0004 + 0.001 * tr)
+                            {
+                                refl = Shade(wp, rr, q, m.y, faceNormal, true);
+                                break;
+                            }
+                            tr += m.x * 1.2;
                         }
-                        tr += m.x;
                     }
                     float fres = 0.02 + 0.98 * pow(1.0 - saturate(dot(-rd, wn)), 5.0);
                     col = lerp(under, refl, fres);
