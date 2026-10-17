@@ -106,7 +106,7 @@ namespace NightShards.Museum
         bool TryCallKoi()
         {
             Camera cam = Camera.main;
-            if (cam == null) cam = Object.FindFirstObjectByType<Camera>(); // MainCamera の札がないときの予備
+            if (cam == null) cam = UnityEngine.Object.FindFirstObjectByType<Camera>(); // MainCamera の札がないときの予備
             if (cam == null) return false;
             Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
             // ジオラマの箱の座標 (-0.5〜0.5) に直して、水面の高さの平らな面と交わる所を求める

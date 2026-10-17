@@ -156,6 +156,8 @@ CHECKS = [
 ]
 
 TROUBLE = [
+    ("「'Object' is an ambiguous reference」のエラー",
+     "直しました。`DioramaWork.cs` を最新に貼り直してください (UnityEngine.Object と書くようにしました)。"),
     ("池をクリックしても鯉が来ない",
      "照準 (画面のまん中) が池の水面を向いているか確かめてください。それでも来ないときは、カメラに MainCamera の札 (Tag) が付いているか見てください。"),
     ("ジオラマがピンク",
