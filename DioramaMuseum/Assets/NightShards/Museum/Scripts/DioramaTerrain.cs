@@ -884,7 +884,7 @@ namespace NightShards.Museum
         static float WallCrest(float z) => -0.12f + 0.07f * Mathf.Sin(z * 4.6f + 2f) + 0.03f * Mathf.Sin(z * 10.3f + 0.7f);
         static float WallSide(Vector2 xz) => (xz.x - WallPath(xz.y)) / Mathf.Sqrt(1f + WallPathD(xz.y) * WallPathD(xz.y));
 
-        static float Ridged(Vector2 p)
+        static float WallRidged(Vector2 p)
         {
             float a = 1f - Mathf.Abs(ValueNoise(p) * 2f - 1f);
             float b = 1f - Mathf.Abs(ValueNoise(new Vector2(p.x * 2.1f + 5.3f, p.y * 2.1f + 5.3f)) * 2f - 1f);
@@ -897,8 +897,8 @@ namespace NightShards.Museum
             float d = Mathf.Abs(WallSide(xz));
             float c = WallCrest(xz.y);
             float ridge = c - 0.004f - 0.95f * Mathf.Max(d - 0.014f, 0f) + 0.45f * Mathf.Max(d - 0.12f, 0f);
-            ridge += (Ridged(xz * 14f) - 0.5f) * 0.035f * SmoothStep(0.015f, 0.06f, d);
-            float other = WallValleyY + 0.26f * Ridged(new Vector2(xz.x * 4.5f + 2f, xz.y * 4.5f + 2f)) + 0.06f * Fbm3(xz * 12f);
+            ridge += (WallRidged(xz * 14f) - 0.5f) * 0.035f * SmoothStep(0.015f, 0.06f, d);
+            float other = WallValleyY + 0.26f * WallRidged(new Vector2(xz.x * 4.5f + 2f, xz.y * 4.5f + 2f)) + 0.06f * Fbm3(xz * 12f);
             other = Mathf.Min(other, c - 0.03f - 0.5f * Mathf.Max(0.12f - d, 0f));
             return Mathf.Max(Mathf.Max(ridge, other), WallValleyY);
         }

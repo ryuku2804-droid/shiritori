@@ -11,7 +11,7 @@ FILES = [
     ("Assets/NightShards/Museum/Shaders/DioramaKinkaku.shader", "新規",
      "作品「日本の庭」(金閣寺)。3 層の舎利殿 (白木と蔀戸・金箔・花頭窓・鳳凰)、鏡湖池の映り込み、松の島、もみじの山。仕掛けはもみじが舞い散って池に浮かぶ"),
     ("Assets/NightShards/Museum/Scripts/DioramaTerrain.cs", "変更",
-     "長城と金閣寺の地面・立つ場所・当たり判定・拡大の倍率を足した"),
+     "長城と金閣寺の地面・立つ場所・当たり判定・拡大の倍率を足した (同じ名前の関数 Ridged がぶつかるエラーを直した)"),
     ("Assets/NightShards/Museum/Scripts/DioramaWork.cs", "変更",
      "のろしの角笛と火の音、お寺の鐘と木々のざわめき、部屋の照明を染める色を足した"),
     ("Assets/NightShards/Museum/Scripts/MuseumLayout.cs", "変更",
@@ -183,6 +183,8 @@ CHECKS = [
 ]
 
 TROUBLE = [
+    ("「already defines a member called \'Ridged\'」のエラー",
+     "直しました。`DioramaTerrain.cs` を最新に貼り直してください (長城の関数の名前を WallRidged に変えました)。"),
     ("ジオラマがピンク",
      "Project でそのシェーダーを選ぶと、Inspector にエラーの行が出ます。その文を送ってください。"),
     ("台座が仮の箱のまま",
