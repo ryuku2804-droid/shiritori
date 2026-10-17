@@ -327,6 +327,7 @@ Shader "NightShards/Diorama/DeadSea"
                 {
                     if (i >= n) break;
                     float3 sp = p + l * t;
+                    if (max(abs(sp.x), abs(sp.z)) > INNER) break; // 箱の外へ出たら、もう何もない (切り口が影を落とさないように)
                     if (sp.y > 0.0) break;
                     float h = Map(sp).x;
                     res = min(res, 16.0 * h / t);

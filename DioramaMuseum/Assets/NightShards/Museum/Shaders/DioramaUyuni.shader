@@ -14,7 +14,7 @@ Shader "NightShards/Diorama/Uyuni"
 {
     Properties
     {
-        _Steps ("Ray Steps", Range(16, 200)) = 160
+        _Steps ("Ray Steps", Range(16, 200)) = 150
         _ShadowSteps ("Shadow Steps", Range(0, 32)) = 20
         _Glass ("Glass Reflection", Range(0, 1)) = 0.3
         _Event ("Event (0-1)", Range(0, 1)) = 0
@@ -181,6 +181,9 @@ Shader "NightShards/Diorama/Uyuni"
 
             float Mountains(float3 p)
             {
+                // 山のない所 (手前・上) では、高さの式を計算しない
+                if (p.z > -0.17) return p.z + 0.19;
+                if (p.y > GROUND + 0.18) return p.y - GROUND - 0.17;
                 float d = (p.y - MountH(p.xz)) * 0.55;
                 return max(d, p.z + 0.19); // 山は奥 (z < -0.19) にしかない (そこで高さはほぼ 0 になる)
             }
@@ -220,6 +223,9 @@ Shader "NightShards/Diorama/Uyuni"
             {
                 which = 0;
                 if (p.y > WATER + 0.03) return p.y - WATER - 0.029;
+                // 5 人がいる範囲の外なら、範囲までの距離だけ
+                float group = max(max(-0.09 - p.x, p.x - 0.12), max(0.03 - p.z, p.z - 0.21));
+                if (group > 0.002) return group;
                 float d = 1e5;
                 float t = _Time.y;
                 for (int i = 0; i < PEOPLE; i++)
@@ -299,7 +305,7 @@ Shader "NightShards/Diorama/Uyuni"
             }
 
             // 雲を、線にそって 14 か所で調べ、色と、向こうが見える割合 (trans) を返す
-            float3 Clouds(float3 ro, float3 rd, float tMax, float3 sunCol, float3 skyCol, out float trans)
+            float3 Clouds(float3 ro, float3 rd, float tMax, float3 sunCol, float3 skyCol, int steps, out float trans)
             {
                 trans = 1.0;
                 float t0, t1;
@@ -311,17 +317,37 @@ Shader "NightShards/Diorama/Uyuni"
                     t1 = min(max(a, b), tMax);
                 }
                 if (t1 <= t0) return 0;
+                // 線が通る雲の塊の範囲だけを調べる (どの塊にも当たらない線は、すぐに終わる)
+                float s0 = 1e5, s1 = -1e5;
+                [unroll] for (int i = 0; i < 6; i++)
+                {
+                    float4 c = PUFF[i];
+                    float rad = c.w * 1.75;
+                    float3 oc = ro - c.xyz;
+                    float b = dot(oc, rd);
+                    float h = b * b - (dot(oc, oc) - rad * rad);
+                    if (h > 0.0)
+                    {
+                        h = sqrt(h);
+                        s0 = min(s0, -b - h);
+                        s1 = max(s1, -b + h);
+                    }
+                }
+                t0 = max(t0, s0);
+                t1 = min(t1, s1);
+                if (t1 <= t0) return 0;
                 float3 col = 0;
-                float dt = (t1 - t0) / 14.0;
+                float dt = (t1 - t0) / steps;
                 float3 L = SunDir();
                 for (int k = 0; k < 14; k++)
                 {
+                    if (k >= steps) break;
                     float3 pos = ro + rd * (t0 + dt * (k + 0.5));
                     if (max(abs(pos.x), abs(pos.z)) > INNER) continue;
                     float dens = CloudDensity(pos);
                     if (dens <= 0.001) continue;
-                    // 光: 上ほど明るく、太陽の側ほど明るい (雲の中を光が通る分を、太陽の方向に 1 か所だけ調べる)
-                    float shade = exp(-CloudDensity(pos + L * 0.02) * 2.5);
+                    // 光: 雲の上のほうほど明るい (塊の中心からの高さで決める。太陽の側を調べ直さない)
+                    float shade = saturate(0.35 + (pos.y + 0.12) * 9.0 + dot(normalize(pos - float3(0, -0.15, 0)), L) * 0.2);
                     float3 lit = sunCol * (0.35 + 0.65 * shade) + skyCol * 0.5;
                     float a = 1.0 - exp(-dens * dt * 90.0);
                     col += trans * a * lit;
@@ -489,14 +515,14 @@ Shader "NightShards/Diorama/Uyuni"
             }
 
             // 水面より上の物と雲を、線にそってたどって色を出す (鏡に映る景色にも使う)
-            float3 TraceAbove(float3 ro, float3 rd, float tStart, float tMax, bool inside, out bool hitAny, out float tHit)
+            float3 TraceAbove(float3 ro, float3 rd, float tStart, float tMax, bool inside, int maxSteps, int cloudSteps, out bool hitAny, out float tHit, out float cloudTrans)
             {
                 float t = tStart;
                 hitAny = false;
                 float id = 0;
                 for (int i = 0; i < 90; i++)
                 {
-                    if (t > tMax) break;
+                    if (t > tMax || i >= maxSteps) break;
                     float3 pos = ro + rd * t;
                     if (rd.y > 0.0 && pos.y > CLOUD_HI) break;
                     float2 m = Map(pos);
@@ -506,8 +532,9 @@ Shader "NightShards/Diorama/Uyuni"
                 tHit = hitAny ? t : tMax;
                 float3 col = hitAny ? Shade(rd, ro + rd * t, id, float3(0, 1, 0)) : (inside ? Sky(rd) : 0);
                 float trans;
-                float3 cl = Clouds(ro, rd, tHit, SunColor(), lerp(float3(0.5, 0.6, 0.8), float3(0.02, 0.025, 0.05), Night()), trans);
+                float3 cl = Clouds(ro, rd, tHit, SunColor(), lerp(float3(0.5, 0.6, 0.8), float3(0.02, 0.025, 0.05), Night()), cloudSteps, trans);
                 col = col * trans + cl;
+                cloudTrans = trans;
                 col += Lights(ro, rd, tHit);
                 return col;
             }
@@ -557,12 +584,10 @@ Shader "NightShards/Diorama/Uyuni"
                 float tEnd = onWater ? tW : box.y;
 
                 bool hitAny;
-                float tHit;
-                float3 col = TraceAbove(ro, rd, t0, tEnd, !outside, hitAny, tHit);
+                float tHit, trans;
+                float3 col = TraceAbove(ro, rd, t0, tEnd, !outside, 90, 14, hitAny, tHit, trans);
                 float alpha = (hitAny || !outside) ? 1.0 : 0.0;
-                float trans;
-                Clouds(ro, rd, tHit, 1.0, 1.0, trans);
-                alpha = alpha + (1.0 - alpha) * (1.0 - trans);
+                alpha = alpha + (1.0 - alpha) * (1.0 - trans); // 雲の不透明さ (もう一度計算しない)
 
                 if (!hitAny && onWater)
                 {
@@ -583,8 +608,9 @@ Shader "NightShards/Diorama/Uyuni"
                     float3 rr = reflect(rd, n);
                     float2 rbox = BoxHit(wp, rr, float3(0.5, 0.5, 0.5));
                     bool rh;
-                    float rt;
-                    float3 refl = TraceAbove(wp + rr * 0.0003, rr, 0.0, rbox.y, true, rh, rt);
+                    float rt, rtrans;
+                    // 映り込みは、少ない歩数と、粗い雲で十分 (さざ波でゆれるので、細かさは見分けにくい)
+                    float3 refl = TraceAbove(wp + rr * 0.0003, rr, 0.0, rbox.y, true, 48, 8, rh, rt, rtrans);
                     // 水の下の塩: 白く、六角形の模様のふちが少し盛り上がる (真上から見ると透けて見える)
                     float2 g = wp.xz * 70.0;
                     float2 hx = float2(g.x + g.y * 0.5, g.y * 0.866);

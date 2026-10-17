@@ -1,15 +1,17 @@
-// 作品「マチュピチュ」(アンデスの間)。雲海から現れる空中都市。URP 用。
+// 作品「マチュピチュ」(アンデスの間)。晴れた日の空中都市。見張り小屋の高台から見下ろす、絵はがきの眺めを再現した。URP 用。
 // Cube の中をレイマーチングして描く。Cube の座標は -0.5〜0.5、下の 0.08 は黒い台。
 //
-// 形は実物の寸法 (1 m = 0.0007)。美術館の正面 (+z) が南、右 (-x) が東。南の見張り小屋の高台から北を見る、絵はがきと同じ眺め。
-//   ・標高 2430 m の尾根の上の都市。両側は 400 m 下のウルバンバ川の谷へ落ちる急な崖
-//   ・奥 (北) にそびえる、とがったワイナピチュ (都市より 290 m 高い)
-//   ・都市: まん中の芝生の大広場。西 (左) は神殿の地区、東 (右) は住居の地区。屋根のない石の家が並び、両はしに三角の破風。
-//     いくつかは、復元したかやぶき屋根
-//   ・インティワタナ (日時計の石) の段々の丘、半円の壁の太陽の神殿、南の斜面の段々畑 (高さ約 3 m の石垣と芝)
-//   ・見張り小屋 (かやぶき屋根)。段々畑には、リャマ
-//   ・谷には、雲海がたまっている
-// 仕掛け (_Event 0〜1): 谷の雲海がわき上がって都市をすっかり包み、やがて引いて、朝日が都市を金色に照らし出す
+// 形は実物の寸法 (1 m = 0.0007)。美術館の正面 (+z) が南、右 (-x) が東。
+//   ・尾根の上の都市: まん中に細長い緑の大広場。左 (西) は少し高い神殿の地区、右 (東) は段々に下がる住居の地区。
+//     屋根のない灰色の石の家が、すきまなくびっしり並ぶ (高さも向きも少しずつ違う。半分ほどは両はしに三角の破風)。
+//     段の境は石垣。インティワタナの丘、半円の壁の太陽の神殿
+//   ・手前と右の斜面に、明るい緑の段々畑と石垣。見張り小屋とリャマ
+//   ・奥にそびえる、とがって急なワイナピチュと、その左の小さなウチュイピチュ
+//   ・左右には、深い緑の高い山並み。右の深い谷の底には、ウルバンバ川が白く光る。奥には青くかすむ山々
+// 仕掛け (_Event 0〜1): 谷から雲海がわき上がって都市をすっかり包み、やがて引いて、金色の日差しが都市を照らし出す
+//
+// 軽くする工夫: 地形は高さの表 (_HeightTex) で進み、坂の急さに合わせて歩幅を決める。当たったら、正確な式で 2 回合わせ直す。
+//   神殿・リャマの高さは、画素ごとに 1 回だけ調べて使い回す。雲海は仕掛けの最中だけ計算する
 //
 // 外から見たとき、何もない所 (空) は透明にして、ガラスケースの向こうの部屋が見えるようにする。
 // 中に入ったとき (カメラが箱の中) だけ、空を描く
@@ -161,64 +163,78 @@ Shader "NightShards/Diorama/MachuPicchu"
             #define CITY_Y -0.07                                   // 大広場の高さ
             #define RIVER_Y -0.37                                  // 谷底 (ウルバンバ川)
             #define TERRACE_H 0.0021                               // 段々畑の 1 段 (約 3 m)
-            #define CELL_X 0.016                                   // 家を並べるます目
-            #define CELL_Z 0.011
-            static const float2 HUAYNA = float2(0.0, -0.34);       // ワイナピチュの頂上
-            static const float2 INTI = float2(0.058, -0.088);      // インティワタナの丘
-            static const float2 TORREON = float2(0.045, 0.062);    // 太陽の神殿
-            static const float2 GUARD = float2(-0.058, 0.205);     // 見張り小屋
-            static const float3 SUN_DIR = float3(-0.78, 0.4, 0.12); // 東からの朝日
+            #define CELL_X 0.0105                                  // 家を並べるます目 (15 m × 12 m)
+            #define CELL_Z 0.0085
+            #define LLAMAS 5
+            static const float2 HUAYNA = float2(-0.01, -0.3);      // ワイナピチュの頂上
+            static const float2 HUCHUY = float2(0.05, -0.205);     // ウチュイピチュ (小さな峰)
+            static const float2 INTI = float2(0.055, -0.085);      // インティワタナの丘
+            static const float2 TORREON = float2(0.045, 0.06);     // 太陽の神殿
+            static const float2 GUARD = float2(0.075, 0.21);       // 見張り小屋
+            static const float3 SUN_DIR = float3(0.55, 0.7, 0.45); // 左手前の高い日差し
+
+            // 画素ごとに 1 回だけ調べて使い回す高さ (Frag の最初で入れる)
+            static float gIntiY, gTorreonY, gGuardY;
+            static float3 gLlama[LLAMAS];
+            static float2 gLlamaDir[LLAMAS];
 
             // ---------------------------------------------------------------- 地形
 
-            // 尾根の中心の線 (少しくねる)
-            float RidgeX(float z) { return 0.01 * sin(z * 6.0); }
+            float RidgeX(float z) { return 0.012 * sin(z * 6.0); }
 
-            // 都市のある所か (尾根の上の平らな所)
             float CityMask(float2 xz)
             {
                 float ax = abs(xz.x - RidgeX(xz.y));
-                return (1.0 - smoothstep(0.085, 0.095, ax)) * smoothstep(-0.13, -0.11, xz.y) * (1.0 - smoothstep(0.14, 0.16, xz.y));
+                return (1.0 - smoothstep(0.09, 0.1, ax)) * smoothstep(-0.14, -0.12, xz.y) * (1.0 - smoothstep(0.14, 0.16, xz.y));
             }
 
-            // 段々畑のある所か (都市の南と、両側の斜面の上のほう)
             float TerraceMask(float2 xz)
             {
                 float ax = abs(xz.x - RidgeX(xz.y));
-                float slopeBand = smoothstep(0.09, 0.1, ax) * (1.0 - smoothstep(0.17, 0.19, ax)) * smoothstep(-0.08, -0.05, xz.y);
-                float south = smoothstep(0.13, 0.15, xz.y) * (1.0 - smoothstep(0.11, 0.13, ax)) * (1.0 - smoothstep(0.24, 0.26, xz.y));
-                return saturate(max(slopeBand * (1.0 - smoothstep(0.2, 0.22, xz.y)), south));
+                float slopeBand = smoothstep(0.095, 0.105, ax) * (1.0 - smoothstep(0.17, 0.19, ax)) * smoothstep(-0.08, -0.05, xz.y) * (1.0 - smoothstep(0.2, 0.22, xz.y));
+                float south = smoothstep(0.13, 0.15, xz.y) * (1.0 - smoothstep(0.12, 0.14, ax)) * (1.0 - smoothstep(0.29, 0.31, xz.y));
+                return saturate(max(slopeBand, south));
             }
+
+            // 段: 幅 w ごとに高さ TERRACE_H ずつ下がる (段の境の石垣は急)
+            float Steps(float u, float w) { float f = u / w; return (floor(f) + smoothstep(0.85, 1.0, frac(f))) * TERRACE_H; }
 
             float Height(float2 xz)
             {
                 float x = xz.x, z = xz.y;
                 float ax = abs(x - RidgeX(z));
-                // 北の鞍部: 尾根が低く細くなる
-                float north = smoothstep(0.12, 0.22, -z);
-                float top = CITY_Y - 0.03 * north;
-                float w = lerp(0.095, 0.025, north);
-                float ridge = top - 1.3 * max(ax - w, 0.0);
-                // 南のはし (手前) は、谷へ下がる (箱の手前から見て、山の形がわかるように)
-                ridge -= 1.5 * max(z - 0.27, 0.0);
-                // ワイナピチュ: とがった山
-                // ワイナピチュ: 上がまるい、砂糖のかたまりのような急な山。少し東へかたむき、でこぼこの岩と緑
-                float2 hq = (xz - HUAYNA) * float2(1.0, 1.35);
-                float r = length(hq + float2(0.01, 0.0) * saturate(0.06 - length(hq)) * 10.0);
-                float huayna = 0.15 - 0.9 * r - 6.0 * r * r + 0.04 * (Fbm3(xz * 11.0 + 5.0) - 0.4) + 0.02 * (Fbm3(xz * 30.0) - 0.4);
-                float h = max(ridge, huayna);
-                // 崖の岩のでこぼこ (都市の外)
-                h += 0.035 * (Fbm3(xz * 9.0 + 2.0) - 0.4) * smoothstep(0.0, 0.05, max(ax - w, z - 0.27)) * (1.0 - CityMask(xz));
-                // 斜面の谷筋と尾根: 尾根から離れて深い所ほど、大きくでこぼこ
-                float depth = max(max(ax - w, z - 0.27), 0.0);
-                h += depth * 0.45 * (abs(ValueNoise(float2(x * 7.0, z * 7.0) + 3.1) * 2.0 - 1.0) - 0.5) * (1.0 - CityMask(xz));
-                // 都市: 西の神殿の地区は少し高く、東の住居の地区は東へ段々に下がる
+                // 尾根: 都市の所は幅広く、北の鞍部で細く低くなる。南のはしは谷へ下がる
+                float north = smoothstep(0.13, 0.23, -z);
+                float w = lerp(0.1, 0.025, north);
+                // 南 (手前) は見張り小屋の丘へ上がり (段々畑)、そのさきで谷へ下がる
+                float ridge = CITY_Y - 0.035 * north - 1.3 * max(ax - w, 0.0) + 0.15 * clamp(z - 0.13, 0.0, 0.17) - 2.6 * max(z - 0.32, 0.0);
+                // ワイナピチュ (都市より 290 m 高い、急なとがった山) と、ウチュイピチュ
+                float2 hq = (xz - HUAYNA) * float2(1.0, 1.25);
+                float r = length(hq);
+                float huayna = 0.19 - 1.0 * r - 9.0 * r * r + 0.03 * (Fbm3(xz * 13.0 + 5.0) - 0.4);
+                float r2 = length(xz - HUCHUY);
+                float huchuy = -0.035 - 1.0 * r2 - 25.0 * r2 * r2;
+                // 左右と奥の高い山並み (尾根と谷筋のある、けわしい山)
+                float ridged = 1.0 - abs(ValueNoise(float2(x * 9.0 + 3.0, z * 9.0)) * 2.0 - 1.0);
+                float left = smoothstep(0.24, 0.46, x) * (1.0 - smoothstep(0.15, 0.32, z));
+                float right = smoothstep(0.26, 0.47, -x) * (1.0 - smoothstep(0.05, 0.3, z));
+                float back = smoothstep(0.3, 0.47, -z);
+                float ridged2 = 1.0 - abs(ValueNoise(float2(x * 20.0 - 4.0, z * 20.0 + 1.0)) * 2.0 - 1.0);
+                float mm = max(max(0.48 * left, 0.45 * right), 0.42 * back);
+                float mtn = RIVER_Y + mm * (0.5 + 0.25 * Fbm3(xz * 6.0 + 9.0) + 0.17 * ridged + 0.08 * ridged2);
+                float h = max(max(ridge, huayna), max(huchuy, mtn));
+                // 斜面の谷筋と尾根
+                float depth = max(max(ax - w, z - 0.32), 0.0);
+                float city = CityMask(xz);
+                h += (0.03 * (Fbm3(xz * 9.0 + 2.0) - 0.4) + depth * 0.4 * (abs(ValueNoise(xz * 7.0 + 3.1) * 2.0 - 1.0) - 0.5)) * smoothstep(0.0, 0.04, depth) * (1.0 - city);
+                // 都市: 大広場 (まん中・少し低い)、西の神殿の地区 (高い)、東の住居の地区 (東へ段々に下がる)
                 float rx = x - RidgeX(z);
-                float city = CITY_Y + 0.006 * smoothstep(0.02, 0.032, rx) + 0.003 * smoothstep(0.02, 0.032, -rx) - 0.004 * smoothstep(0.05, 0.09, -rx);
-                h = lerp(h, city, CityMask(xz));
-                // 段々畑: 高さを段に切る (石垣の所だけ、急に上がる)
-                float f = h / TERRACE_H;
-                float terr = (floor(f) + smoothstep(0.82, 1.0, frac(f))) * TERRACE_H;
+                float west = CITY_Y + 0.005 + 0.004 * smoothstep(0.0, 0.1, z) - Steps(max(rx - 0.065, 0.0), 0.011);
+                float east = CITY_Y - Steps(max(-rx - 0.022, 0.0), 0.012);
+                float cityH = rx > 0.022 ? west : (rx < -0.022 ? east : CITY_Y - 0.0015);
+                h = lerp(h, cityH, city);
+                // 段々畑
+                float terr = (floor(h / TERRACE_H) + smoothstep(0.82, 1.0, frac(h / TERRACE_H))) * TERRACE_H;
                 h = lerp(h, terr, TerraceMask(xz));
                 return max(h, RIVER_Y);
             }
@@ -230,25 +246,22 @@ Shader "NightShards/Diorama/MachuPicchu"
                 return Height(xz);
             }
 
-            // ---------------------------------------------------------------- 石の家 (屋根のない壁と、両はしの三角の破風)
+            // ---------------------------------------------------------------- 石の家 (屋根のない壁と、三角の破風)
 
-            // そのます目に家を建てるか。西の地区と東の地区だけ (大広場・インティワタナ・太陽の神殿は空ける)
             bool HouseAllowed(float2 c)
             {
                 float rx = c.x - RidgeX(c.y);
-                if (abs(rx) < 0.03 || abs(rx) > 0.085) return false;
-                if (c.y < -0.1 || c.y > 0.125) return false;
-                if (length(c - INTI) < 0.025 || length(c - TORREON) < 0.014) return false;
-                return Hash21(c * 5.3 + 1.7) < 0.85;
+                if (abs(rx) < 0.023 || abs(rx) > 0.09) return false;
+                if (c.y < -0.12 || c.y > 0.135) return false;
+                if (length(c - INTI) < 0.022 || length(c - TORREON) < 0.012) return false;
+                return Hash21(c * 5.3 + 1.7) < 0.93;
             }
 
-            // 家: 外寸 11 m × 7.5 m・壁の高さ 3.5 m・厚さ 0.6 m。短い辺の壁は三角に高い (破風)。part 1 ならかやぶき屋根
             float Houses(float3 p, out float part)
             {
                 part = 0;
-                // 家があるのは、都市の地区の中の、低い所だけ。外なら、その範囲までの距離を返す (ます目の境で歩みが細かくならないように)
                 float rx0 = p.x - RidgeX(p.z);
-                float region = max(max(abs(rx0) - 0.09, max(-0.11 - p.z, p.z - 0.135)), p.y - (CITY_Y + 0.016));
+                float region = max(max(abs(rx0) - 0.095, max(-0.125 - p.z, p.z - 0.14)), p.y - (CITY_Y + 0.02));
                 if (region > 0.002) return region;
                 float2 cell = floor(p.xz / float2(CELL_X, CELL_Z));
                 float2 c = (cell + 0.5) * float2(CELL_X, CELL_Z);
@@ -256,26 +269,36 @@ Shader "NightShards/Diorama/MachuPicchu"
                 float2 toEdge = 0.5 * float2(CELL_X, CELL_Z) - abs(l);
                 float bound = max(min(toEdge.x, toEdge.y), 0.0) + 0.002;
                 if (!HouseAllowed(c)) return bound;
-                float base = HeightFast(c) - 0.002;
+                float base = HeightFast(c) - 0.003;           // 地面の下から立てる (段の上でも浮かないように)
                 float y = p.y - base;
-                if (y > 0.0075) return min(y - 0.007, bound);
-                // 家ごとに、少しずらし、大きさも少し変える (きっちり並びすぎないように)
-                float2 jit = (Hash22b(c * 7.7) - 0.5) * float2(0.004, 0.0025);
+                float wallH = 0.0058 + 0.0016 * Hash21(c * 4.1);
+                if (y > wallH + 0.0035) return min(y - wallH - 0.003, bound);
+                float2 jit = (Hash22b(c * 7.7) - 0.5) * float2(0.0015, 0.001);
                 float3 q = float3(l.x - jit.x, y, l.y - jit.y);
-                float2 hs = float2(0.0034, 0.0023) + Hash21(c * 2.3) * float2(0.0012, 0.0006);
-                float outer = SdBox(q - float3(0, 0.0034, 0), float3(hs.x, 0.0034, hs.y));
-                float inner = SdBox(q - float3(0, 0.0034, 0), float3(hs.x - 0.0004, 0.01, hs.y - 0.0004));
-                float walls = max(outer, -inner);
-                // 破風: 短い辺 (x の両はし) の壁が、三角に高くなる
-                float gable = max(max(abs(abs(q.x) - (hs.x - 0.0002)) - 0.0002, abs(q.z) - hs.y), (q.y - 0.0068) + abs(q.z) * 1.4);
-                gable = max(gable, 0.0024 - q.y);
-                float d = min(walls, gable * 0.8);
-                // 戸口 (長い辺のまん中) と、台形の窓
-                d = max(d, -SdBox(q - float3(0, 0.0013, hs.y), float3(0.0006 - q.y * 0.05, 0.0013, 0.001)));
-                // いくつかの家は、復元したかやぶき屋根
-                if (Hash21(c * 3.1) < 0.2)
+                // 細長い家は、向きが半々
+                float2 hs = float2(0.0042, 0.003) + Hash21(c * 2.3) * float2(0.0008, 0.0006);
+                if (Hash21(c * 9.1) < 0.4)
                 {
-                    float roof = max(max(abs(q.x) - hs.x - 0.0004, (q.y - 0.0075) + abs(q.z) * 1.3), 0.0045 - q.y);
+                    q = float3(q.z, q.y, q.x);       // 向きを 90 度かえる (ます目は横長なので、少し小さく)
+                    hs = float2(0.0034, 0.0028);
+                }
+                float outer = SdBox(q - float3(0, wallH * 0.5, 0), float3(hs.x, wallH * 0.5, hs.y));
+                float inner = SdBox(q - float3(0, wallH * 0.5 + 0.003, 0), float3(hs.x - 0.00045, wallH * 0.5, hs.y - 0.00045));
+                float d = max(outer, -inner);
+                // 半分ほどの家は、短い辺の壁が三角に高い (破風)
+                if (Hash21(c * 6.7) < 0.5)
+                {
+                    float gable = max(max(abs(abs(q.x) - (hs.x - 0.0002)) - 0.00022, abs(q.z) - hs.y), (q.y - wallH - 0.0032) + abs(q.z) * 1.1);
+                    gable = max(gable, wallH - 0.0005 - q.y);
+                    d = min(d, gable * 0.8);
+                }
+                // 戸口と台形の窓 (長い辺)
+                d = max(d, -SdBox(q - float3(0, 0.003 + 0.0013, hs.y), float3(0.00055 - (q.y - 0.003) * 0.06, 0.0013, 0.001)));
+                d = max(d, -SdBox(q - float3(hs.x * 0.55, wallH - 0.0012, hs.y), float3(0.0003, 0.0004, 0.001)));
+                // 1 割ほどは、復元したかやぶき屋根
+                if (Hash21(c * 3.1) < 0.1)
+                {
+                    float roof = max(max(abs(q.x) - hs.x - 0.0004, (q.y - wallH - 0.0045) + abs(q.z) * 1.3), wallH - 0.001 - q.y);
                     if (roof < d) part = 1;
                     d = min(d, roof * 0.75);
                 }
@@ -287,66 +310,75 @@ Shader "NightShards/Diorama/MachuPicchu"
             float Temples(float3 p, out float part)
             {
                 part = 0;
-                // インティワタナ: 4 段の石垣の丘と、てっぺんの日時計の石
-                float3 q = p - float3(INTI.x, HeightFast(INTI) - 0.002, INTI.y);
-                float d = 1e5;
+                float3 q = p - float3(INTI.x, gIntiY - 0.002, INTI.y);
+                float d;
                 if (length(q.xz) < 0.03)
                 {
+                    d = 1e5;
                     for (int k = 0; k < 4; k++)
                     {
                         float r = 0.016 - k * 0.0035;
                         d = min(d, max(length(q.xz * float2(1.0, 1.3)) - r, abs(q.y - (k + 0.5) * 0.003) - 0.0015));
                     }
-                    float stone = SdBox(q - float3(0, 0.0125, 0), float3(0.0009, 0.0013, 0.0006));
-                    d = min(d, stone);
+                    d = min(d, SdBox(q - float3(0, 0.0125, 0), float3(0.0009, 0.0013, 0.0006)));
                 }
                 else d = length(q.xz) - 0.028;
-                // 太陽の神殿 (トレオン): 大きな岩の上の、半円の壁の塔
-                q = p - float3(TORREON.x, HeightFast(TORREON) - 0.002, TORREON.y);
+                q = p - float3(TORREON.x, gTorreonY - 0.002, TORREON.y);
                 float rock = SdEllipsoidLite(q - float3(0, 0.0015, 0), float3(0.007, 0.004, 0.006));
                 float ring = max(abs(length(q.xz) - 0.0045) - 0.0005, abs(q.y - 0.0055) - 0.003);
-                ring = max(ring, -q.x - 0.001); // 半円 (東側は直線の壁)
+                ring = max(ring, -q.x - 0.001);
                 d = min(d, min(rock, ring));
-                // 見張り小屋: 石の壁と、高いかやぶき屋根
-                q = p - float3(GUARD.x, HeightFast(GUARD) - 0.001, GUARD.y);
+                q = p - float3(GUARD.x, gGuardY - 0.001, GUARD.y);
                 float hut = SdBox(q - float3(0, 0.002, 0), float3(0.004, 0.002, 0.0026));
                 float roof = max(max(abs(q.x) - 0.0045, (q.y - 0.0072) + abs(q.z) * 1.6), 0.0035 - q.y) * 0.7;
                 if (roof < min(d, hut)) part = 1;
-                d = min(d, min(hut, roof));
-                return d;
+                return min(d, min(hut, roof));
             }
 
             // ---------------------------------------------------------------- リャマ (体高 1.2 m)
 
-            #define LLAMAS 5
             float3 LlamaPos(int i, out float2 dir)
             {
                 float fi = i;
                 float t = _Time.y * 0.03 + fi * 1.7;
-                float2 c = float2(-0.06 + 0.03 * sin(fi * 2.0), 0.16 + 0.05 * cos(fi * 1.3));
-                float2 xz = c + float2(cos(t), sin(t)) * 0.012;
+                float2 c = float2(0.03 + 0.035 * sin(fi * 2.0), 0.2 + 0.03 * cos(fi * 1.3));
+                float2 xz = c + float2(cos(t), sin(t)) * 0.01;
                 dir = normalize(float2(-sin(t), cos(t)));
                 return float3(xz.x, HeightFast(xz), xz.y);
             }
 
             float Llamas(float3 p)
             {
-                if (p.z < 0.08 || p.z > 0.25 || p.x > 0.0 || p.x < -0.12) return max(max(0.08 - p.z, p.z - 0.25), max(p.x, -0.12 - p.x)) + 0.001;
+                float box = max(max(-0.02 - p.x, p.x - 0.09), max(max(0.15 - p.z, p.z - 0.25), p.y - (CITY_Y + 0.05)));
+                if (box > 0.002) return box;
                 float d = 1e5;
-                for (int i = 0; i < LLAMAS; i++)
+                [unroll] for (int i = 0; i < LLAMAS; i++)
                 {
-                    float2 dir;
-                    float3 c = LlamaPos(i, dir);
-                    float3 r = p - c;
+                    float3 r = p - gLlama[i];
                     if (dot(r, r) > 0.003 * 0.003) { d = min(d, length(r) - 0.0025); continue; }
+                    float2 dir = gLlamaDir[i];
                     float3 q = float3(dot(r.xz, dir), r.y, dot(r.xz, float2(-dir.y, dir.x)));
                     float body = SdEllipsoidLite(q - float3(0, 0.0009, 0), float3(0.0007, 0.00035, 0.0003));
                     float neck = SdCapsule(q, float3(0.0005, 0.001, 0), float3(0.0007, 0.0017, 0), 0.00012);
                     float head = SdEllipsoidLite(q - float3(0.0008, 0.0018, 0), float3(0.0002, 0.00011, 0.0001));
-                    float legs = min(SdCapsule(float3(abs(q.x), q.y, abs(q.z)), float3(0.0005, 0.0008, 0.0002), float3(0.0005, 0.0, 0.0002), 0.00006), 1.0);
+                    float legs = SdCapsule(float3(abs(q.x), q.y, abs(q.z)), float3(0.0005, 0.0008, 0.0002), float3(0.0005, 0.0, 0.0002), 0.00006);
                     d = min(d, min(min(body, neck), min(head, legs)));
                 }
                 return d;
+            }
+
+            // 画素ごとに 1 回: 神殿とリャマの高さ
+            void PrepareFrame()
+            {
+                gIntiY = HeightFast(INTI);
+                gTorreonY = HeightFast(TORREON);
+                gGuardY = HeightFast(GUARD);
+                [unroll] for (int i = 0; i < LLAMAS; i++)
+                {
+                    float2 dir;
+                    gLlama[i] = LlamaPos(i, dir);
+                    gLlamaDir[i] = dir;
+                }
             }
 
             // ---------------------------------------------------------------- 世界の形
@@ -355,8 +387,23 @@ Shader "NightShards/Diorama/MachuPicchu"
             {
                 float2 res = float2(SdBox(p - float3(0, -0.46, 0), float3(0.5, 0.04, 0.5)), ID_BASE);
                 float column = SdBox(p - float3(0, 0.04, 0), float3(INNER, 0.46, INNER));
-                float h = exact ? Height(p.xz) : HeightFast(p.xz);
-                float ground = max((p.y - h) * (p.z < -0.15 ? 0.3 : 0.5), column); // ワイナピチュは急なので小さく進む
+                float ground;
+                if (exact) ground = (p.y - Height(p.xz)) * 0.5;
+                else
+                {
+                    // 高さの表で進む。地面から遠い所は、いちばん急な崖 (傾き 3) でも行き過ぎない歩幅。
+                    // 地面のすぐ近くだけ、その場所の坂の急さを調べて、なだらかな所は大きく進む
+                    float h = HeightFast(p.xz);
+                    float above = p.y - h;
+                    if (above > 0.008) ground = above * 0.31;
+                    else
+                    {
+                        float hx = HeightFast(p.xz + float2(0.003, 0.0)), hz = HeightFast(p.xz + float2(0.0, 0.003));
+                        float2 g = float2(hx - h, hz - h) / 0.003;
+                        ground = above * 0.8 / sqrt(1.0 + dot(g, g) * 1.5);
+                    }
+                }
+                ground = max(ground, column);
                 if (ground < res.x) res = float2(ground, ID_GROUND);
                 float part;
                 float houses = Houses(p, part);
@@ -375,23 +422,24 @@ Shader "NightShards/Diorama/MachuPicchu"
             {
                 const float2 e = float2(0.00015, -0.00015);
                 float3 g = e.xyy * MapX(p + e.xyy, true).x + e.yyx * MapX(p + e.yyx, true).x + e.yxy * MapX(p + e.yxy, true).x + e.xxx * MapX(p + e.xxx, true).x;
-                return g / max(length(g), 1e-12); // 1e-7 だと、なだらかな所で向きが短くなってしまう
+                return g / max(length(g), 1e-12);
             }
 
             float SoftShadow(float3 p, float3 l)
             {
                 float res = 1.0;
-                float t = 0.0008;
-                int n = clamp((int)_ShadowSteps, 8, 24);
-                for (int i = 0; i < 24; i++)
+                float t = 0.003; // 高さの表は少しなまっているので、すぐ近くは調べない (急な斜面が自分の影に入らないように)
+                int n = clamp((int)_ShadowSteps, 8, 16);
+                for (int i = 0; i < 16; i++)
                 {
                     if (i >= n) break;
                     float3 sp = p + l * t;
-                    if (sp.y > 0.21) break;
+                    if (max(abs(sp.x), abs(sp.z)) > INNER) break; // 箱の外へ出たら、もう何もない (切り口が影を落とさないように)
+                    if (sp.y > 0.25) break;
                     float h = Map(sp).x;
-                    res = min(res, 16.0 * h / t);
-                    t += clamp(h, 0.001, 0.05);
-                    if (res < 0.01 || t > 0.6) break;
+                    res = min(res, 14.0 * h / t);
+                    t += clamp(h, 0.0015, 0.06);
+                    if (res < 0.01 || t > 0.5) break;
                 }
                 return saturate(res);
             }
@@ -400,9 +448,9 @@ Shader "NightShards/Diorama/MachuPicchu"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 4; i++)
+                for (int i = 1; i <= 3; i++)
                 {
-                    float d = 0.0025 * i;
+                    float d = 0.003 * i;
                     occ += (d - Map(p + n * d).x) * w;
                     w *= 0.6;
                 }
@@ -411,10 +459,9 @@ Shader "NightShards/Diorama/MachuPicchu"
 
             // ---------------------------------------------------------------- 雲海 (仕掛け)
 
-            // 雲海の上面の高さ: ふだんは谷にたまり、仕掛けで都市の上までわき上がって、また引く
             float Cover() { return _Event * smoothstep(0.0, 4.0, _EventTime) * (1.0 - smoothstep(7.0, 11.0, _EventTime)); }
             float Golden() { return _Event * smoothstep(8.0, 12.0, _EventTime); }
-            float FogTop() { return lerp(-0.27, 0.02, Cover()); }
+            float FogTop() { return lerp(-0.42, 0.02, Cover()); }
 
             float FogDensity(float3 p)
             {
@@ -475,10 +522,14 @@ Shader "NightShards/Diorama/MachuPicchu"
             {
                 float3 L = normalize(SUN_DIR);
                 float up = saturate(rd.y);
-                float3 c = lerp(float3(0.85, 0.82, 0.78), float3(0.3, 0.5, 0.82), pow(up, 0.5));
+                // 高地の、濃い青空
+                float3 c = lerp(float3(0.62, 0.78, 0.97), float3(0.04, 0.24, 0.75), pow(up, 0.55));
+                // 山の上に浮かぶ、白いすじ雲
+                float2 cp = rd.xz / max(rd.y + 0.05, 0.02);
+                float cloud = smoothstep(0.5, 0.8, Fbm3(cp * float2(1.5, 3.0) + 7.0)) * smoothstep(0.02, 0.12, rd.y) * (1.0 - smoothstep(0.25, 0.5, rd.y));
+                c = lerp(c, float3(1.0, 1.0, 1.0), cloud * 0.85);
                 float sd = dot(rd, L);
-                c += float3(1.0, 0.75, 0.45) * pow(saturate(sd), 8.0) * (0.4 + 0.6 * Golden());
-                c += float3(4.0, 3.5, 2.6) * smoothstep(0.9994, 0.9997, sd);
+                c += float3(4.0, 3.6, 3.0) * smoothstep(0.9994, 0.9997, sd) + float3(0.6, 0.55, 0.4) * pow(saturate(sd), 20.0) * 0.3;
                 return c;
             }
 
@@ -495,16 +546,16 @@ Shader "NightShards/Diorama/MachuPicchu"
             {
                 float3 L = normalize(SUN_DIR);
                 float golden = Golden();
-                float3 sunCol = float3(2.0, 1.75, 1.4) * (1.0 + 0.4 * golden) * lerp(float3(1, 1, 1), float3(1.1, 0.85, 0.6), golden);
-                float3 skyTop = float3(0.3, 0.42, 0.65);
-                float3 skyLow = float3(0.55, 0.55, 0.55);
+                float3 sunCol = float3(2.3, 2.1, 1.85) * (1.0 + 0.3 * golden) * lerp(float3(1, 1, 1), float3(1.1, 0.85, 0.6), golden);
+                float3 skyTop = float3(0.22, 0.38, 0.75);
+                float3 skyLow = float3(0.45, 0.47, 0.45);
                 float3 v = -rd;
 
                 if (id == ID_BASE)
                     return float3(0.015, 0.014, 0.014) + 0.03 * pow(saturate(1.0 - abs(dot(rd, faceNormal))), 4.0);
 
                 float3 n = SceneNormal(p);
-                float sh = SoftShadow(p + n * 0.0005, L);
+                float sh = SoftShadow(p + n * 0.001, L);
                 float ao = AmbientOcclusion(p, n);
                 // 雲海の中は、日が届きにくい
                 sh *= 1.0 - 0.7 * smoothstep(0.0, 0.03, FogTop() - p.y);
@@ -513,7 +564,7 @@ Shader "NightShards/Diorama/MachuPicchu"
                 {
                     // 灰色の花こう岩の石組み
                     float2 uv = float2(abs(n.x) > abs(n.z) ? p.z : p.x, p.y) / 0.0007;
-                    float3 granite = float3(0.6, 0.58, 0.55) * (0.8 + 0.25 * Noise3(p * 3000.0)) * (0.85 + 0.15 * Hash21(floor(uv * float2(0.7, 1.0))));
+                    float3 granite = float3(0.52, 0.48, 0.42) * (0.8 + 0.25 * Noise3(p * 3000.0)) * (0.85 + 0.15 * Hash21(floor(uv * float2(0.7, 1.0))));
                     granite *= 1.0 - 0.35 * StoneJoints(uv, 0.6) * step(abs(n.y), 0.6);
                     // 上を向いた面には、苔と草が少し
                     granite = lerp(granite, float3(0.3, 0.38, 0.2), smoothstep(0.7, 0.95, n.y) * 0.4);
@@ -541,14 +592,23 @@ Shader "NightShards/Diorama/MachuPicchu"
                 {
                     // 段々畑の石垣
                     float2 uv = float2(p.x + p.z, p.y) / 0.0007;
-                    albedo = float3(0.55, 0.53, 0.5) * (0.8 + 0.25 * Noise3(p * 3000.0));
+                    albedo = float3(0.5, 0.46, 0.4) * (0.8 + 0.25 * Noise3(p * 3000.0));
                     albedo *= 1.0 - 0.3 * StoneJoints(uv, 0.55);
                     sss = 0.0;
                 }
                 else if (terr > 0.5 || city > 0.5)
                 {
+                    // 段のふち: 手前 (高い側) の石垣の上の、石の縁と、その下の影の線
+                    float hHere = Height(p.xz);
+                    float edge = 0.0;
+                    for (int k = 0; k < 4; k++)
+                    {
+                        float2 o = float2(k == 0 ? 0.0015 : (k == 1 ? -0.0015 : 0.0), k == 2 ? 0.0015 : (k == 3 ? -0.0015 : 0.0));
+                        edge = max(edge, saturate((hHere - Height(p.xz + o)) / (TERRACE_H * 0.5)));
+                    }
                     float stripe = 0.92 + 0.08 * step(0.5, frac(p.x * 300.0));
-                    albedo = float3(0.17, 0.32, 0.09) * stripe * (0.85 + 0.25 * Noise3(p * 2000.0));
+                    albedo = float3(0.27, 0.5, 0.08) * stripe * (0.85 + 0.25 * Noise3(p * 2000.0));
+                    albedo = lerp(albedo, float3(0.5, 0.46, 0.4) * (0.8 + 0.3 * Noise3(p * 3000.0)), edge);
                     nb = BumpNormal(n, p, 4000.0, 0.4);
                 }
                 else
@@ -558,10 +618,15 @@ Shader "NightShards/Diorama/MachuPicchu"
                     float crowns = Noise3(p * 1800.0) * 0.6 + Noise3(p * 600.0) * 0.4;
                     float3 forest = lerp(float3(0.02, 0.07, 0.025), float3(0.07, 0.18, 0.05), crowns) * (0.8 + 0.4 * Noise3(p * 150.0));
                     float3 rock = float3(0.3, 0.29, 0.26) * (0.75 + 0.35 * Noise3(p * 1500.0));
-                    albedo = lerp(forest, rock, steep * smoothstep(0.55, 0.7, Noise3(p * 200.0)) * 0.8);
+                    albedo = lerp(forest, rock, steep * smoothstep(0.62, 0.78, Noise3(p * 150.0)) * 0.4);
                     nb = BumpNormal(n, p, 1800.0, 1.6);
                 }
-                if (p.y < RIVER_Y + 0.003) albedo = float3(0.25, 0.3, 0.25); // 谷底の川
+                if (p.y < RIVER_Y + 0.003)
+                {
+                    // 谷底: ウルバンバ川 (白くあわ立つ流れ) と、川原
+                    float rxv = abs(p.x + 0.3 + 0.04 * sin(p.z * 9.0));
+                    albedo = rxv < 0.012 ? float3(0.75, 0.75, 0.7) * (0.8 + 0.3 * Noise3(p * 2000.0 + _Time.y)) : (rxv < 0.03 ? float3(0.35, 0.33, 0.28) : float3(0.05, 0.13, 0.04) * (0.7 + 0.6 * Noise3(p * 900.0)));
+                }
                 return Surface(albedo, nb, v, L, sunCol, sh, ao, rough, 0.04, sss, skyTop, skyLow);
             }
 
@@ -592,6 +657,7 @@ Shader "NightShards/Diorama/MachuPicchu"
             {
                 UNITY_SETUP_INSTANCE_ID(input);
 
+                PrepareFrame();
                 float3 ro = TransformWorldToObject(GetCameraPositionWS());
                 float3 rd = normalize(input.positionOS - ro);
                 float2 box = BoxHit(ro, rd, float3(0.5, 0.5, 0.5));
@@ -633,6 +699,24 @@ Shader "NightShards/Diorama/MachuPicchu"
                     hit = true;
                     id = lastId;
                 }
+                // 高さの表で当たった所を、正確な式で 2 回合わせ直す (段々畑や石垣が、なまらないように)
+                // (地面の高さとの差が 0 になる所を、2 点を結ぶ直線で 2 回さがす。急な崖でも、地面の中へ入りすぎない)
+                if (hit && id == ID_GROUND)
+                {
+                    float ta = t - 0.002, tb = t;
+                    float3 pa = ro + rd * ta, pb = ro + rd * tb;
+                    float fa = pa.y - Height(pa.xz), fb = pb.y - Height(pb.xz);
+                    for (int r = 0; r < 2; r++)
+                    {
+                        if (abs(fb - fa) < 1e-7) break;
+                        float tn = clamp(tb - fb * (tb - ta) / (fb - fa), t - 0.004, t + 0.004);
+                        ta = tb; fa = fb;
+                        tb = tn;
+                        float3 pn = ro + rd * tb;
+                        fb = pn.y - Height(pn.xz);
+                    }
+                    t = tb;
+                }
                 float tHit = hit ? t : box.y;
 
                 float3 col = 0;
@@ -642,7 +726,7 @@ Shader "NightShards/Diorama/MachuPicchu"
 
                 // 山の空気: 遠くほど青白くかすむ
                 float travel = tHit - max(box.x, 0.0);
-                if (hit) col = lerp(col, float3(0.75, 0.8, 0.88), (1.0 - exp(-travel * 0.9)) * 0.25);
+                if (hit) col = lerp(col, float3(0.42, 0.58, 0.85), (1.0 - exp(-travel * 1.0)) * 0.3); // 遠い山ほど、青くかすむ
 
                 // 雲海: 雲の上面より下を通る所だけ、16 か所で濃さを調べて重ねる
                 float top = FogTop() + 0.03;
@@ -650,7 +734,7 @@ Shader "NightShards/Diorama/MachuPicchu"
                 if (rd.y < 0.0) tA = max(tA, (top - ro.y) / rd.y);
                 else if (ro.y > top) tB = tA;
                 else tB = min(tB, (top - ro.y) / max(rd.y, 1e-4));
-                if (tB > tA)
+                if (tB > tA && Cover() > 0.001)
                 {
                     float3 L = normalize(SUN_DIR);
                     float dt = (tB - tA) / 16.0;
