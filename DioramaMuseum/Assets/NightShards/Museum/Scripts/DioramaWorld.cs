@@ -58,7 +58,7 @@ namespace NightShards.Museum
         void Update()
         {
             if (!InWorld || busy) return;
-            if (MuseumInput.ClickPressed && worldWork != null) worldWork.Trigger();
+            if (MuseumInput.ClickPressed && worldWork != null) worldWork.Trigger(fromClick: true);
             if (MuseumInput.InteractPressed || MuseumInput.BackPressed) StartCoroutine(ExitRoutine());
             // 何かの拍子に世界の外へ落ちたら、浜辺に戻す
             if (body.transform.position.y < origin.y - worldScale) body.Teleport(spawnPosition, spawnYaw);

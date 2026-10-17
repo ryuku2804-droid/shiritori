@@ -6,7 +6,9 @@
 //     3 層は金箔の禅宗様の仏殿 (究竟頂)、花頭窓。こけら葺きの屋根が 3 重に張り出し、てっぺんに金の鳳凰。池に張り出した舟着き
 //   ・鏡湖池: 静かな水面が、金閣と紅葉と空を、鏡のように映す。葦原島 (松の島) と、小さな島々・岩
 //   ・まわり: 赤・橙・黄色のもみじと、緑の松。奥は衣笠山
+//   ・池には、紅白・大正三色・黄金・山吹・緋鯉・烏鯉の、44 匹の鯉が泳ぐ
 // 仕掛け (_Event 0〜1): 風が吹き、もみじの葉が舞い散って、池の水面に浮かんでいく
+// 鯉 (_KoiCall): 池をクリックすると、その場所へ鯉が集まってきて、水面で口をぱくぱくさせる (DioramaWork が場所を入れる)
 //
 // 外から見たとき、何もない所 (空) は透明にして、ガラスケースの向こうの部屋が見えるようにする。
 // 中に入ったとき (カメラが箱の中) だけ、空を描く
@@ -22,6 +24,7 @@ Shader "NightShards/Diorama/Kinkaku"
         _Seed ("Seed", Float) = 0
         [NoScaleOffset] _HeightTex ("Baked Height (自動で作る)", 2D) = "black" {}
         _HeightTexOn ("Use Baked Height", Float) = 0
+        _KoiCall ("_KoiCall", Vector) = (0,0,0,0)
     }
 
     SubShader
@@ -39,6 +42,7 @@ Shader "NightShards/Diorama/Kinkaku"
             float _EventTime;
             float _Seed;
             float _HeightTexOn;
+            float4 _KoiCall;
         CBUFFER_END
         TEXTURE2D(_HeightTex);
         SAMPLER(sampler_linear_clamp);
@@ -324,10 +328,18 @@ Shader "NightShards/Diorama/Kinkaku"
 
             float2 Map(float3 p) { return MapX(p, false); }
 
-            float3 SceneNormal(float3 p)
+            // 面の向き。地面は高さの表から安く測る (細かいでこぼこは、塗るときの凹凸で足す)。建物は形の式から正確に
+            float3 SceneNormal(float3 p, float id)
             {
-                const float2 e = float2(0.0002, -0.0002);
-                float3 g = e.xyy * MapX(p + e.xyy, true).x + e.yyx * MapX(p + e.yyx, true).x + e.yxy * MapX(p + e.yxy, true).x + e.xxx * MapX(p + e.xxx, true).x;
+                if (id == ID_GROUND && max(abs(p.x), abs(p.z)) < INNER - 0.003) // 箱の切り口の近くは、正確な式で
+                {
+                    const float e = 0.0015;
+                    float hx = HeightFast(p.xz + float2(e, 0)) - HeightFast(p.xz - float2(e, 0));
+                    float hz = HeightFast(p.xz + float2(0, e)) - HeightFast(p.xz - float2(0, e));
+                    return normalize(float3(-hx, 2.0 * e, -hz));
+                }
+                const float2 ee = float2(0.0002, -0.0002);
+                float3 g = ee.xyy * MapX(p + ee.xyy, false).x + ee.yyx * MapX(p + ee.yyx, false).x + ee.yxy * MapX(p + ee.yxy, false).x + ee.xxx * MapX(p + ee.xxx, false).x;
                 return g / max(length(g), 1e-12);
             }
 
@@ -378,6 +390,104 @@ Shader "NightShards/Diorama/Kinkaku"
                 float3 pos = start + drift * u + 0.012 * float3(sin(t * 3.0 + fi), sin(t * 2.3 + fi * 1.7), cos(t * 2.7 + fi));
                 pos.y = max(pos.y, WATER);
                 return pos;
+            }
+
+            // ---------------------------------------------------------------- 鯉 (池をクリックすると、その場所へ集まってくる)
+            // _KoiCall: xy = 呼んだ場所 (池の上の x, z)、z = 呼んだ時刻 (_Time.y と同じ時計)、w = 1 なら呼んだことがある
+
+            #define KOI 56
+            #define KOI_LEN 0.016                                   // 鯉の長さ (大きな鯉 1 m を、金閣と同じ 2 倍に)
+
+            // 呼ばれて集まる強さ (0〜1)。遠い鯉ほど遅れて来る。12 秒ほどで、またもとの泳ぎにもどる
+            float KoiCallAmount(float fi, float2 home)
+            {
+                if (_KoiCall.w < 0.5) return 0.0;
+                float dt = _Time.y - _KoiCall.z;
+                float delay = length(home - _KoiCall.xy) * 6.0 + Hash11(fi + 7.0) * 0.8;
+                return smoothstep(0.0, 3.0, dt - delay) * (1.0 - smoothstep(10.0, 14.0, dt));
+            }
+
+            // i 番目の鯉の、時刻 t での場所 (x, z)
+            float2 KoiPos(int i, float t)
+            {
+                float fi = i;
+                // すみか: 池の中の、ばらばらな場所 (池の楕円の内側 8 割)
+                float a = Hash11(fi + 1.0) * 6.2831853;
+                float r = sqrt(Hash11(fi + 2.0)) * 0.78;
+                float2 home = float2(0.0, 0.07) + float2(cos(a) * 0.44, sin(a) * 0.24) * r;
+                // ゆっくり大きな輪をえがいて泳ぐ (向きは鯉ごとにちがう)
+                float sp = (0.06 + 0.06 * Hash11(fi + 3.0)) * (Hash11(fi + 4.0) < 0.5 ? 1.0 : -1.0);
+                float rad = 0.02 + 0.035 * Hash11(fi + 5.0);
+                float ph = t * sp + Hash11(fi + 6.0) * 6.2831853;
+                float2 wander = home + float2(cos(ph), sin(ph) * 0.7) * rad;
+                // 呼ばれたら、呼んだ場所のまわりに集まって、口を寄せ合うように小さく回る
+                float k = KoiCallAmount(fi, home);
+                float ring = 0.006 + 0.014 * Hash11(fi + 8.0);
+                float ph2 = t * 0.9 * (Hash11(fi + 9.0) < 0.5 ? 1.0 : -1.0) + fi * 2.4;
+                float2 gather = _KoiCall.xy + float2(cos(ph2), sin(ph2)) * ring;
+                return lerp(wander, gather, k);
+            }
+
+            // 鯉の模様の色。kind: 紅白・大正三色・黄金・山吹・緋鯉・烏 など
+            float3 KoiColor(float fi, float2 uv)
+            {
+                float kind = Hash11(fi + 11.0);
+                float spots = smoothstep(0.45, 0.55, Noise3(float3(uv * float2(3.0, 5.0), fi * 3.7)));
+                float black = smoothstep(0.62, 0.7, Noise3(float3(uv * float2(4.0, 6.0) + 9.0, fi)));
+                float3 white = float3(0.95, 0.93, 0.88), red = float3(0.85, 0.12, 0.04), orange = float3(0.98, 0.45, 0.08);
+                if (kind < 0.35) return lerp(white, red, spots);                                     // 紅白
+                if (kind < 0.5) return lerp(lerp(white, red, spots), float3(0.04, 0.04, 0.05), black); // 大正三色
+                if (kind < 0.62) return float3(1.0, 0.78, 0.3);                                     // 黄金 (金色に光る)
+                if (kind < 0.72) return float3(0.98, 0.82, 0.25);                                   // 山吹
+                if (kind < 0.88) return orange;                                                     // 緋鯉
+                return lerp(float3(0.05, 0.05, 0.06), orange, spots * 0.4);                         // 烏鯉
+            }
+
+            // 線 (ro, rd) が水の中で見る、いちばん手前の鯉。見つかれば色を、なければ a = 0 を返す
+            float4 Koi(float3 ro, float3 rd)
+            {
+                if (rd.y >= 0.0) return 0;
+                float t = _Time.y;
+                float best = 1e5;
+                float4 res = 0;
+                for (int i = 0; i < KOI; i++)
+                {
+                    float fi = i;
+                    float2 home = KoiPos(i, t);
+                    // まず、だいたいの深さで、近くを通るかだけ調べる (遠い鯉は、ここで終わり)
+                    float2 rough = ro.xz + rd.xz * ((WATER - 0.003 - ro.y) / rd.y) - home;
+                    if (dot(rough, rough) > KOI_LEN * KOI_LEN * 2.5) continue;
+                    float a = Hash11(fi + 1.0) * 6.2831853;
+                    float2 homeC = float2(0.0, 0.07) + float2(cos(a) * 0.44, sin(a) * 0.24) * sqrt(Hash11(fi + 2.0)) * 0.78;
+                    // 呼ばれた鯉は水面のすぐ下まで上がってくる
+                    float depth = lerp(0.002 + 0.004 * Hash11(fi + 12.0), 0.0006, KoiCallAmount(fi, homeC));
+                    float tp = (WATER - depth - ro.y) / rd.y;
+                    if (tp <= 0.0 || tp > best) continue;
+                    float2 hit = ro.xz + rd.xz * tp;
+                    float2 d = hit - home;
+                    if (dot(d, d) > KOI_LEN * KOI_LEN) continue;
+                    // 泳ぐ向き (少し前の場所から)
+                    float2 dir = home - KoiPos(i, t - 0.3);
+                    dir = dot(dir, dir) > 1e-10 ? normalize(dir) : float2(1, 0);
+                    float u = dot(d, dir) / KOI_LEN;                 // 頭 +0.5 〜 尾 -0.5
+                    float v = dot(d, float2(-dir.y, dir.x)) / KOI_LEN;
+                    // 体をくねらせる
+                    v += 0.06 * sin(t * 6.0 + fi + u * 6.0) * (0.5 - u);
+                    // 体: 頭がまるく、尾へ細くなる。尾びれは、二つに分かれた扇形。胸びれ
+                    float w = 0.21 * sqrt(saturate((0.42 - u) * (u + 0.32) * 4.5));
+                    float body = abs(v) - w;
+                    float tail = max(abs(v) - (0.02 + 0.5 * (-0.3 - u)), max(u + 0.3, -u - 0.52));
+                    float fin = length(float2(u - 0.14, abs(v) - 0.17)) - 0.06;
+                    float shape = min(min(body, tail), fin);
+                    if (shape > 0.0) continue;
+                    best = tp;
+                    float3 c = KoiColor(fi, float2(u, v));
+                    if (tail < body && fin > body) c = lerp(c, float3(1.0, 1.0, 1.0), 0.25);  // ひれは、すけて明るい
+                    float edge = 1.0 - smoothstep(-0.02, 0.0, shape);
+                    // 背中は少し明るく、深いほど暗い緑に沈む
+                    res = float4(c * (0.85 + 0.3 * (1.0 - smoothstep(0.0, 0.12, abs(v)))) * exp(-depth * 60.0), edge);
+                }
+                return res;
             }
 
             // ---------------------------------------------------------------- 質感 (つやのある、本物らしい光り方)
@@ -449,7 +559,7 @@ Shader "NightShards/Diorama/Kinkaku"
                 if (id == ID_BASE)
                     return float3(0.015, 0.014, 0.014) + 0.03 * pow(saturate(1.0 - abs(dot(rd, faceNormal))), 4.0);
 
-                float3 n = SceneNormal(p);
+                float3 n = SceneNormal(p, id);
                 float sh = lite ? 1.0 : SoftShadow(p + n * 0.0008, L);
                 float ao = lite ? 1.0 : AmbientOcclusion(p, n);
                 float3 q = (p - KINKAKU) / KS;
@@ -639,17 +749,32 @@ Shader "NightShards/Diorama/Kinkaku"
                     float2 rq = wp.xz * 160.0;
                     float amp = 0.012 + 0.05 * Wind();
                     float2 slope = (float2(ValueNoise(rq + tt * 0.4), ValueNoise(rq.yx - tt * 0.35)) - 0.5) * amp;
+                    // 鯉を呼んだ所: 鯉が口をぱくぱくさせて、波の輪が広がる
+                    if (_KoiCall.w > 0.5)
+                    {
+                        float2 dc = wp.xz - _KoiCall.xy;
+                        float rc = length(dc);
+                        float age = tt - _KoiCall.z;
+                        float live = saturate(age / 2.0) * (1.0 - smoothstep(9.0, 13.0, age));
+                        if (rc < 0.05 && live > 0.0)
+                            slope += dc / max(rc, 1e-4) * sin(rc * 900.0 - tt * 9.0) * exp(-rc * 60.0) * 0.08 * live;
+                    }
                     float3 wn = normalize(float3(slope.x, 1.0, slope.y));
                     float3 rr = reflect(rd, wn);
                     float2 rbox = BoxHit(wp, rr, float3(0.5, 0.5, 0.5));
                     bool rh;
                     float rt;
-                    float3 refl = TraceScene(wp + rr * 0.0005, rr, 0.0, rbox.y, true, 64, true, faceNormal, rh, rt);
+                    // 上を向いてはね返る線は空しか映らないので、たどらない
+                    float3 refl = rr.y > 0.55 ? Sky(rr) : TraceScene(wp + rr * 0.0005, rr, 0.0, rbox.y, true, 40, true, faceNormal, rh, rt);
                     // 水の中: 浅いので底が少し見える、深い緑の水
                     float len = tHit - tW;
                     float3 absorb = exp(-float3(60.0, 35.0, 40.0) * len);
                     float3 under = col * absorb + float3(0.03, 0.07, 0.05) * (1.0 - absorb);
-                    float fres = 0.25 + 0.75 * pow(1.0 - saturate(dot(-rd, wn)), 4.0);
+                    // 鯉: 日の光を受けた色を、水の中に重ねる
+                    float4 koi = Koi(ro, rd);
+                    if (koi.a > 0.0) under = lerp(under, koi.rgb * 1.2 + float3(0.01, 0.03, 0.02), koi.a);
+                    float fres = 0.18 + 0.82 * pow(1.0 - saturate(dot(-rd, wn)), 4.0);
+                    fres *= 1.0 - 0.45 * koi.a; // 鯉の上は、映り込みを少し弱く (鯉がよく見えるように)
                     col = lerp(under, refl, fres);
                     // 水面に浮かぶもみじ (仕掛けのあいだ、だんだん増える)
                     if (_Event > 0.01)

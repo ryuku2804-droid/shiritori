@@ -916,6 +916,10 @@ namespace NightShards.Museum
         const float KinkakuGround = -0.28f, KinkakuWater = -0.286f;
         static readonly Vector2 KinkakuPos = new Vector2(0.02f, -0.2f);
 
+        // 池の水面の高さと、そこが池か (島ではない水の上か)。鯉を呼ぶときに使う
+        public const float KinkakuWaterLevel = KinkakuWater;
+        public static bool KinkakuIsPond(Vector2 xz) => KinkakuPond(xz) < 0.97f && KinkakuIslands(xz) < 0.3f;
+
         static float KinkakuPond(Vector2 xz)
         {
             float qx = xz.x / 0.44f, qz = (xz.y - 0.07f) / 0.24f;

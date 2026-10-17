@@ -90,12 +90,75 @@ namespace NightShards.Museum
             rend.SetPropertyBlock(block);
         }
 
-        // 仕掛けを動かす。演出の最中なら何もしない
-        public void Trigger()
+        static readonly int KoiCallId = Shader.PropertyToID("_KoiCall");
+
+        // 仕掛けを動かす。演出の最中なら何もしない。
+        // fromClick: 世界の中でクリックしたとき true。金閣寺では、池をクリックすると、仕掛けのかわりに鯉を呼ぶ
+        public void Trigger(bool fromClick = false)
         {
+            if (fromClick && work == "Kinkaku" && TryCallKoi()) return;
             if (IsPlaying) return;
             started = Time.time;
             PlaySound();
+        }
+
+        // 画面のまん中 (世界の中の照準) の先が池なら、そこへ鯉を呼ぶ。池でなければ false
+        bool TryCallKoi()
+        {
+            Camera cam = Camera.main;
+            if (cam == null) cam = Object.FindFirstObjectByType<Camera>(); // MainCamera の札がないときの予備
+            if (cam == null) return false;
+            Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            // ジオラマの箱の座標 (-0.5〜0.5) に直して、水面の高さの平らな面と交わる所を求める
+            Vector3 o = transform.InverseTransformPoint(ray.origin);
+            Vector3 d = transform.InverseTransformVector(ray.direction).normalized;
+            if (d.y >= -1e-4f) return false;
+            float t = (DioramaTerrain.KinkakuWaterLevel - o.y) / d.y;
+            if (t <= 0f) return false;
+            Vector3 hit = o + d * t;
+            if (!DioramaTerrain.KinkakuIsPond(new Vector2(hit.x, hit.z))) return false;
+            rend.GetPropertyBlock(block);
+            block.SetVector(KoiCallId, new Vector4(hit.x, hit.z, Time.timeSinceLevelLoad, 1f)); // シェーダーの _Time.y と同じ時計
+            rend.SetPropertyBlock(block);
+            PlayKoiSplash();
+            return true;
+        }
+
+        static AudioClip koiSplash;
+
+        // 鯉が集まって、口でぱしゃぱしゃ水をたたく音
+        void PlayKoiSplash()
+        {
+            if (koiSplash == null)
+            {
+                const int rate = 22050;
+                int n = rate * 6;
+                var data = new float[n];
+                var random = new System.Random(7);
+                float splash = 0f, hi = 0f;
+                for (int i = 0; i < n; i++)
+                {
+                    float time = (float)i / rate;
+                    float white = (float)random.NextDouble() * 2f - 1f;
+                    hi += (white - hi) * 0.5f;
+                    // 2 秒目から、ぱしゃっという小さな音が、あちこちで起きる
+                    if (time > 1.5f && random.NextDouble() < 0.0009) splash = 1f;
+                    splash *= 0.9985f;
+                    data[i] = hi * splash * 0.5f * Mathf.Clamp01((6f - time) / 1.5f);
+                }
+                koiSplash = AudioClip.Create("Koi Splash", n, 1, rate, false);
+                koiSplash.SetData(data, 0);
+            }
+            if (source == null)
+            {
+                source = gameObject.AddComponent<AudioSource>();
+                source.playOnAwake = false;
+                source.spatialBlend = spatial ? 1f : 0f;
+                source.minDistance = 0.8f;
+                source.maxDistance = 14f;
+                source.rolloffMode = AudioRolloffMode.Linear;
+            }
+            source.PlayOneShot(koiSplash, volume);
         }
 
         void Update()

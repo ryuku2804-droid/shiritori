@@ -17,7 +17,7 @@ Shader "NightShards/Diorama/GreatWall"
 {
     Properties
     {
-        _Steps ("Ray Steps", Range(16, 200)) = 160
+        _Steps ("Ray Steps", Range(16, 200)) = 130
         _ShadowSteps ("Shadow Steps", Range(0, 32)) = 20
         _Glass ("Glass Reflection", Range(0, 1)) = 0.3
         _Event ("Event (0-1)", Range(0, 1)) = 0
@@ -279,10 +279,18 @@ Shader "NightShards/Diorama/GreatWall"
 
             float2 Map(float3 p) { return MapX(p, false); }
 
-            float3 SceneNormal(float3 p)
+            // 面の向き。地面は高さの表から安く測る (細かいでこぼこは、塗るときの凹凸で足す)。建物は形の式から正確に
+            float3 SceneNormal(float3 p, float id)
             {
-                const float2 e = float2(0.00012, -0.00012);
-                float3 g = e.xyy * MapX(p + e.xyy, true).x + e.yyx * MapX(p + e.yyx, true).x + e.yxy * MapX(p + e.yxy, true).x + e.xxx * MapX(p + e.xxx, true).x;
+                if (id == ID_GROUND && max(abs(p.x), abs(p.z)) < INNER - 0.003) // 箱の切り口の近くは、正確な式で
+                {
+                    const float e = 0.0015;
+                    float hx = HeightFast(p.xz + float2(e, 0)) - HeightFast(p.xz - float2(e, 0));
+                    float hz = HeightFast(p.xz + float2(0, e)) - HeightFast(p.xz - float2(0, e));
+                    return normalize(float3(-hx, 2.0 * e, -hz));
+                }
+                const float2 ee = float2(0.00012, -0.00012);
+                float3 g = ee.xyy * MapX(p + ee.xyy, false).x + ee.yyx * MapX(p + ee.yyx, false).x + ee.yxy * MapX(p + ee.yxy, false).x + ee.xxx * MapX(p + ee.xxx, false).x;
                 return g / max(length(g), 1e-12);
             }
 
@@ -440,9 +448,10 @@ Shader "NightShards/Diorama/GreatWall"
                 if (id == ID_BASE)
                     return float3(0.015, 0.014, 0.014) + 0.03 * pow(saturate(1.0 - abs(dot(rd, faceNormal))), 4.0);
 
-                float3 n = SceneNormal(p);
+                float3 n = SceneNormal(p, id);
                 float sh = SoftShadow(p + n * 0.0008, L);
-                float ao = AmbientOcclusion(p, n);
+                // 陰: 城壁と望楼だけ、まわりを調べる。山の木々は、木の頭の明暗で十分 (計算を省く)
+                float ao = id == ID_GROUND ? 1.0 : AmbientOcclusion(p, n);
                 float3 col;
 
                 if (id == ID_WALL || id == ID_TOWER)
