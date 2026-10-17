@@ -181,7 +181,7 @@ Shader "NightShards/Diorama/DeadSea"
                 // 山並み: 谷 (ワジ) に刻まれた尾根が、奥へなだらかに高くなる
                 float ridge = 1.0 - abs(ValueNoise(xz * float2(14.0, 4.0) + 5.0) * 2.0 - 1.0);
                 float zm = xz.y + 0.03 * sin(xz.x * 7.0);
-                float mountain = WATER - 0.04 + 0.22 * smoothstep(-0.24, -0.47, zm) * (0.5 + 0.35 * Fbm3(xz * 5.0 + 9.0) + 0.15 * ridge);
+                float mountain = WATER - 0.04 + 0.22 * smoothstep(0.24, 0.47, -zm) * (0.5 + 0.35 * Fbm3(xz * 5.0 + 9.0) + 0.15 * ridge);
                 return max(h, mountain);
             }
 
@@ -218,7 +218,8 @@ Shader "NightShards/Diorama/DeadSea"
             // 育つ岩塩の結晶: きのこのまわりに 5 つずつ。立方体が少し傾いて、水の中からせり上がる
             float Crystals(float3 p, float grow)
             {
-                if (grow < 0.01 || p.y > WATER + 0.01 * SC) return max(p.y - WATER - 0.01 * SC, 0.001);
+                if (grow < 0.01) return 1.0;
+                if (p.y > WATER + 0.01 * SC) return p.y - WATER - 0.01 * SC + 0.0005;
                 float d = 1e5;
                 for (int i = 0; i < MUSHROOMS; i++)
                 {
@@ -373,12 +374,12 @@ Shader "NightShards/Diorama/DeadSea"
                 float Vis = 0.25 / ((ndl * (1.0 - k) + k) * (ndv * (1.0 - k) + k));
                 float F = f0 + (1.0 - f0) * pow(1.0 - saturate(dot(h, v)), 5.0);
                 float3 direct = sunCol * sh * ndl * (albedo * (1.0 - F) + D * Vis * F);
-                // まわりの空の光: 上を向く面ほど空の上の色、横向きは地平線の色。ななめから見ると空が映る
+                // まわりの空の光: 上を向く面ほど空の上の色、横向きは地平線の色。ななめから見ると空が映る (ざらざらの面ほど、映らない)
                 float3 skyDiffuse = lerp(skyLow, skyTop, saturate(n.y * 0.5 + 0.5));
                 float3 r = reflect(-v, n);
                 float3 skySpec = lerp(skyLow, skyTop, saturate(r.y));
                 float Fv = f0 + (1.0 - f0) * pow(1.0 - ndv, 5.0);
-                float3 ambient = (albedo * skyDiffuse * (1.0 - Fv) + skySpec * Fv * (1.0 - rough * 0.8)) * ao;
+                float3 ambient = (albedo * skyDiffuse * (1.0 - Fv) + skySpec * Fv * (1.0 - rough) * (1.0 - rough)) * ao;
                 // 光が透ける: 逆光の葉や草が、明るく光って見える
                 float back = pow(saturate(dot(v, -L)), 4.0) * sss;
                 float3 trans = albedo * sunCol * back * (0.5 + 0.5 * sh) * 0.8;
@@ -521,13 +522,18 @@ Shader "NightShards/Diorama/DeadSea"
 
                 bool hit = false;
                 float id = 0.0;
+                float lastD = 1.0, lastId = 0.0;
+                bool ranOut = false;
                 int steps = (int)_Steps;
-                for (int i = 0; i < 200; i++)
+                for (int i = 0; i <= 200; i++)
                 {
-                    if (i >= steps || t > box.y) break;
+                    if (t > box.y) break;
+                    if (i >= steps) { ranOut = true; break; }
                     float3 pos = ro + rd * t;
                     if (rd.y > 0.0 && pos.y > maxHeight + 0.002) break;
                     float2 m = Map(pos);
+                    lastD = m.x;
+                    lastId = m.y;
                     if (m.x < 0.00002 + 0.0002 * t)
                     {
                         hit = true;
@@ -535,6 +541,13 @@ Shader "NightShards/Diorama/DeadSea"
                         break;
                     }
                     t += m.x;
+                }
+                // 地面すれすれを進む線は、歩みが細かくなって回数が足りなくなる。そのときは、ほぼ届いていれば当たりにする
+                // (足りないまま空の色にすると、地面に明るいすきまの帯ができる)
+                if (!hit && ranOut && lastD < 0.0005 + 0.002 * t)
+                {
+                    hit = true;
+                    id = lastId;
                 }
                 float tHit = hit ? t : box.y;
 

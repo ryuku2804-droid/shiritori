@@ -614,7 +614,7 @@ namespace NightShards.Museum
         static readonly Vector2 Menkaure = new Vector2(0.332f, -0.39f);
         static readonly Vector2 SphinxPos = new Vector2(0.068f, 0.389f);
 
-        static float PyrPlateau(float z) => PyrGround + 0.012f * SmoothStep(0.25f, -0.35f, z);
+        static float PyrPlateau(float z) => PyrGround + 0.012f * SmoothStep(-0.25f, 0.35f, -z);
 
         static float PadMask(Vector2 xz, Vector2 c, Vector2 hs, float w)
         {
@@ -625,9 +625,10 @@ namespace NightShards.Museum
         static float PyramidsHeight(Vector2 xz)
         {
             float h = PyrPlateau(xz.y) + 0.008f * Fbm3(new Vector2(xz.x * 7f + 3.7f, xz.y * 7f + 3.7f));
-            h = Mathf.Lerp(PyrPlateau(Khufu.y), h, PadMask(xz, new Vector2(-0.3f, 0.15f), new Vector2(0.135f, 0.17f), 0.04f));
-            h = Mathf.Lerp(PyrPlateau(Khafre.y), h, PadMask(xz, Khafre, new Vector2(0.125f, 0.125f), 0.04f));
-            h = Mathf.Lerp(PyrPlateau(Menkaure.y), h, PadMask(xz, new Vector2(0.36f, -0.39f), new Vector2(0.09f, 0.065f), 0.04f));
+            // ならした台は、まわりの砂丘のふつうの高さ (+0.0035) にそろえる
+            h = Mathf.Lerp(PyrPlateau(Khufu.y) + 0.0035f, h, PadMask(xz, new Vector2(-0.3f, 0.15f), new Vector2(0.135f, 0.17f), 0.04f));
+            h = Mathf.Lerp(PyrPlateau(Khafre.y) + 0.0035f, h, PadMask(xz, Khafre, new Vector2(0.125f, 0.125f), 0.04f));
+            h = Mathf.Lerp(PyrPlateau(Menkaure.y) + 0.0035f, h, PadMask(xz, new Vector2(0.36f, -0.39f), new Vector2(0.09f, 0.065f), 0.04f));
             h = Mathf.Lerp(PyrGround - 0.008f, h, PadMask(xz, SphinxPos, new Vector2(0.028f, 0.05f), 0.006f));
             return h;
         }
@@ -646,13 +647,14 @@ namespace NightShards.Museum
         static List<Prop> PyramidsProps()
         {
             var list = new List<Prop>();
-            AddPyramid(list, Khufu, PyrPlateau(Khufu.y), 0.1267f, 0.1524f);
-            AddPyramid(list, Khafre, PyrPlateau(Khafre.y), 0.1184f, 0.15f);
-            AddPyramid(list, Menkaure, PyrPlateau(Menkaure.y), 0.0567f, 0.067f);
+            float khufuY = PyrPlateau(Khufu.y) + 0.0035f, menkaureY = PyrPlateau(Menkaure.y) + 0.0035f;
+            AddPyramid(list, Khufu, khufuY, 0.1267f, 0.1524f);
+            AddPyramid(list, Khafre, PyrPlateau(Khafre.y) + 0.0035f, 0.1184f, 0.15f);
+            AddPyramid(list, Menkaure, menkaureY, 0.0567f, 0.067f);
             for (int i = 0; i < 3; i++)
             {
-                AddPyramid(list, new Vector2(Khufu.x - 0.06f + i * 0.06f, Khufu.y + 0.162f), PyrPlateau(Khufu.y), 0.024f, 0.03f);
-                AddPyramid(list, new Vector2(Menkaure.x + 0.0867f, Menkaure.y - 0.045f + i * 0.045f), PyrPlateau(Menkaure.y), 0.016f, 0.02f);
+                AddPyramid(list, new Vector2(Khufu.x - 0.06f + i * 0.06f, Khufu.y + 0.162f), khufuY, 0.024f, 0.03f);
+                AddPyramid(list, new Vector2(Menkaure.x + 0.0867f, Menkaure.y - 0.045f + i * 0.045f), menkaureY, 0.016f, 0.02f);
             }
             // スフィンクス
             list.Add(Prop.Box(new Vector3(SphinxPos.x, PyrGround - 0.008f + 0.011f, SphinxPos.y), new Vector3(0.021f, 0.022f, 0.082f), 0f));

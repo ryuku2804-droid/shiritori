@@ -5,7 +5,11 @@
 //   ・クフ王のピラミッド: 底辺 230 m・今の高さ 139 m (頂上は平ら。元の頂点の高さに、目印の柱)。北の面に入口。東に 3 つの王妃のピラミッド
 //   ・カフラー王のピラミッド: 底辺 215 m・高さ 136 m。10 m 高い岩盤の上に立つので、いちばん高く見える。頂上に、なめらかな化粧石が残る
 //   ・メンカウラー王のピラミッド: 底辺 102 m・高さ 65 m。下の段は赤い花こう岩。南に 3 つの王妃のピラミッド
-//   ・大スフィンクス: 長さ 73 m・高さ 20 m。東を向いて、掘り下げた岩の囲いの中に伏せる。頭にネメス頭巾、前にのびる前足、地層の縞
+//   ・大スフィンクス: 長さ 73 m・高さ 20 m・幅 19 m。東を向いて、掘り下げた岩の囲いの中に伏せる。
+//     顔: 幅 4.1 m。眉、深く彫られたアーモンド形の目 (まぶたと眼球)、付け根だけ残って欠けた鼻、幅 2.3 m の唇と口の線、あご、耳。
+//     ネメス頭巾: 平らぎみの頭頂、額のふち、聖蛇 (ウラエウス) のあと、下ほど広がる左右の垂れ布、後ろの束。横じまの溝
+//     胴: 風で削られた地層の段、腰、たたんだ後ろ足、右の腰に巻きつく尾。前にのびる前足と 4 つの指。
+//     前足のあいだに夢の碑文 (花こう岩の石碑)。足元は、あとから修理した石積み
 //   ・石は 1.5 m ほどの段に積まれ、近くで見ると階段のようにギザギザ。砂丘と風紋、ラクダの隊列
 // 仕掛け (_Event 0〜1): 西から砂嵐が吹き抜け、ピラミッドがかすむ。過ぎ去ると、夕日がいっそう強く赤く差す
 //
@@ -168,7 +172,7 @@ Shader "NightShards/Diorama/Pyramids"
             // ---------------------------------------------------------------- 地面
 
             // ギザの台地: 西 (-z) へ行くほど高い
-            float Plateau(float z) { return GROUND + 0.012 * smoothstep(0.25, -0.35, z); }
+            float Plateau(float z) { return GROUND + 0.012 * smoothstep(-0.25, 0.35, -z); }
 
             // 長方形の台 (中心 c・半分の大きさ hs) の外へ、幅 w で元の地面にもどる割合 (台の上は 0)
             float PadMask(float2 xz, float2 c, float2 hs, float w)
@@ -181,9 +185,10 @@ Shader "NightShards/Diorama/Pyramids"
             float Height(float2 xz)
             {
                 float h = Plateau(xz.y) + 0.008 * Fbm3(xz * 7.0 + 3.7);
-                h = lerp(Plateau(KHUFU.y), h, PadMask(xz, float2(-0.3, 0.15), float2(0.135, 0.17), 0.04));
-                h = lerp(Plateau(KHAFRE.y), h, PadMask(xz, KHAFRE, float2(0.125, 0.125), 0.04));
-                h = lerp(Plateau(MENKAURE.y), h, PadMask(xz, float2(0.36, -0.39), float2(0.09, 0.065), 0.04));
+                // ならした台の高さは、まわりの砂丘のふつうの高さ (+0.0035) にそろえる (台がくぼんで見えないように)
+                h = lerp(Plateau(KHUFU.y) + 0.0035, h, PadMask(xz, float2(-0.3, 0.15), float2(0.135, 0.17), 0.04));
+                h = lerp(Plateau(KHAFRE.y) + 0.0035, h, PadMask(xz, KHAFRE, float2(0.125, 0.125), 0.04));
+                h = lerp(Plateau(MENKAURE.y) + 0.0035, h, PadMask(xz, float2(0.36, -0.39), float2(0.09, 0.065), 0.04));
                 h = lerp(GROUND - 0.008, h, PadMask(xz, SPHINX, float2(0.028, 0.05), 0.006));
                 return h;
             }
@@ -207,7 +212,7 @@ Shader "NightShards/Diorama/Pyramids"
                 layer = floor(y / COURSE);
                 float slope = hs / h0;
                 float plane = (ax - hs + max(y, 0.0) * slope) * rsqrt(1.0 + slope * slope);
-                float far = max(max(plane, -y), y - top);
+                float far = max(max(plane, -y - 0.012), y - top);
                 if (far > 0.004) return far - 0.001; // 段は少し外へはみ出すので、その分だけ控えめに
                 float d = 1e5;
                 for (int j = -1; j <= 1; j++)
@@ -218,7 +223,8 @@ Shader "NightShards/Diorama/Pyramids"
                     if (y0 >= top || y0 >= cased) continue;
                     float y1 = min(min(y0 + COURSE, top), cased);
                     float w = hs * (1.0 - (y0 + COURSE * 0.5) / h0);
-                    d = min(d, SdBox(float3(q.x, y - (y0 + y1) * 0.5, q.z), float3(w, (y1 - y0) * 0.5, w)));
+                    float yb = k < 0.5 ? -0.012 : y0; // いちばん下の段は、地面の下まで深くのばす (地面とすきまができないように)
+                    d = min(d, SdBox(float3(q.x, y - (yb + y1) * 0.5, q.z), float3(w, (y1 - yb) * 0.5, w)));
                 }
                 if (cased < top)
                     d = min(d, max(max(plane, cased - COURSE - y), y - top));
@@ -232,7 +238,8 @@ Shader "NightShards/Diorama/Pyramids"
                 float layer;
                 float d = 1e5;
                 // クフ王: 底辺 230.3 m・元の高さ 146.6 m・今の高さ 138.5 m
-                float3 q = p - float3(KHUFU.x, Plateau(KHUFU.y), KHUFU.y);
+                // 底の高さは、描いている地面と同じ高さ (中心の真下) に合わせる
+                float3 q = p - float3(KHUFU.x, HeightFast(KHUFU), KHUFU.y);
                 d = StepPyramid(q, 0.1267, 0.1613, 0.1524, 1.0, layer);
                 float mast = max(length(q.xz) - 0.0003, max(0.1524 - q.y, q.y - 0.1613));
                 if (mast < d) part = 3;
@@ -246,12 +253,12 @@ Shader "NightShards/Diorama/Pyramids"
                     d = min(d, dq);
                 }
                 // カフラー王: 底辺 215.3 m・元の高さ 143.5 m・今の高さ 136.4 m。上の 25 m に化粧石が残る
-                q = p - float3(KHAFRE.x, Plateau(KHAFRE.y), KHAFRE.y);
+                q = p - float3(KHAFRE.x, HeightFast(KHAFRE), KHAFRE.y);
                 float dk = StepPyramid(q, 0.1184, 0.1579, 0.15, 0.123, layer);
                 if (dk < d) part = q.y > 0.122 ? 1 : 0;
                 d = min(d, dk);
                 // メンカウラー王: 底辺 102.2 m・元の高さ 65.5 m・今の高さ 61 m。下の 16 段は赤い花こう岩
-                q = p - float3(MENKAURE.x, Plateau(MENKAURE.y), MENKAURE.y);
+                q = p - float3(MENKAURE.x, HeightFast(MENKAURE), MENKAURE.y);
                 float dm = StepPyramid(q, 0.0567, 0.072, 0.067, 1.0, layer);
                 if (dm < d) part = q.y < 16.0 * COURSE ? 2 : 0;
                 d = min(d, dm);
@@ -266,30 +273,111 @@ Shader "NightShards/Diorama/Pyramids"
             }
 
             // ---------------------------------------------------------------- 大スフィンクス (長さ 73 m・高さ 20 m・幅 19 m。東 = +z を向く)
+            // 形は 1 m = 1 の「メートルの座標」で作り、最後に 0.0011 倍する。原点は胴の真下の囲いの床、+z が顔の向き、+x が右 (南)
 
-            float Sphinx(float3 p)
+            float SMin(float a, float b, float k)
             {
-                float3 q = p - float3(SPHINX.x, GROUND - 0.008, SPHINX.y);
-                if (length(q - float3(0, 0.011, 0)) > 0.06) return length(q - float3(0, 0.011, 0)) - 0.055;
-                float3 s = float3(abs(q.x), q.y, q.z);
-                // 胴: 伏せた獅子の背中。後ろ足の腰が少し盛り上がる
-                float body = SdRoundBox(q - float3(0, 0.0075, -0.012), float3(0.0095, 0.0075, 0.028), 0.004);
-                float haunch = SdEllipsoidLite(s - float3(0.006, 0.0075, -0.03), float3(0.0055, 0.0075, 0.011));
-                float chest = SdEllipsoidLite(q - float3(0, 0.0095, 0.012), float3(0.0085, 0.0095, 0.008));
-                // 前にのびる前足 (長さ 15 m)
-                float paw = SdRoundBox(s - float3(0.0055, 0.0024, 0.026), float3(0.0032, 0.0024, 0.016), 0.0013);
-                // 頭: 顔と、ネメス頭巾 (上がすぼまった頭巾と、胸へ垂れる左右の垂れ布)
-                float face = SdEllipsoidLite(q - float3(0, 0.0172, 0.0192), float3(0.0026, 0.0042, 0.003));
-                float neck = SdEllipsoidLite(q - float3(0, 0.0135, 0.0155), float3(0.0042, 0.004, 0.004));
-                float w = 0.0046 - max(q.y - 0.017, 0.0) * 0.35;
-                float nemes = SdRoundBox(q - float3(0, 0.0182, 0.0168), float3(max(w, 0.0018), 0.0036, 0.0034), 0.0012);
-                nemes = max(nemes, -SdBox(q - float3(0, 0.0168, 0.0215), float3(0.0024, 0.005, 0.0025))); // 顔の前はあける
-                float lappet = SdRoundBox(s - float3(0.0034, 0.013, 0.018), float3(0.0011, 0.0038, 0.0014), 0.0005);
-                float d = min(min(body, haunch), min(chest, paw));
-                d = min(d, min(min(face, nemes), min(lappet, neck)));
-                // 後ろに丸めた尾 (右側)
-                d = min(d, SdCapsule(q, float3(-0.009, 0.0012, -0.038), float3(-0.0105, 0.0012, -0.015), 0.0007));
-                return d;
+                float h = saturate(0.5 + 0.5 * (b - a) / k);
+                return lerp(b, a, h) - k * h * (1.0 - h);
+            }
+
+            float SMax(float a, float b, float k) { return -SMin(-a, -b, k); }
+
+            // 頭: 顔 (目・鼻のあと・唇・あご・耳) とネメス頭巾。part: 0 石 / 1 顔 / 2 目のくぼみ
+            float SphinxHead(float3 m, inout float part)
+            {
+                float3 s = float3(abs(m.x), m.y, m.z);
+                // 顔の土台: 幅 4.1 m、生え際からあごまで 5 m
+                float face = SdEllipsoidLite(m - float3(0, 15.9, 4.45), float3(2.0, 2.75, 2.05));
+                float chin = SdEllipsoidLite(m - float3(0, 13.9, 5.3), float3(1.25, 0.85, 0.95));
+                float cheek = SdEllipsoidLite(s - float3(1.1, 15.3, 5.0), float3(0.95, 1.2, 1.1));
+                float d = SMin(SMin(face, chin, 0.5), cheek, 0.6);
+                // 眉の張り出しと、深く彫られたアーモンド形の目 (上まぶた・下まぶた・眼球)
+                float brow = SdEllipsoidLite(s - float3(0.95, 17.2, 5.95), float3(0.7, 0.17, 0.32));
+                d = SMin(d, brow, 0.3);
+                float socket = SdEllipsoidLite(s - float3(0.85, 16.75, 6.4), float3(0.6, 0.28, 0.28));
+                d = SMax(d, -socket, 0.15);
+                float eyeball = SdEllipsoidLite(s - float3(0.85, 16.75, 6.08), float3(0.48, 0.22, 0.2));
+                if (eyeball < d) part = 2;
+                d = min(d, eyeball);
+                // 鼻: 付け根だけ残り、先は欠けて平らに削れている (幅 1.7 m)
+                float nose = SdCapsule(m, float3(0, 17.0, 6.15), float3(0, 15.9, 6.4), 0.38);
+                nose = max(nose, m.z - 6.38);
+                d = SMin(d, nose, 0.3);
+                // 唇 (幅 2.3 m): 上唇と下唇、そのあいだの口の線、口の両はしのくぼみ
+                float lipU = SdEllipsoidLite(m - float3(0, 14.95, 6.15), float3(1.15, 0.3, 0.4));
+                float lipL = SdEllipsoidLite(m - float3(0, 14.45, 6.0), float3(1.0, 0.32, 0.38));
+                d = SMin(d, min(lipU, lipL), 0.2);
+                d = max(d, -SdBox(m - float3(0, 14.7, 6.45), float3(1.05, 0.05, 0.45)));
+                // 耳: 頭巾の前に出る (高さ 1.4 m)
+                float ear = SdEllipsoidLite(s - float3(1.95, 16.4, 4.4), float3(0.28, 0.85, 0.55));
+                d = SMin(d, ear, 0.15);
+                if (d < 0.3) part = max(part, 1.0);
+                // ネメス頭巾: 頭をおおう布。額の帯から、耳の後ろを通り、肩の上で広がる垂れ布
+                // 頭のてっぺんは平らぎみ。後ろへ少し下がる
+                float crown = SdBox(m - float3(0, 17.9, 3.2), float3(2.35, 1.6, 2.6) - 0.9) - 0.9;
+                crown = max(crown, (m.y - 19.6) + max(3.0 - m.z, 0.0) * 0.25);
+                crown = max(crown, -(SdEllipsoidLite(m - float3(0, 15.8, 6.0), float3(2.05, 2.75, 2.2)))); // 顔の前をあける
+                float band = SdCapsule(s, float3(0, 18.5, 5.1), float3(2.0, 18.0, 4.2), 0.12);           // 額の帯 (頭巾のふち)
+                // 左右の垂れ布: 耳の後ろから肩へ、下ほど外へ広がる台形 (正面から見ると、頭全体が台形になる)
+                float outer = s.x - (2.25 + max(17.6 - m.y, 0.0) * 0.32);
+                float lappet = max(max(outer, 1.7 - s.x), max(abs(m.y - 14.4) - 3.3, abs(m.z - 4.0) - 1.0));
+                lappet = max(lappet, -(SdEllipsoidLite(m - float3(0, 15.6, 6.0), float3(2.15, 3.2, 2.0))));
+                lappet *= 0.9;
+                float queue = SdCapsule(m, float3(0, 16.0, 1.0), float3(0, 12.5, 0.2), 0.9);            // 後ろに垂れる束
+                float nemes = min(min(crown, band), min(lappet, queue));
+                // 額の聖蛇 (ウラエウス) のあと
+                float uraeus = length(m - float3(0, 18.55, 5.45)) - 0.22;
+                nemes = min(nemes, uraeus);
+                if (nemes < d) part = 0;
+                return min(d, nemes);
+            }
+
+            float SphinxM(float3 m, out float part)
+            {
+                part = 0;
+                float3 s = float3(abs(m.x), m.y, m.z);
+                // 胴: 伏せた獅子の長い背中 (背中は高さ 14 m ほど、腰へ向かって少し下がる)
+                float back = 13.0 - max(-m.z - 20.0, 0.0) * 0.06;
+                float body = SdBox(m - float3(0, back * 0.5, -24.0), float3(5.6, back * 0.5, 26.0) - 2.5) - 2.5;
+                // 風で削られた地層: やわらかい層ほど深くへこみ、横の縞の段になる
+                body += 0.35 * (0.5 + 0.5 * sin(m.y * 2.4)) * smoothstep(3.5, 5.0, m.y);
+                float haunch = SdEllipsoidLite(s - float3(5.0, 5.5, -40.0), float3(4.3, 5.5, 8.0));
+                float hindLeg = SdEllipsoidLite(s - float3(6.8, 2.0, -33.0), float3(2.4, 2.0, 9.0));
+                float chest = SdEllipsoidLite(m - float3(0, 7.8, 2.5), float3(6.2, 7.6, 5.2));
+                float neck = SdEllipsoidLite(m - float3(0, 12.6, 2.4), float3(4.2, 4.2, 3.6));
+                float d = SMin(body, chest, 2.0);
+                d = SMin(d, SMin(haunch, hindLeg, 1.0), 1.5);
+                d = SMin(d, neck, 1.5);
+                // 前足: 胸から前へ 15 m。指先は 4 つのふくらみ
+                float foreleg = SdEllipsoidLite(s - float3(5.2, 3.6, 2.5), float3(2.8, 3.6, 4.0));
+                float paw = SdBox(s - float3(5.0, 1.9, 13.0), float3(2.6, 1.9, 9.0) - 1.0) - 1.0;
+                float toes = 1e5;
+                for (int k = 0; k < 4; k++)
+                    toes = min(toes, SdEllipsoidLite(s - float3(3.3 + k * 1.15, 1.3, 21.7), float3(0.6, 1.2, 0.8)));
+                float legs = SMin(SMin(foreleg, paw, 1.0), toes, 0.4);
+                d = SMin(d, legs, 1.0);
+                // 尾: 右の腰に巻きつく
+                d = min(d, SdCapsule(m, float3(4.0, 1.0, -48.0), float3(8.6, 1.4, -38.0), 0.65));
+                d = min(d, SdCapsule(m, float3(8.6, 1.4, -38.0), float3(8.9, 2.4, -30.0), 0.55));
+                // 夢の碑文 (トトメス 4 世の石碑): 前足のあいだに立つ、上の丸い花こう岩の板 (高さ 3.6 m)
+                float stela = max(SdBox(m - float3(0, 1.8, 6.6), float3(1.1, 1.8, 0.35)), length(m.xy - float2(0, 2.5)) - 1.95);
+                if (stela < d) part = 3;
+                d = min(d, stela);
+                // 頭
+                float hp = 0;
+                float head = SphinxHead(m, hp);
+                if (head < d) part = hp;
+                return min(d, head);
+            }
+
+            float Sphinx(float3 p, out float part)
+            {
+                part = 0;
+                float3 q = p - float3(SPHINX.x, GROUND - 0.008, SPHINX.y + 0.0155);
+                float3 c = q - float3(0, 0.011, -0.0155);
+                if (length(c) > 0.05) return length(c) - 0.046;
+                return SphinxM(q / 0.0011, part) * 0.0011 * 0.65;
             }
 
             // ---------------------------------------------------------------- ラクダの隊列
@@ -344,12 +432,12 @@ Shader "NightShards/Diorama/Pyramids"
                 float2 res = float2(SdBox(p - float3(0, -0.46, 0), float3(0.5, 0.04, 0.5)), ID_BASE);
                 float column = SdBox(p - float3(0, 0.04, 0), float3(INNER, 0.46, INNER));
                 float h = exact ? Height(p.xz) : HeightFast(p.xz);
-                float ground = max((p.y - h) * 0.7, column);
+                float ground = max((p.y - h) * 0.85, column);
                 if (ground < res.x) res = float2(ground, ID_GROUND);
                 float part;
                 float pyr = Pyramids(p, part);
                 if (pyr < res.x) res = float2(pyr, ID_PYRAMID);
-                float sph = Sphinx(p);
+                float sph = Sphinx(p, part);
                 if (sph < res.x) res = float2(sph, ID_SPHINX);
                 float cam = Camels(p);
                 if (cam < res.x) res = float2(cam, ID_CAMEL);
@@ -442,12 +530,12 @@ Shader "NightShards/Diorama/Pyramids"
                 float Vis = 0.25 / ((ndl * (1.0 - k) + k) * (ndv * (1.0 - k) + k));
                 float F = f0 + (1.0 - f0) * pow(1.0 - saturate(dot(h, v)), 5.0);
                 float3 direct = sunCol * sh * ndl * (albedo * (1.0 - F) + D * Vis * F);
-                // まわりの空の光: 上を向く面ほど空の上の色、横向きは地平線の色。ななめから見ると空が映る
+                // まわりの空の光: 上を向く面ほど空の上の色、横向きは地平線の色。ななめから見ると空が映る (ざらざらの面ほど、映らない)
                 float3 skyDiffuse = lerp(skyLow, skyTop, saturate(n.y * 0.5 + 0.5));
                 float3 r = reflect(-v, n);
                 float3 skySpec = lerp(skyLow, skyTop, saturate(r.y));
                 float Fv = f0 + (1.0 - f0) * pow(1.0 - ndv, 5.0);
-                float3 ambient = (albedo * skyDiffuse * (1.0 - Fv) + skySpec * Fv * (1.0 - rough * 0.8)) * ao;
+                float3 ambient = (albedo * skyDiffuse * (1.0 - Fv) + skySpec * Fv * (1.0 - rough) * (1.0 - rough)) * ao;
                 // 光が透ける: 逆光の葉や草が、明るく光って見える
                 float back = pow(saturate(dot(v, -L)), 4.0) * sss;
                 float3 trans = albedo * sunCol * back * (0.5 + 0.5 * sh) * 0.8;
@@ -469,7 +557,7 @@ Shader "NightShards/Diorama/Pyramids"
                 c += sun * smoothstep(0.9994, 0.9997, sd) + float3(1.0, 0.45, 0.15) * pow(saturate(sd), 12.0) * (0.5 + 0.8 * blaze);
                 // 細い雲が夕日に染まる
                 float2 cp = rd.xz / max(rd.y + 0.08, 0.02);
-                float cloud = smoothstep(0.55, 0.8, Fbm3(cp * float2(1.2, 4.0) + 3.0)) * smoothstep(0.02, 0.15, rd.y) * smoothstep(0.6, 0.25, rd.y);
+                float cloud = smoothstep(0.55, 0.8, Fbm3(cp * float2(1.2, 4.0) + 3.0)) * smoothstep(0.02, 0.15, rd.y) * (1.0 - smoothstep(0.25, 0.6, rd.y));
                 c = lerp(c, float3(1.0, 0.5, 0.35) * (0.6 + 0.8 * pow(saturate(sd * 0.5 + 0.5), 4.0)), cloud * 0.6);
                 return c;
             }
@@ -505,7 +593,7 @@ Shader "NightShards/Diorama/Pyramids"
                     float bf = frac(u / bw + Hash21(float2(layer, 7.0)));
                     float stone = Hash21(float2(bi, layer));
                     float3 lime = float3(0.82, 0.66, 0.46) * (0.82 + 0.25 * stone) * (0.85 + 0.15 * Noise3(p * 3000.0));
-                    float joint = smoothstep(0.06, 0.0, min(bf, 1.0 - bf)) * step(abs(n.y), 0.7);
+                    float joint = (1.0 - smoothstep(0.0, 0.06, min(bf, 1.0 - bf))) * step(abs(n.y), 0.7);
                     lime *= 1.0 - 0.35 * joint;
                     float rough = 0.85;
                     if (part > 0.5 && part < 1.5)
@@ -524,14 +612,45 @@ Shader "NightShards/Diorama/Pyramids"
 
                 if (id == ID_SPHINX)
                 {
-                    // 石灰岩の地層: 硬い層と、風に削られたやわらかい層が、横縞になる
-                    float3 q = p - float3(SPHINX.x, GROUND - 0.008, SPHINX.y);
-                    float band = frac(q.y / 0.0021);
-                    float3 rock = lerp(float3(0.78, 0.6, 0.4), float3(0.62, 0.46, 0.3), smoothstep(0.4, 0.6, band)) * (0.85 + 0.2 * Noise3(p * 2500.0));
-                    // ネメス頭巾の縦じま (頭のまわりだけ)
-                    if (q.y > 0.0145 && q.z > 0.012 && q.z < 0.021)
-                        rock *= 1.0 - 0.18 * step(0.5, frac(q.y / 0.0006));
-                    float3 nb = BumpNormal(n, p, 3000.0, 0.8);
+                    float part;
+                    Sphinx(p, part);
+                    float3 m = (p - float3(SPHINX.x, GROUND - 0.008, SPHINX.y + 0.0155)) / 0.0011; // メートルの座標
+                    if (part > 2.5)
+                    {
+                        // 夢の碑文: 赤みのある花こう岩に、文字と絵の彫りの行
+                        float3 gr = float3(0.48, 0.36, 0.33) * (0.85 + 0.2 * Noise3(p * 6000.0));
+                        gr *= 1.0 - 0.25 * step(0.75, frac(m.y / 0.25)) * step(m.y, 2.6);
+                        return Surface(gr, n, v, L, sunCol, sh, ao, 0.5, 0.05, 0.0, skyTop, skyLow);
+                    }
+                    // 石灰岩の地層: 下 (硬い灰色がかった層)、胴 (風で削られた黄土色と白の縞)、頭 (きめの細かい層)
+                    float band = frac(m.y / 1.3);
+                    float3 rock = lerp(float3(0.8, 0.62, 0.42), float3(0.64, 0.48, 0.32), smoothstep(0.35, 0.65, band));
+                    if (m.y < 3.5) rock = float3(0.66, 0.58, 0.48);
+                    if (m.y > 13.5) rock = float3(0.82, 0.66, 0.46);
+                    rock *= 0.85 + 0.2 * Noise3(p * 2500.0);
+                    // 足元と前足の、あとから修理した石積み (明るい四角い石)
+                    if (m.y < 3.8 && (abs(m.x) > 2.4 || m.z < 4.0))
+                    {
+                        float row = floor(m.y / 0.7);
+                        float2 b = frac(float2((m.z + abs(m.x)) / 1.1 + row * 0.5, m.y / 0.7));
+                        float joint = step(0.9, max(b.x, b.y));
+                        rock = lerp(float3(0.84, 0.74, 0.6), float3(0.5, 0.42, 0.33), joint) * (0.9 + 0.15 * Hash21(floor(float2((m.z + abs(m.x)) / 1.1 + row * 0.5, row))));
+                    }
+                    // ネメス頭巾の縞 (横の溝)。顔にかすかに残る赤い顔料
+                    if (part < 0.5 && m.y > 12.0) rock *= 1.0 - 0.2 * step(0.55, frac(m.y / 0.55));
+                    if (part > 0.5 && part < 1.5) rock = lerp(rock, float3(0.78, 0.5, 0.36), 0.25);
+                    if (part > 1.5) rock *= 0.6;
+                    // 欠けた鼻のあと: ざらざらの割れ口
+                    if (part > 0.5 && abs(m.x) < 0.55 && m.y > 15.5 && m.y < 17.1 && m.z > 6.35) rock *= 0.8 + 0.2 * Noise3(p * 20000.0);
+                    // 顔の細かいくぼみ (目・唇・耳のまわり) を暗くする: 小さな距離で調べる陰
+                    float cav = 0.0;
+                    for (int k = 1; k <= 3; k++)
+                    {
+                        float dd = 0.00025 * k;
+                        cav += (dd - Map(p + n * dd).x) / dd;
+                    }
+                    rock *= saturate(1.0 - cav * 0.35);
+                    float3 nb = BumpNormal(n, p, 3000.0, m.y > 13.5 ? 0.25 : 0.7);
                     return Surface(rock, nb, v, L, sunCol, sh, ao, 0.9, 0.03, 0.0, skyTop, skyLow);
                 }
 
@@ -547,8 +666,8 @@ Shader "NightShards/Diorama/Pyramids"
                 float rocky = 1.0 - min(min(PadMask(p.xz, float2(-0.3, 0.15), float2(0.135, 0.17), 0.04), PadMask(p.xz, KHAFRE, float2(0.125, 0.125), 0.04)),
                                         PadMask(p.xz, float2(0.36, -0.39), float2(0.09, 0.065), 0.04));
                 float3 sand = float3(0.86, 0.62, 0.38) * (0.85 + 0.2 * Noise3(p * 600.0));
-                float3 hard = float3(0.7, 0.55, 0.38) * (0.75 + 0.35 * Hash21(floor(p.xz / 0.0012)));
-                float3 albedo = lerp(sand, hard, rocky * 0.7);
+                float3 hard = float3(0.78, 0.58, 0.38) * (0.85 + 0.2 * Hash21(floor(p.xz / 0.0012)));
+                float3 albedo = lerp(sand, hard, rocky * 0.5);
                 float3 nb = lerp(nr, BumpNormal(n, p, 3000.0, 0.6), rocky);
                 float3 col = Surface(albedo, nb, v, L, sunCol, sh, ao, 0.9, 0.03, 0.0, skyTop, skyLow);
                 // 砂嵐の最中: 地面を走る砂の筋
@@ -604,13 +723,18 @@ Shader "NightShards/Diorama/Pyramids"
 
                 bool hit = false;
                 float id = 0.0;
+                float lastD = 1.0, lastId = 0.0;
+                bool ranOut = false;
                 int steps = (int)_Steps;
-                for (int i = 0; i < 200; i++)
+                for (int i = 0; i <= 200; i++)
                 {
-                    if (i >= steps || t > box.y) break;
+                    if (t > box.y) break;
+                    if (i >= steps) { ranOut = true; break; }
                     float3 pos = ro + rd * t;
                     if (rd.y > 0.0 && pos.y > maxHeight + 0.002) break;
                     float2 m = Map(pos);
+                    lastD = m.x;
+                    lastId = m.y;
                     if (m.x < 0.00003 + 0.0003 * t)
                     {
                         hit = true;
@@ -618,6 +742,13 @@ Shader "NightShards/Diorama/Pyramids"
                         break;
                     }
                     t += m.x;
+                }
+                // 地面すれすれを進む線は、歩みが細かくなって回数が足りなくなる。そのときは、ほぼ届いていれば当たりにする
+                // (足りないまま空の色にすると、地面に明るいすきまの帯ができる)
+                if (!hit && ranOut && lastD < 0.0005 + 0.002 * t)
+                {
+                    hit = true;
+                    id = lastId;
                 }
                 float tHit = hit ? t : box.y;
 
