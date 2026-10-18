@@ -10,7 +10,8 @@ namespace NightShards.Museum
         // TextMesh の大きさの目安: characterSize 1・fontSize 10 で、1行の高さがおよそ 1m
         const int FontSize = 64;
 
-        static readonly HashSet<Material> materials = new HashSet<Material>();
+        // 文字のマテリアルと、そのマテリアルが使うフォントの組
+        static readonly Dictionary<Material, Font> materials = new Dictionary<Material, Font>();
         static bool listening;
 
         public static Font DefaultFont => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -35,7 +36,7 @@ namespace NightShards.Museum
         {
             if (mat == null || font == null || font.material == null) return;
             mat.mainTexture = font.material.mainTexture;
-            materials.Add(mat);
+            materials[mat] = font;
             if (!listening)
             {
                 Font.textureRebuilt += OnTextureRebuilt;
@@ -43,41 +44,78 @@ namespace NightShards.Museum
             }
         }
 
+        // どれかのフォントの文字の絵が作り直されたとき。
+        // エディターの画面の文字など、ほかのフォントでも呼ばれるので、同じフォントを使うマテリアルだけ入れ直す。
+        // (前はここで全部のマテリアルに入れていたので、別のフォントの絵が入って文字が消えていた)
         static void OnTextureRebuilt(Font font)
         {
-            materials.RemoveWhere(m => m == null);
-            foreach (var m in materials) m.mainTexture = font.material.mainTexture;
+            SyncAll(font);
+        }
+
+        // マテリアルのテクスチャが、フォントの今のテクスチャとずれていたら直す。font が null なら全部
+        static void SyncAll(Font only)
+        {
+            List<Material> dead = null;
+            foreach (var kv in materials)
+            {
+                if (kv.Key == null || kv.Value == null) { (dead ??= new List<Material>()).Add(kv.Key); continue; }
+                if (only != null && kv.Value != only) continue;
+                var tex = kv.Value.material != null ? kv.Value.material.mainTexture : null;
+                if (tex != null && kv.Key.mainTexture != tex) kv.Key.mainTexture = tex;
+            }
+            if (dead != null) foreach (var m in dead) materials.Remove(m);
+        }
+
+        // 再生中、毎フレームの終わりに、文字のマテリアルのテクスチャがずれていないか確かめる係 (数個のマテリアルを見るだけなので軽い)
+        class Keeper : MonoBehaviour
+        {
+            void LateUpdate() { SyncAll(null); }
         }
 
         // 再生を始めたとき: シーンにあるすべての文字について、フォントに文字の絵を作らせ、文字のマテリアルに入れ直す。
-        // フォントの文字の絵 (テクスチャ) はシーンに保存されないので、再生のたび (とくに Android に切りかえたあと) 空になり、
+        // フォントの文字の絵 (テクスチャ) はシーンに保存されないので、再生のたび空になり、
         // 美術館を組み立てたときに入れたテクスチャのままだと、文字が見えなくなる
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void RefreshAllOnPlay()
         {
             materials.Clear();
+            if (listening) Font.textureRebuilt -= OnTextureRebuilt;
             listening = false;
+
             var byFont = new Dictionary<Font, System.Text.StringBuilder>();
             var meshes = Object.FindObjectsByType<TextMesh>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             foreach (var tm in meshes)
             {
-                if (tm.font == null) continue;
+                if (tm.font == null) tm.font = DefaultFont;
                 if (!byFont.TryGetValue(tm.font, out var sb)) byFont[tm.font] = sb = new System.Text.StringBuilder();
                 sb.Append(tm.text);
             }
             // まず全部の文字の絵を作らせる (作り直されてテクスチャが変わっても、このあと入れ直すので大丈夫)
             foreach (var kv in byFont) kv.Key.RequestCharactersInTexture(kv.Value.ToString(), FontSize);
+
+            Material fallback = null; // マテリアルが外れていた文字に付けるもの
+            int fixedCount = 0;
             foreach (var tm in meshes)
             {
-                if (tm.font == null) continue;
                 var r = tm.GetComponent<MeshRenderer>();
-                if (r == null || r.sharedMaterial == null) continue;
-                if (r.sharedMaterial != tm.font.material) Refresh(r.sharedMaterial, tm.font);
+                if (r == null) continue;
+                if (r.sharedMaterial == null || r.sharedMaterial.shader == null || r.sharedMaterial == tm.font.material)
+                {
+                    if (fallback == null) fallback = CreateMaterial(null, tm.font);
+                    r.sharedMaterial = fallback;
+                }
+                Refresh(r.sharedMaterial, tm.font);
                 // 文字の絵の位置が変わっているかもしれないので、文字の形を作り直させる
                 string text = tm.text;
                 tm.text = "";
                 tm.text = text;
+                fixedCount++;
             }
+
+            var keeper = new GameObject("Caption Text Keeper") { hideFlags = HideFlags.HideInHierarchy };
+            Object.DontDestroyOnLoad(keeper);
+            keeper.AddComponent<Keeper>();
+            Debug.Log($"[Museum] 文字 {fixedCount} 個のフォントの絵を入れ直しました");
         }
 
         // 1行の高さが lineHeight (m) になるように文字を置く。左上をそろえる

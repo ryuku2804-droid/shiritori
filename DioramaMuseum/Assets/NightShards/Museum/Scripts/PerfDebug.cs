@@ -4,7 +4,7 @@ using UnityEngine;
 namespace NightShards.Museum
 {
     // 重さを調べる道具。再生中に F キーで、重そうなものを1つずつ止めて、FPS の変わり方を見る。
-    //   F1  左上の表示を出す・消す
+    //   F1  左上の表示を出す・消す (はじめは消えている)
     //   F2  ジオラマを描く・描かない
     //   F3  スポットライトの影を付ける・付けない
     //   F4  画面の細かさを、自動 → 100% → 75% → 50% と切りかえる (URP の Render Scale。自動は AutoQuality が FPS に合わせる)
@@ -12,7 +12,7 @@ namespace NightShards.Museum
     // 止めて大きく FPS が上がったものが、重さの原因
     public class PerfDebug : MonoBehaviour
     {
-        [SerializeField] bool showOnStart = true;
+        [SerializeField] bool showOnStart = false; // 左上の表示は、はじめは出さない (F1 で出せる)
 
         bool visible;
         float smoothedDt = 1f / 60f;
