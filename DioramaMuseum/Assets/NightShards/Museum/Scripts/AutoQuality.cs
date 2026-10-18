@@ -25,6 +25,7 @@ namespace NightShards.Museum
         float originalScale = -1f;
         UpscalingFilterSelection originalFilter;
         int originalMsaa;
+        bool originalHdr;
         float timer, frameSum;
         int frames;
 
@@ -45,6 +46,15 @@ namespace NightShards.Museum
             originalScale = urp.renderScale;
             originalFilter = urp.upscalingFilter;
             originalMsaa = urp.msaaSampleCount;
+            originalHdr = urp.supportsHDR;
+            // 美術館の明るさは HDR (1 より明るい色) と、ACES の色の整え (トーンマッピング) を前提にしている。
+            // HDR が切れた設定 (Android に切りかえたときの Mobile の画質など) だと、画面がまっ白にとんでしまうので、ここで入れる
+            if (!urp.supportsHDR)
+            {
+                urp.supportsHDR = true;
+                Debug.LogWarning($"[Museum] いまの画質 ({QualitySettings.names[QualitySettings.GetQualityLevel()]}) の URP の設定「{urp.name}」は HDR が切れていたので、再生中だけ入れました。" +
+                                 "Project Settings > Quality で、このプラットフォームの画質を PC の画質 (HDR が入っているもの) にしてください。", urp);
+            }
             urp.upscalingFilter = UpscalingFilterSelection.FSR;
             urp.msaaSampleCount = 1;
             CurrentScale = Mathf.Clamp(0.75f, MinScale, MaxScale); // まずは 75% から始めて、FPS を見ながら合わせる
@@ -82,6 +92,7 @@ namespace NightShards.Museum
             urp.renderScale = originalScale;
             urp.upscalingFilter = originalFilter;
             urp.msaaSampleCount = originalMsaa;
+            urp.supportsHDR = originalHdr;
         }
     }
 }
