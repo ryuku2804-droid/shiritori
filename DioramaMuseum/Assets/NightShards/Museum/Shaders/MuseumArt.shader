@@ -269,6 +269,7 @@ Shader "NightShards/MuseumArt"
 
             half4 Frag(Varyings input) : SV_Target
             {
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input); // VR: 左右どちらの目を描いているか
                 float t = _Time.y;
                 float3 n = abs(normalize(input.normalWS));
                 float2 planar = n.x > n.z ? input.positionWS.zy : input.positionWS.xy;

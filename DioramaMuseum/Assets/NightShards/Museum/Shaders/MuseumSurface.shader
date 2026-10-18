@@ -374,6 +374,7 @@ Shader "NightShards/MuseumSurface"
 
             half4 Frag(Varyings input) : SV_Target
             {
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input); // VR: 左右どちらの目を描いているか
                 float3 normalWS = normalize(input.normalWS);
 
                 // 面の向きでいちばん近い平面に投影する (床と天井は xz、壁は xy か zy)
@@ -544,6 +545,7 @@ Shader "NightShards/MuseumSurface"
 
             half DepthFrag(Varyings input) : SV_Target
             {
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input); // VR: 左右どちらの目を描いているか
                 return input.positionCS.z;
             }
             ENDHLSL
@@ -589,6 +591,7 @@ Shader "NightShards/MuseumSurface"
 
             half4 DepthNormalsFrag(Varyings input) : SV_Target
             {
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input); // VR: 左右どちらの目を描いているか
                 float3 normalWS = normalize(input.normalWS);
             #if defined(_GBUFFER_NORMALS_OCT)
                 float2 oct = PackNormalOctQuadEncode(normalWS);

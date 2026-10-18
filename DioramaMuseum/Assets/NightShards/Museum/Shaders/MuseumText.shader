@@ -70,6 +70,7 @@ Shader "NightShards/MuseumText"
 
             half4 Frag(Varyings input) : SV_Target
             {
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input); // VR: 左右どちらの目を描いているか
                 // 文字の形はフォントのテクスチャのアルファに入っている
                 half a = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv).a;
                 half4 c = half4(input.color.rgb, input.color.a * a);

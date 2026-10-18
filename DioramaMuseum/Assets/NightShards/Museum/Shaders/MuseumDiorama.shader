@@ -531,6 +531,7 @@ Shader "NightShards/MuseumDiorama"
 
             half4 Frag(Varyings input) : SV_Target
             {
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input); // VR: 左右どちらの目を描いているか
                 UNITY_SETUP_INSTANCE_ID(input);
                 Env e = GetEnv();
 
@@ -633,6 +634,7 @@ Shader "NightShards/MuseumDiorama"
 
             half DepthFrag(Varyings input) : SV_Target
             {
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input); // VR: 左右どちらの目を描いているか
                 return input.positionCS.z;
             }
             ENDHLSL

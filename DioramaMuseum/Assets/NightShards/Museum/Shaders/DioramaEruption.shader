@@ -710,6 +710,7 @@ Shader "NightShards/Diorama/Eruption"
 
             half4 Frag(Varyings input) : SV_Target
             {
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input); // VR: 左右どちらの目を描いているか
                 UNITY_SETUP_INSTANCE_ID(input);
 
                 float3 ro = TransformWorldToObject(GetCameraPositionWS());
@@ -855,6 +856,7 @@ Shader "NightShards/Diorama/Eruption"
 
             half DepthFrag(Varyings input) : SV_Target
             {
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input); // VR: 左右どちらの目を描いているか
                 return input.positionCS.z;
             }
             ENDHLSL
