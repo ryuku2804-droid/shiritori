@@ -9,6 +9,8 @@ namespace NightShards.Museum
     //   ・SSAO (すみの暗がり) を切る (画面全体をもう一度なぞるので重い)
     //   ・1 つの物を照らすライトの数を 4 つまでにする
     //   ・光のにじみ (ブルーム) と四隅の暗がり (ビネット) は MuseumPost が切る。明るさの階調 (トーンマップ) は残す
+    //   ・ジオラマの影と陰 (AO) を計算しない (シェーダーの _DioramaLite を 1 にする)
+    //   ・作品の世界の中では、光をたどる回数を減らし、画面をもっと粗くしてよいことにする (DioramaWorld が使う)
     //   ・画面の細かさは AutoQuality が 70% から始めて、72 fps に合わせる
     // 再生を始めると自動で動く (シーンに置く必要はない)
     public static class QuestQuality
@@ -18,9 +20,15 @@ namespace NightShards.Museum
 
         const int MaxLightsPerObject = 4;
 
+        // 作品の世界の中で、光をたどる回数 (パソコンは 140)
+        public const float WorldSteps = 72f;
+        // 作品の世界の中で、いちばん粗い細かさ (美術館は 60%)
+        public const float WorldMinScale = 0.45f;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Apply()
         {
+            Shader.SetGlobalFloat("_DioramaLite", IsMobile ? 1f : 0f);
             if (!IsMobile) return;
 
             // ライトの影を全部切る (美術館のライトは、再生を始めたときにはもうできている)

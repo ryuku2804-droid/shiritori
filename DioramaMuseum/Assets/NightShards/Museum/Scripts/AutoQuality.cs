@@ -16,10 +16,14 @@ namespace NightShards.Museum
         public static bool Enabled = true;
         // 目標の FPS
         public static float TargetFps = 40f; // パソコン。VR では VRRig が 72 にする
-        // いまの細かさ (0.6〜1)
+        // いまの細かさ (MinScale〜1)
         public static float CurrentScale { get; private set; } = 1f;
 
-        const float MinScale = 0.6f, MaxScale = 1f, Step = 0.05f, Interval = 1f; // 60% より粗くすると、文字や細い線が消える
+        // いちばん粗い細かさ。60% より粗くすると、美術館の文字や細い線が消える。
+        // 作品の世界の中には文字がないので、Quest では DioramaWorld がもっと下げる
+        public const float DefaultMinScale = 0.6f;
+        public static float MinScale = DefaultMinScale;
+        const float MaxScale = 1f, Step = 0.05f, Interval = 1f;
 
         UniversalRenderPipelineAsset urp;
         float originalScale = -1f;
@@ -33,6 +37,7 @@ namespace NightShards.Museum
         static void Create()
         {
             Enabled = true; // 前の再生で F4 を使っていても、自動からはじめる
+            MinScale = DefaultMinScale;
             if (FindFirstObjectByType<AutoQuality>() != null) return;
             var go = new GameObject("Auto Quality");
             DontDestroyOnLoad(go);
@@ -74,7 +79,8 @@ namespace NightShards.Museum
             // 細かさを変えると、ざらつきの模様が変わって、ちらついて見える。だから 1 秒ごとに、ゆっくり変える
             timer = 0f; frameSum = 0f; frames = 0;
             // 目標より 1 割遅ければ粗く、2 割以上速ければ細かく (行ったり来たりしないよう、間をあける)
-            if (fps < TargetFps * 0.9f) CurrentScale = Mathf.Max(MinScale, CurrentScale - Step);
+            if (CurrentScale < MinScale) CurrentScale = MinScale; // 世界から出て、いちばん粗い細かさが上がったとき
+            else if (fps < TargetFps * 0.9f) CurrentScale = Mathf.Max(MinScale, CurrentScale - Step);
             else if (fps > TargetFps * 1.2f) CurrentScale = Mathf.Min(MaxScale, CurrentScale + Step);
             if (!Mathf.Approximately(urp.renderScale, CurrentScale)) urp.renderScale = CurrentScale;
         }

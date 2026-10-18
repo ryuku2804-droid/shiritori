@@ -35,6 +35,12 @@ Shader "NightShards/Diorama/Torii"
         HLSLINCLUDE
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
+        // Quest で 1 にする (QuestQuality が Shader.SetGlobalFloat で入れる)。1 のとき、影と陰の計算を省く。
+
+        // マテリアルごとの値の箱 (UnityPerMaterial) の外に置くので、全部のジオラマに一度に効く
+
+        float _DioramaLite;
+
         CBUFFER_START(UnityPerMaterial)
             float _Steps;
             float _ShadowSteps;
@@ -315,6 +321,7 @@ Shader "NightShards/Diorama/Torii"
 
             float SoftShadow(float3 p, float3 l)
             {
+                if (_DioramaLite > 0.5) return 1.0; // Quest では省く
                 float res = 1.0;
                 float t = 0.0015;
                 int n = max((int)_ShadowSteps, 8);
@@ -342,6 +349,7 @@ Shader "NightShards/Diorama/Torii"
 
             float AmbientOcclusion(float3 p, float3 n)
             {
+                if (_DioramaLite > 0.5) return 1.0; // Quest では省く
                 float occ = 0.0;
                 float w = 1.0;
                 [loop] for (int i = 1; i <= 4; i++)

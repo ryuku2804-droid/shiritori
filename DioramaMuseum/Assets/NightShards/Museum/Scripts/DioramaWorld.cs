@@ -92,6 +92,7 @@ namespace NightShards.Museum
             body.Teleport(spawnPosition, spawnYaw);
 
             InWorld = true;
+            AutoQuality.MinScale = QuestQuality.IsMobile ? QuestQuality.WorldMinScale : AutoQuality.DefaultMinScale; // Quest では、世界の中だけ、もっと粗くしてよい
             body.ManageCursor = false; // 世界の中では Esc を「戻る」に使うので、カーソルの出し入れはこちらで受け持つ
             FirstPersonController.SetCursorLocked(true);
             body.InputEnabled = true;
@@ -118,6 +119,7 @@ namespace NightShards.Museum
             body.Teleport(returnPosition, returnYaw);
 
             InWorld = false;
+            AutoQuality.MinScale = AutoQuality.DefaultMinScale;
             viewer.enabled = true;
             body.ManageCursor = true;
             body.InputEnabled = true;
@@ -149,7 +151,8 @@ namespace NightShards.Museum
             rend.receiveShadows = false;
             var block = new MaterialPropertyBlock();
             stand.Diorama.GetPropertyBlock(block); // 作品の形 (_Seed) を引き継ぐ
-            block.SetFloat("_Steps", 140f);       // 中では遠くまで見えるので、細かく (多すぎると重いので 140)
+            // 中では遠くまで見えるので、細かく (多すぎると重いので 140)。Quest では半分くらいにして軽くする
+            block.SetFloat("_Steps", QuestQuality.IsMobile ? QuestQuality.WorldSteps : 140f);
             block.SetFloat("_ShadowSteps", 16f);
             block.SetFloat("_Event", 0f);
             rend.SetPropertyBlock(block);

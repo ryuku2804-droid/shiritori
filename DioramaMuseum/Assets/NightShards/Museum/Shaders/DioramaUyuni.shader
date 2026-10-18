@@ -31,6 +31,12 @@ Shader "NightShards/Diorama/Uyuni"
         HLSLINCLUDE
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
+        // Quest で 1 にする (QuestQuality が Shader.SetGlobalFloat で入れる)。1 のとき、影と陰の計算を省く。
+
+        // マテリアルごとの値の箱 (UnityPerMaterial) の外に置くので、全部のジオラマに一度に効く
+
+        float _DioramaLite;
+
         CBUFFER_START(UnityPerMaterial)
             float _Steps;
             float _ShadowSteps;

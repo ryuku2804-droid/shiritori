@@ -26,6 +26,12 @@ Shader "NightShards/MuseumDiorama"
         HLSLINCLUDE
         #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
+        // Quest で 1 にする (QuestQuality が Shader.SetGlobalFloat で入れる)。1 のとき、影と陰の計算を省く。
+
+        // マテリアルごとの値の箱 (UnityPerMaterial) の外に置くので、全部のジオラマに一度に効く
+
+        float _DioramaLite;
+
         CBUFFER_START(UnityPerMaterial)
             float _Biome;
             float _Seed;
@@ -324,6 +330,7 @@ Shader "NightShards/MuseumDiorama"
             // やわらかい影。光の方向へ少しずつ進み、途中で何かに近づいたぶんだけ暗くする
             float SoftShadow(float3 p, float3 l)
             {
+                if (_DioramaLite > 0.5) return 1.0; // Quest では省く
                 float res = 1.0;
                 float t = 0.006;
                 int n = (int)_ShadowSteps;
