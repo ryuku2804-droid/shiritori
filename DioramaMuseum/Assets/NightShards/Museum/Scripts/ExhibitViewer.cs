@@ -55,8 +55,9 @@ namespace NightShards.Museum
                     var near = FindNearest();
                     bool canEnter = near != null && world != null && world.CanEnter(near);
                     SetPrompt(near == null ? "" : canEnter ? $"E で鑑賞　クリックで中に入る　{near.Title}" : $"E で鑑賞　{near.Title}");
-                    if (near != null && MuseumInput.InteractPressed) Enter(near);
-                    else if (canEnter && MuseumInput.ClickPressed && Cursor.lockState == CursorLockMode.Locked) world.Enter(near);
+                    // VR では鑑賞モード (カメラが作品のまわりを回る) は使わない。近づいて、自分の頭で見る
+                    if (near != null && MuseumInput.InteractPressed && !VRInput.Active) Enter(near);
+                    else if (canEnter && MuseumInput.ClickPressed && (Cursor.lockState == CursorLockMode.Locked || VRInput.Active)) world.Enter(near);
                     break;
 
                 case Mode.Viewing:

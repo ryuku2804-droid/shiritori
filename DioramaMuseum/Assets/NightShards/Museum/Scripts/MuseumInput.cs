@@ -23,7 +23,8 @@ namespace NightShards.Museum
             {
                 float x = (Held(K.D) || Held(K.Right) ? 1f : 0f) - (Held(K.A) || Held(K.Left) ? 1f : 0f);
                 float y = (Held(K.W) || Held(K.Up) ? 1f : 0f) - (Held(K.S) || Held(K.Down) ? 1f : 0f);
-                return Vector2.ClampMagnitude(new Vector2(x, y), 1f);
+                Vector2 v = new Vector2(x, y) + VRInput.Move; // VR の左スティック
+                return Vector2.ClampMagnitude(v, 1f);
             }
         }
 
@@ -57,9 +58,9 @@ namespace NightShards.Museum
             }
         }
 
-        public static bool Run => Held(K.LeftShift) || Held(K.RightShift);
-        public static bool JumpPressed => Pressed(K.Space);
-        public static bool InteractPressed => Pressed(K.E);
+        public static bool Run => Held(K.LeftShift) || Held(K.RightShift) || VRInput.RunHeld;
+        public static bool JumpPressed => Pressed(K.Space); // VR ではジャンプしない (A ボタンは仕掛け: VRRig)
+        public static bool InteractPressed => Pressed(K.E) || VRInput.BPressed;
         public static bool BackPressed => Pressed(K.Escape);
         public static bool HelpPressed => Pressed(K.H);
 
@@ -84,9 +85,9 @@ namespace NightShards.Museum
             {
 #if ENABLE_INPUT_SYSTEM
                 var m = Mouse.current;
-                return m != null && m.leftButton.wasPressedThisFrame;
+                return (m != null && m.leftButton.wasPressedThisFrame) || VRInput.TriggerPressed;
 #else
-                return Input.GetMouseButtonDown(0);
+                return Input.GetMouseButtonDown(0) || VRInput.TriggerPressed;
 #endif
             }
         }
@@ -98,9 +99,9 @@ namespace NightShards.Museum
             {
 #if ENABLE_INPUT_SYSTEM
                 var m = Mouse.current;
-                return m != null && m.leftButton.wasReleasedThisFrame;
+                return (m != null && m.leftButton.wasReleasedThisFrame) || VRInput.TriggerReleased;
 #else
-                return Input.GetMouseButtonUp(0);
+                return Input.GetMouseButtonUp(0) || VRInput.TriggerReleased;
 #endif
             }
         }
@@ -111,9 +112,9 @@ namespace NightShards.Museum
             {
 #if ENABLE_INPUT_SYSTEM
                 var m = Mouse.current;
-                return m != null && m.leftButton.isPressed;
+                return (m != null && m.leftButton.isPressed) || VRInput.TriggerHeld;
 #else
-                return Input.GetMouseButton(0);
+                return Input.GetMouseButton(0) || VRInput.TriggerHeld;
 #endif
             }
         }

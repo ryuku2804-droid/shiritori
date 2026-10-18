@@ -72,8 +72,15 @@ namespace NightShards.Museum
         {
             UpdateCursor();
 
-            bool canLook = InputEnabled && Cursor.lockState == CursorLockMode.Locked;
+            bool vr = VRInput.Active;
+            bool canLook = InputEnabled && Cursor.lockState == CursorLockMode.Locked && !vr;
             if (canLook) Look(MuseumInput.Look);
+            // VR: 見回すのは頭。右スティックで 30 度ずつ向きを変える (なめらかに回ると酔いやすい)
+            if (vr && InputEnabled && VRInput.SnapTurn != 0)
+            {
+                yaw += VRInput.SnapTurn * 30f;
+                transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+            }
 
             Vector2 move = InputEnabled ? MuseumInput.Move : Vector2.zero;
             IsRunning = InputEnabled && MuseumInput.Run && move.y > 0.1f;
@@ -83,7 +90,15 @@ namespace NightShards.Museum
             // 一歩ごとの速さの波: 地面をけった直後に速く、足を運ぶ間は遅い (平均すると、もとの速さ)。
             // 氷の上では足が地面をうまくけれないので、波は小さい
             float surge = 1f + stepSurge * grip * (Mathf.Abs(Mathf.Sin(stepPhase)) - 0.637f);
-            Vector3 target = (transform.right * move.x + transform.forward * move.y) * speed * surge;
+            // VR では、頭の向いている方へ歩く
+            Vector3 fwd = transform.forward, right = transform.right;
+            if (vr && cameraPivot != null && cameraPivot.childCount > 0)
+            {
+                Vector3 f = cameraPivot.GetChild(0).forward;
+                f.y = 0f;
+                if (f.sqrMagnitude > 1e-4f) { fwd = f.normalized; right = Vector3.Cross(Vector3.up, fwd); }
+            }
+            Vector3 target = (right * move.x + fwd * move.y) * speed * surge;
 
             // 指数で近づけると、フレームレートが変わっても同じ感触になる。
             // すべりやすいほど近づき方がゆっくりになる = 止まれない・曲がれない・つるつる滑る
@@ -93,7 +108,7 @@ namespace NightShards.Museum
             if (controller.isGrounded)
             {
                 if (verticalVelocity < 0f) verticalVelocity = -2f; // 地面に押し付けて、段差や坂で浮かないようにする
-                if (InputEnabled && MuseumInput.JumpPressed)
+                if (InputEnabled && MuseumInput.JumpPressed && !vr)
                     verticalVelocity = Mathf.Sqrt(2f * jumpHeight * -gravity);
             }
             verticalVelocity += gravity * Time.deltaTime;
@@ -123,6 +138,7 @@ namespace NightShards.Museum
             if (stepBlend <= 0f) stepPhase = 0f; // 止まったら、次は一歩目から
 
             float scale = stepBlend * (IsRunning ? runBobScale : 1f);
+            if (VRInput.Active) scale = 0f; // VR では視点を揺らさない (酔わないように)
             float up = (Mathf.Abs(Mathf.Sin(stepPhase)) - 0.5f) * bobHeight * scale; // 一歩ごとに上下 (足をついた瞬間がいちばん低い)
             float side = Mathf.Sin(stepPhase) * bobSway * scale;                    // 右足・左足で左右に揺れる
             cameraPivot.localPosition = pivotBase + new Vector3(side, up, 0f);
