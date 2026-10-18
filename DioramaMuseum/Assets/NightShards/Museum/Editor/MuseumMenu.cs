@@ -1,3 +1,6 @@
+// エディターの中だけで使うファイル。Editor フォルダの外に置いても、ゲームのビルド (Quest など) には入らないように、
+// 全体を UNITY_EDITOR のときだけ読むようにしている
+#if UNITY_EDITOR
 using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -6,7 +9,7 @@ using UnityEngine;
 namespace NightShards.Museum.EditorTools
 {
     // Tools > Diorama Museum のメニュー。編集中のシーンに美術館を組み立てる。
-    // このファイルは必ず Editor という名前のフォルダに置く (ゲームのビルドには入らない)
+    // Editor という名前のフォルダに置くのがおすすめ (どこに置いても、#if UNITY_EDITOR でビルドには入らない)
     public static class MuseumMenu
     {
         const string Menu = "Tools/Diorama Museum/";
@@ -284,3 +287,4 @@ namespace NightShards.Museum.EditorTools
         }
     }
 }
+#endif
