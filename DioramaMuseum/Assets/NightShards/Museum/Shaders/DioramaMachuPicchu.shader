@@ -315,7 +315,7 @@ Shader "NightShards/Diorama/MachuPicchu"
                 if (length(q.xz) < 0.03)
                 {
                     d = 1e5;
-                    for (int k = 0; k < 4; k++)
+                    [loop] for (int k = 0; k < 4; k++)
                     {
                         float r = 0.016 - k * 0.0035;
                         d = min(d, max(length(q.xz * float2(1.0, 1.3)) - r, abs(q.y - (k + 0.5) * 0.003) - 0.0015));
@@ -352,7 +352,7 @@ Shader "NightShards/Diorama/MachuPicchu"
                 float box = max(max(-0.02 - p.x, p.x - 0.09), max(max(0.15 - p.z, p.z - 0.25), p.y - (CITY_Y + 0.05)));
                 if (box > 0.002) return box;
                 float d = 1e5;
-                [unroll] for (int i = 0; i < LLAMAS; i++)
+                [loop] for (int i = 0; i < LLAMAS; i++)
                 {
                     float3 r = p - gLlama[i];
                     if (dot(r, r) > 0.003 * 0.003) { d = min(d, length(r) - 0.0025); continue; }
@@ -373,7 +373,7 @@ Shader "NightShards/Diorama/MachuPicchu"
                 gIntiY = HeightFast(INTI);
                 gTorreonY = HeightFast(TORREON);
                 gGuardY = HeightFast(GUARD);
-                [unroll] for (int i = 0; i < LLAMAS; i++)
+                [loop] for (int i = 0; i < LLAMAS; i++)
                 {
                     float2 dir;
                     gLlama[i] = LlamaPos(i, dir);
@@ -430,7 +430,7 @@ Shader "NightShards/Diorama/MachuPicchu"
                 float res = 1.0;
                 float t = 0.003; // 高さの表は少しなまっているので、すぐ近くは調べない (急な斜面が自分の影に入らないように)
                 int n = clamp((int)_ShadowSteps, 8, 16);
-                for (int i = 0; i < 16; i++)
+                [loop] for (int i = 0; i < 16; i++)
                 {
                     if (i >= n) break;
                     float3 sp = p + l * t;
@@ -448,7 +448,7 @@ Shader "NightShards/Diorama/MachuPicchu"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 3; i++)
+                [loop] for (int i = 1; i <= 3; i++)
                 {
                     float d = 0.003 * i;
                     occ += (d - Map(p + n * d).x) * w;
@@ -601,7 +601,7 @@ Shader "NightShards/Diorama/MachuPicchu"
                     // 段のふち: 手前 (高い側) の石垣の上の、石の縁と、その下の影の線
                     float hHere = Height(p.xz);
                     float edge = 0.0;
-                    for (int k = 0; k < 4; k++)
+                    [loop] for (int k = 0; k < 4; k++)
                     {
                         float2 o = float2(k == 0 ? 0.0015 : (k == 1 ? -0.0015 : 0.0), k == 2 ? 0.0015 : (k == 3 ? -0.0015 : 0.0));
                         edge = max(edge, saturate((hHere - Height(p.xz + o)) / (TERRACE_H * 0.5)));
@@ -678,7 +678,7 @@ Shader "NightShards/Diorama/MachuPicchu"
                 float lastD = 1.0, lastId = 0.0;
                 bool ranOut = false;
                 int steps = (int)_Steps;
-                for (int i = 0; i <= 200; i++)
+                [loop] for (int i = 0; i <= 200; i++)
                 {
                     if (t > box.y) break;
                     if (i >= steps) { ranOut = true; break; }
@@ -741,7 +741,7 @@ Shader "NightShards/Diorama/MachuPicchu"
                     float dt = (tB - tA) / 16.0;
                     float trans = 1.0;
                     float3 fog = 0;
-                    for (int k = 0; k < 16; k++)
+                    [loop] for (int k = 0; k < 16; k++)
                     {
                         float3 pos = ro + rd * (tA + dt * (k + 0.5));
                         if (max(abs(pos.x), abs(pos.z)) > INNER) continue;

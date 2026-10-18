@@ -114,7 +114,7 @@ Shader "NightShards/MuseumDiorama"
             {
                 float v = 0.0;
                 float amp = 0.5;
-                for (int k = 0; k < 4; k++)
+                [loop] for (int k = 0; k < 4; k++)
                 {
                     float n = 1.0 - abs(ValueNoise(p) * 2.0 - 1.0);
                     v += amp * n * n;
@@ -263,7 +263,7 @@ Shader "NightShards/MuseumDiorama"
                 float2 res = float2(1e5, ID_TRUNK);
                 if (p.y < -0.26 || p.y > 0.0) return res;
                 const float2 bases[4] = { float2(0.02, -0.02), float2(0.09, 0.05), float2(-0.07, 0.07), float2(0.13, -0.1) };
-                for (int k = 0; k < 4; k++)
+                [loop] for (int k = 0; k < 4; k++)
                 {
                     float2 b2 = bases[k];
                     if (length(p.xz - b2) > 0.12) continue;
@@ -326,7 +326,7 @@ Shader "NightShards/MuseumDiorama"
                 float res = 1.0;
                 float t = 0.006;
                 int n = (int)_ShadowSteps;
-                for (int i = 0; i < 32; i++)
+                [loop] for (int i = 0; i < 32; i++)
                 {
                     if (i >= n) break;
                     float h = Map(p + l * t).x;
@@ -555,7 +555,7 @@ Shader "NightShards/MuseumDiorama"
                 bool hit = false;
                 float id = 0.0;
                 int steps = (int)_Steps;
-                for (int i = 0; i < 160; i++)
+                [loop] for (int i = 0; i < 160; i++)
                 {
                     if (i >= steps || t > box.y) break;
                     float2 m = Map(ro + rd * t);

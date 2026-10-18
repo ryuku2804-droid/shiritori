@@ -234,7 +234,7 @@ Shader "NightShards/Diorama/DeepSea"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 4; i++)
+                [loop] for (int i = 1; i <= 4; i++)
                 {
                     float d = 0.008 * i;
                     occ += (d - Map(p + n * d).x) * w;
@@ -386,7 +386,7 @@ Shader "NightShards/Diorama/DeepSea"
                 float walk = _Time.y * 3.0 + fi * 2.0;
                 if (p.y < 0.0)
                 {
-                    for (int k = 0; k < 7; k++)
+                    [loop] for (int k = 0; k < 7; k++)
                     {
                         float fk = k;
                         float x = L * (0.7 - fk * 0.21);
@@ -416,7 +416,7 @@ Shader "NightShards/Diorama/DeepSea"
             float StarSDF(float3 p, float fi)
             {
                 float d = SdEllipsoid(p, float3(0.004, 0.0012, 0.004));
-                for (int a = 0; a < 5; a++)
+                [loop] for (int a = 0; a < 5; a++)
                 {
                     float fa = a;
                     float ang = fa * 1.2566 + fi;
@@ -471,7 +471,7 @@ Shader "NightShards/Diorama/DeepSea"
                 hitLocal = 0;
                 dirLocal = 0;
                 hitCenter = 0;
-                for (int c = 0; c < N_CREATURES; c++)
+                [loop] for (int c = 0; c < N_CREATURES; c++)
                 {
                     int kind, idx;
                     CreatureKind(c, kind, idx);
@@ -489,7 +489,7 @@ Shader "NightShards/Diorama/DeepSea"
                     float3 o = ToLocal(oc, yaw);
                     float3 v = ToLocal(rd, yaw);
                     float t = t0;
-                    for (int s = 0; s < 24; s++)
+                    [loop] for (int s = 0; s < 24; s++)
                     {
                         float d = CreatureSDF(kind, idx, o + v * t);
                         if (d < 0.00012)
@@ -603,7 +603,7 @@ Shader "NightShards/Diorama/DeepSea"
                 float3 col = 0;
                 float t = _Time.y;
                 // クラゲの触手 (細く長く、ゆらゆら) と口腕 (太く短く、ひらひら)
-                for (int j = 0; j < N_JELLY; j++)
+                [loop] for (int j = 0; j < N_JELLY; j++)
                 {
                     float3 C;
                     float yaw, radius;
@@ -613,7 +613,7 @@ Shader "NightShards/Diorama/DeepSea"
                     if (tc < 0.0 || dot(w, w) - tc * tc > 0.012) continue; // 遠いクラゲは飛ばす
                     float3 hue = j % 2 == 0 ? float3(0.95, 0.5, 0.85) : float3(0.45, 0.7, 1.2);
                     float bright = (0.35 + 3.0 * GlowWave(C)) * exp(-SIGMA.b * tc * 0.5);
-                    for (int k = 0; k < 8; k++)
+                    [loop] for (int k = 0; k < 8; k++)
                     {
                         float fk = k;
                         float ang = fk * 0.785 + j;
@@ -628,7 +628,7 @@ Shader "NightShards/Diorama/DeepSea"
                         d2 = SegmentDist2(ro, rd, m, b, sc, kk);
                         if (sc > 0.0 && sc < tMax) col += hue * exp(-d2 / (thin * thin)) * 0.45 * (1.0 - kk) * bright;
                     }
-                    for (int k2 = 0; k2 < 4; k2++)
+                    [loop] for (int k2 = 0; k2 < 4; k2++)
                     {
                         float fk = k2;
                         float ang = fk * 1.5708 + j + 0.4;
@@ -675,7 +675,7 @@ Shader "NightShards/Diorama/DeepSea"
                 float time = _Time.y;
                 float3 col = 0;
                 float3 stepTrans = exp(-SIGMA * dt);
-                for (int i = 0; i < 40; i++)
+                [loop] for (int i = 0; i < 40; i++)
                 {
                     if (i >= steps) break;
                     float3 p = ro + rd * t;
@@ -801,7 +801,7 @@ Shader "NightShards/Diorama/DeepSea"
                 bool hit = false;
                 float id = 0.0;
                 int steps = (int)_Steps;
-                for (int i = 0; i < 200; i++)
+                [loop] for (int i = 0; i < 200; i++)
                 {
                     if (i >= steps || t > box.y) break;
                     float3 pos = ro + rd * t;

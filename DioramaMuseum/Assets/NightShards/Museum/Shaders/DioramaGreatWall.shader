@@ -234,7 +234,7 @@ Shader "NightShards/Diorama/GreatWall"
                 if (y > 0.04 * WS) return (y - 0.035 * WS) * 0.8;
                 float w = WallShape(d / WS, s / WS, y / WS) * WS;
                 float t = 1e5;
-                [unroll] for (int k = 0; k < TOWERS; k++)
+                [loop] for (int k = 0; k < TOWERS; k++)
                 {
                     float sz = TOWER_Z[k];
                     if (abs(s - sz) < 0.012 * WS)
@@ -299,7 +299,7 @@ Shader "NightShards/Diorama/GreatWall"
                 float res = 1.0;
                 float t = 0.002;
                 int n = clamp((int)_ShadowSteps, 8, 16);
-                for (int i = 0; i < 16; i++)
+                [loop] for (int i = 0; i < 16; i++)
                 {
                     if (i >= n) break;
                     float3 sp = p + l * t;
@@ -316,7 +316,7 @@ Shader "NightShards/Diorama/GreatWall"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 3; i++)
+                [loop] for (int i = 1; i <= 3; i++)
                 {
                     float d = 0.003 * i;
                     occ += (d - Map(p + n * d).x) * w;
@@ -409,7 +409,7 @@ Shader "NightShards/Diorama/GreatWall"
                 if (_Event < 0.01) return 0;
                 float3 col = 0;
                 float t = _Time.y;
-                [unroll] for (int k = 0; k < TOWERS; k++)
+                [loop] for (int k = 0; k < TOWERS; k++)
                 {
                     float on = BeaconOn(k);
                     if (on < 0.01) continue;
@@ -473,7 +473,7 @@ Shader "NightShards/Diorama/GreatWall"
                     float3 nb = BumpNormal(n, p, 6000.0, 0.3);
                     col = Surface(brick, nb, v, L, sunCol, sh, ao, 0.8, 0.04, 0.0, skyTop, skyLow);
                     // のろしの炎が、望楼の上を照らす
-                    [unroll] for (int k = 0; k < TOWERS; k++)
+                    [loop] for (int k = 0; k < TOWERS; k++)
                     {
                         float on = BeaconOn(k);
                         if (on > 0.01) col += brick * float3(2.0, 0.8, 0.25) * on * 0.8 * exp(-length(p - BeaconPos(k)) / 0.012);
@@ -550,7 +550,7 @@ Shader "NightShards/Diorama/GreatWall"
                 float lastD = 1.0, lastId = 0.0;
                 bool ranOut = false;
                 int steps = (int)_Steps;
-                for (int i = 0; i <= 200; i++)
+                [loop] for (int i = 0; i <= 200; i++)
                 {
                     if (t > box.y) break;
                     if (i >= steps) { ranOut = true; break; }

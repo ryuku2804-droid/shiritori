@@ -228,7 +228,7 @@ Shader "NightShards/Diorama/Uyuni"
                 if (group > 0.002) return group;
                 float d = 1e5;
                 float t = _Time.y;
-                for (int i = 0; i < PEOPLE; i++)
+                [loop] for (int i = 0; i < PEOPLE; i++)
                 {
                     float3 q = p - PersonPos(i);
                     // 1 人は、写真のためにジャンプしている
@@ -288,7 +288,7 @@ Shader "NightShards/Diorama/Uyuni"
             float CloudDensity(float3 p)
             {
                 float d = 0.0;
-                [unroll] for (int i = 0; i < 6; i++)
+                [loop] for (int i = 0; i < 6; i++)
                 {
                     float4 c = PUFF[i];
                     float3 q = (p - c.xyz) / c.w;
@@ -319,7 +319,7 @@ Shader "NightShards/Diorama/Uyuni"
                 if (t1 <= t0) return 0;
                 // 線が通る雲の塊の範囲だけを調べる (どの塊にも当たらない線は、すぐに終わる)
                 float s0 = 1e5, s1 = -1e5;
-                [unroll] for (int i = 0; i < 6; i++)
+                [loop] for (int i = 0; i < 6; i++)
                 {
                     float4 c = PUFF[i];
                     float rad = c.w * 1.75;
@@ -339,7 +339,7 @@ Shader "NightShards/Diorama/Uyuni"
                 float3 col = 0;
                 float dt = (t1 - t0) / steps;
                 float3 L = SunDir();
-                for (int k = 0; k < 14; k++)
+                [loop] for (int k = 0; k < 14; k++)
                 {
                     if (k >= steps) break;
                     float3 pos = ro + rd * (t0 + dt * (k + 0.5));
@@ -520,7 +520,7 @@ Shader "NightShards/Diorama/Uyuni"
                 float t = tStart;
                 hitAny = false;
                 float id = 0;
-                for (int i = 0; i < 90; i++)
+                [loop] for (int i = 0; i < 90; i++)
                 {
                     if (t > tMax || i >= maxSteps) break;
                     float3 pos = ro + rd * t;
@@ -595,7 +595,7 @@ Shader "NightShards/Diorama/Uyuni"
                     // 鏡: 水面ではね返った線で、上の景色 (物・雲・空) をもう一度たどる
                     float3 n = float3(0, 1, 0);
                     // 人の足元から広がる、小さな波の輪
-                    for (int k = 0; k < PEOPLE; k++)
+                    [loop] for (int k = 0; k < PEOPLE; k++)
                     {
                         float2 d = wp.xz - PersonPos(k).xz;
                         float r = length(d);

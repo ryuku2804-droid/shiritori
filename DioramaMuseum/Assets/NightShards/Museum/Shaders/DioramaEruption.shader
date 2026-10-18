@@ -295,7 +295,7 @@ Shader "NightShards/Diorama/Eruption"
                 float res = 1.0;
                 float t = 0.006;
                 int n = (int)_ShadowSteps;
-                for (int i = 0; i < 32; i++)
+                [loop] for (int i = 0; i < 32; i++)
                 {
                     if (i >= n) break;
                     float h = Map(p + l * t).x;
@@ -311,7 +311,7 @@ Shader "NightShards/Diorama/Eruption"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 4; i++)
+                [loop] for (int i = 1; i <= 4; i++)
                 {
                     float d = 0.012 * i;
                     occ += (d - Map(p + n * d).x) * w;
@@ -370,7 +370,7 @@ Shader "NightShards/Diorama/Eruption"
                 float best = tMax;
                 bcol = 0;
                 int count = BombCount();
-                for (int i = 0; i < BOMBS; i++)
+                [loop] for (int i = 0; i < BOMBS; i++)
                 {
                     if (i >= count) break;
                     float3 c;
@@ -399,7 +399,7 @@ Shader "NightShards/Diorama/Eruption"
             {
                 float3 col = 0;
                 int count = BombCount();
-                for (int i = 0; i < BOMBS; i++)
+                [loop] for (int i = 0; i < BOMBS; i++)
                 {
                     if (i >= count) break;
                     float3 c;
@@ -413,7 +413,7 @@ Shader "NightShards/Diorama/Eruption"
                     if (c.y < HeightFast(c.xz)) continue;
                     float3 hot = LavaColor(heat);
                     col += hot * 0.35 * exp(-d2 / (rad * rad * 12.0));
-                    for (int j = 1; j <= 5; j++)
+                    [loop] for (int j = 1; j <= 5; j++)
                     {
                         float3 q;
                         float qr, qh;
@@ -508,7 +508,7 @@ Shader "NightShards/Diorama/Eruption"
                 float t = tin + dt * Hash21(rd.xy * 517.0 + _Time.y); // 少しずらして縞を消す
                 float3 col = 0;
                 float trans = 1.0;
-                for (int i = 0; i < 48; i++)
+                [loop] for (int i = 0; i < 48; i++)
                 {
                     if (i >= steps) break;
                     float3 p = ro + rd * t;
@@ -567,7 +567,7 @@ Shader "NightShards/Diorama/Eruption"
             float3 Reflection(float3 p, float3 r, float3 craterCol)
             {
                 float t = 0.004;
-                for (int i = 0; i < 40; i++)
+                [loop] for (int i = 0; i < 40; i++)
                 {
                     float3 q = p + r * t;
                     if (abs(q.x) > INNER || abs(q.z) > INNER || q.y > 0.5) break;
@@ -731,7 +731,7 @@ Shader "NightShards/Diorama/Eruption"
                 bool hit = false;
                 float id = 0.0;
                 int steps = (int)_Steps;
-                for (int i = 0; i < 200; i++)
+                [loop] for (int i = 0; i < 200; i++)
                 {
                     if (i >= steps || t > box.y) break;
                     float3 pos = ro + rd * t;

@@ -280,7 +280,7 @@ Shader "NightShards/Diorama/BlueFire"
                 float res = 1.0;
                 float t = 0.006;
                 int n = (int)_ShadowSteps;
-                for (int i = 0; i < 32; i++)
+                [loop] for (int i = 0; i < 32; i++)
                 {
                     if (i >= n) break;
                     float h = Map(p + l * t).x;
@@ -295,7 +295,7 @@ Shader "NightShards/Diorama/BlueFire"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 4; i++)
+                [loop] for (int i = 1; i <= 4; i++)
                 {
                     float d = 0.01 * i;
                     occ += (d - Map(p + n * d).x) * w;
@@ -366,14 +366,14 @@ Shader "NightShards/Diorama/BlueFire"
             float3 Fires(float3 ro, float3 rd, float tMax, float fireY[FIRES])
             {
                 float3 col = 0;
-                for (int i = 0; i < FIRES; i++)
+                [loop] for (int i = 0; i < FIRES; i++)
                 {
                     // 線がこの炎の近くを通らなければ飛ばす
                     float3 c = float3(FIRE_XZ[i].x, fireY[i] + 0.02, FIRE_XZ[i].y);
                     float3 w = c - ro;
                     float tcl = dot(w, rd);
                     if (dot(w, w) - tcl * tcl > 0.0036) continue;
-                    for (int j = 0; j < TONGUES; j++)
+                    [loop] for (int j = 0; j < TONGUES; j++)
                         col += TongueGlow(ro, rd, tMax, Tongue(i, j, fireY[i]), i * 3.3 + j * 1.7);
                 }
                 return col;
@@ -399,7 +399,7 @@ Shader "NightShards/Diorama/BlueFire"
             float3 Sparks(float3 ro, float3 rd, float tMax, float fireY[FIRES])
             {
                 float3 col = 0;
-                for (int i = 0; i < SPARKS; i++)
+                [loop] for (int i = 0; i < SPARKS; i++)
                 {
                     float life;
                     float3 w = Spark(i, fireY, life) - ro;
@@ -433,7 +433,7 @@ Shader "NightShards/Diorama/BlueFire"
                 float dt = (tout - tin) / steps;
                 float t = tin + dt * Hash21(rd.zy * 271.0 + _Time.y);
                 float3 col = 0;
-                for (int s = 0; s < steps; s++)
+                [loop] for (int s = 0; s < steps; s++)
                 {
                     float3 p = ro + rd * t;
                     float near = FrontNear(p.xz);
@@ -466,7 +466,7 @@ Shader "NightShards/Diorama/BlueFire"
                 float layer = Noise3(q) * 0.6 + Noise3(q * 2.2 + 4.1) * 0.4;
                 float dens = max(0.0, layer - 0.48) * 9.0 * smoothstep(0.2, 0.02, y);
                 // 炎の上に立ちのぼる煙の柱 (風下へ曲がる)
-                for (int i = 0; i < FIRES; i++)
+                [loop] for (int i = 0; i < FIRES; i++)
                 {
                     float sy = p.y - fireY[i];
                     if (sy < 0.0) continue;
@@ -496,7 +496,7 @@ Shader "NightShards/Diorama/BlueFire"
                 float t = tin + dt * Hash21(rd.xy * 517.0 + _Time.y);
                 float3 col = 0;
                 float trans = 1.0;
-                for (int i = 0; i < 32; i++)
+                [loop] for (int i = 0; i < 32; i++)
                 {
                     if (i >= steps) break;
                     float3 p = ro + rd * t;
@@ -563,7 +563,7 @@ Shader "NightShards/Diorama/BlueFire"
                 // 燃え続ける炎と炎の輪からの、青い光
                 float3 fireLight = 0;
                 float flicker = 0.85 + 0.15 * sin(t * 11.0) * sin(t * 6.7);
-                for (int i = 0; i < FIRES; i++)
+                [loop] for (int i = 0; i < FIRES; i++)
                 {
                     float3 toF = float3(FIRE_XZ[i].x, fireY[i] + 0.02, FIRE_XZ[i].y) - p;
                     float atten = 1.0 / (1.0 + dot(toF, toF) * 400.0);
@@ -598,7 +598,7 @@ Shader "NightShards/Diorama/BlueFire"
                 // 割れ目の熱: ゆっくり息をするように明るさが変わる。炎の近くと、炎の輪が通った所は強い
                 float breathe = 0.3 + 0.7 * Noise3(float3(p.xz * 7.0, t * 0.15));
                 float nearFire = 0.0;
-                for (int k = 0; k < FIRES; k++)
+                [loop] for (int k = 0; k < FIRES; k++)
                 {
                     float2 dv = p.xz - FIRE_XZ[k];
                     nearFire += exp(-dot(dv, dv) / 0.006);
@@ -654,7 +654,7 @@ Shader "NightShards/Diorama/BlueFire"
                 bool hit = false;
                 float id = 0.0;
                 int steps = (int)_Steps;
-                for (int i = 0; i < 200; i++)
+                [loop] for (int i = 0; i < 200; i++)
                 {
                     if (i >= steps || t > box.y) break;
                     float3 pos = ro + rd * t;
@@ -677,7 +677,7 @@ Shader "NightShards/Diorama/BlueFire"
 
                 // 燃え続ける炎の根元の高さ
                 float fireY[FIRES];
-                for (int f = 0; f < FIRES; f++) fireY[f] = HeightFast(FIRE_XZ[f]);
+                [loop] for (int f = 0; f < FIRES; f++) fireY[f] = HeightFast(FIRE_XZ[f]);
 
                 float3 col = 0;
                 if (hit)

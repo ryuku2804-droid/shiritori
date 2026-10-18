@@ -290,7 +290,7 @@ Shader "NightShards/Diorama/Paris"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 4; i++)
+                [loop] for (int i = 1; i <= 4; i++)
                 {
                     float d = 0.004 * i;
                     occ += (d - Map(p + n * d).x) * w;
@@ -333,7 +333,7 @@ Shader "NightShards/Diorama/Paris"
                 float3 col = 0;
                 float t = _Time.y;
                 // 車: 凱旋門のまわりの石畳を、反時計回りにぐるぐる回る。前は白いヘッドライト、後ろは赤いテールライト
-                for (int i = 0; i < CARS; i++)
+                [loop] for (int i = 0; i < CARS; i++)
                 {
                     float fi = i;
                     float r = lerp(RING_IN + 0.005, RING_OUT - 0.005, Hash11(fi + 5.0));
@@ -350,14 +350,14 @@ Shader "NightShards/Diorama/Paris"
                     col += PointGlow(ro, rd, tMax, tail - side, float3(1.6, 0.12, 0.06), 0.0007);
                 }
                 // 街灯: 広場のまわりに 16 本と、塔へ向かう道の両側
-                for (int k = 0; k < 16; k++)
+                [loop] for (int k = 0; k < 16; k++)
                 {
                     float a = k * 6.2831853 / 16.0 + 0.2;
                     col += PointGlow(ro, rd, tMax, ARC + float3(cos(a) * PLAZA, 0.012, sin(a) * PLAZA), float3(1.8, 1.25, 0.65), 0.0012);
                 }
                 float2 dirAE = normalize(EIFFEL.xz - ARC.xz);
                 float2 sideAE = float2(-dirAE.y, dirAE.x) * 0.03;
-                for (int q = 0; q < 6; q++)
+                [loop] for (int q = 0; q < 6; q++)
                 {
                     float2 c = ARC.xz + dirAE * (PLAZA + 0.03 + q * 0.04);
                     col += PointGlow(ro, rd, tMax, float3(c.x + sideAE.x, GROUND + 0.012, c.y + sideAE.y), float3(1.8, 1.25, 0.65), 0.0012);
@@ -629,7 +629,7 @@ Shader "NightShards/Diorama/Paris"
                 bool hit = false;
                 float id = 0.0;
                 int steps = (int)_Steps;
-                for (int i = 0; i < 200; i++)
+                [loop] for (int i = 0; i < 200; i++)
                 {
                     if (i >= steps || t > box.y) break;
                     float3 pos = ro + rd * t;

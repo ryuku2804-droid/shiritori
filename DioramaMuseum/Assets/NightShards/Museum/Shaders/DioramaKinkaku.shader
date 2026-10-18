@@ -348,7 +348,7 @@ Shader "NightShards/Diorama/Kinkaku"
                 float res = 1.0;
                 float t = 0.0015;
                 int n = clamp((int)_ShadowSteps, 8, 16);
-                for (int i = 0; i < 16; i++)
+                [loop] for (int i = 0; i < 16; i++)
                 {
                     if (i >= n) break;
                     float3 sp = p + l * t;
@@ -365,7 +365,7 @@ Shader "NightShards/Diorama/Kinkaku"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 3; i++)
+                [loop] for (int i = 1; i <= 3; i++)
                 {
                     float d = 0.004 * i;
                     occ += (d - Map(p + n * d).x) * w;
@@ -458,7 +458,7 @@ Shader "NightShards/Diorama/Kinkaku"
                 float t = _Time.y;
                 float best = 1e5;
                 float4 res = 0;
-                for (int i = 0; i < KOI; i++)
+                [loop] for (int i = 0; i < KOI; i++)
                 {
                     float fi = i;
                     float2 home = KoiPos(i, t);
@@ -647,7 +647,7 @@ Shader "NightShards/Diorama/Kinkaku"
                 float id = 0;
                 float lastD = 1.0, lastId = 0.0;
                 bool ranOut = false;
-                for (int i = 0; i <= 200; i++)
+                [loop] for (int i = 0; i <= 200; i++)
                 {
                     if (t > tMax) break;
                     if (i >= maxSteps) { ranOut = true; break; }
@@ -686,7 +686,7 @@ Shader "NightShards/Diorama/Kinkaku"
                 if (_Event < 0.01) return 0;
                 float3 col = 0;
                 float t = _Time.y;
-                for (int i = 0; i < LEAVES; i++)
+                [loop] for (int i = 0; i < LEAVES; i++)
                 {
                     float3 pos = LeafPos(i);
                     float3 w = pos - ro;

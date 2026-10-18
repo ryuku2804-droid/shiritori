@@ -358,7 +358,7 @@ Shader "NightShards/Diorama/Pyramids"
                 if (p.y > GROUND + 0.02 || p.z < 0.26 || p.z > 0.34) return max(max(p.y - GROUND - 0.016, 0.26 - p.z), max(p.z - 0.34, 0.003));
                 float d = 1e5;
                 float t = _Time.y;
-                for (int i = 0; i < CAMELS; i++)
+                [loop] for (int i = 0; i < CAMELS; i++)
                 {
                     float2 dir;
                     float3 c = CamelPos(i, dir);
@@ -372,7 +372,7 @@ Shader "NightShards/Diorama/Pyramids"
                     float head = SdEllipsoidLite(q - float3(0.0021, 0.0028, 0), float3(0.00035, 0.00016, 0.00014));
                     float rider = SdCapsule(q, float3(-0.0001, 0.0028, 0), float3(-0.0001, 0.0036, 0), 0.00022);
                     float legs = 1e5;
-                    for (int k = 0; k < 4; k++)
+                    [loop] for (int k = 0; k < 4; k++)
                     {
                         float fx = k < 2 ? 0.0009 : -0.0009;
                         float fz = (k % 2 == 0) ? 0.0003 : -0.0003;
@@ -417,7 +417,7 @@ Shader "NightShards/Diorama/Pyramids"
                 float res = 1.0;
                 float t = 0.001;
                 int n = max((int)_ShadowSteps, 8);
-                for (int i = 0; i < 32; i++)
+                [loop] for (int i = 0; i < 32; i++)
                 {
                     if (i >= n) break;
                     float3 sp = p + l * t;
@@ -435,7 +435,7 @@ Shader "NightShards/Diorama/Pyramids"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 4; i++)
+                [loop] for (int i = 1; i <= 4; i++)
                 {
                     float d = 0.004 * i;
                     occ += (d - Map(p + n * d).x) * w;
@@ -700,7 +700,7 @@ Shader "NightShards/Diorama/Pyramids"
                 float lastD = 1.0, lastId = 0.0;
                 bool ranOut = false;
                 int steps = (int)_Steps;
-                for (int i = 0; i <= 200; i++)
+                [loop] for (int i = 0; i <= 200; i++)
                 {
                     if (t > box.y) break;
                     if (i >= steps) { ranOut = true; break; }
@@ -745,7 +745,7 @@ Shader "NightShards/Diorama/Pyramids"
                     float dt = (t1 - t0) / 12.0;
                     float trans = 1.0;
                     float3 dust = 0;
-                    for (int k = 0; k < 12; k++)
+                    [loop] for (int k = 0; k < 12; k++)
                     {
                         float3 pos = ro + rd * (t0 + dt * (k + Hash21(input.positionCS.xy + k)));
                         if (max(abs(pos.x), abs(pos.z)) > INNER) continue;

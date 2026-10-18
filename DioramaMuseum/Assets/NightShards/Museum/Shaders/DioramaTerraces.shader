@@ -229,7 +229,7 @@ Shader "NightShards/Diorama/Terraces"
                 which = 0;
                 float outside = max(max(-p.x, 0.15 - p.z), p.y + 0.15);
                 if (outside > 0.0) return outside + 0.005; // 家は手前右の里だけ。そこから遠い所では、里までの距離を返す
-                for (int i = 0; i < HOUSES; i++)
+                [loop] for (int i = 0; i < HOUSES; i++)
                 {
                     float3 h = HOUSE[i];
                     float3 q = p - float3(h.x, HeightFast(h.xy) - 0.002, h.y);
@@ -279,7 +279,7 @@ Shader "NightShards/Diorama/Terraces"
                 float res = 1.0;
                 float t = 0.005;
                 int n = (int)_ShadowSteps;
-                for (int i = 0; i < 32; i++)
+                [loop] for (int i = 0; i < 32; i++)
                 {
                     if (i >= n) break;
                     float h = Map(p + l * t).x;
@@ -294,7 +294,7 @@ Shader "NightShards/Diorama/Terraces"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 4; i++)
+                [loop] for (int i = 1; i <= 4; i++)
                 {
                     float d = 0.008 * i;
                     occ += (d - Map(p + n * d).x) * w;
@@ -336,7 +336,7 @@ Shader "NightShards/Diorama/Terraces"
                 if (night < 0.05) return 0;
                 float3 col = 0;
                 float t = _Time.y;
-                for (int i = 0; i < FIREFLIES; i++)
+                [loop] for (int i = 0; i < FIREFLIES; i++)
                 {
                     float fi = i;
                     float2 home = float2(-0.3 + 0.6 * Hash11(fi + 1.0), -0.15 + 0.45 * Hash11(fi + 2.0));
@@ -403,7 +403,7 @@ Shader "NightShards/Diorama/Terraces"
             float3 ReflectTerrain(float3 p, float3 r, float night, float3 sunDir, float3 sunCol, float3 skyLow)
             {
                 float t = 0.003;
-                for (int i = 0; i < 36; i++)
+                [loop] for (int i = 0; i < 36; i++)
                 {
                     float3 q = p + r * t;
                     if (abs(q.x) > INNER || abs(q.z) > INNER || q.y > 0.35) break;
@@ -429,7 +429,7 @@ Shader "NightShards/Diorama/Terraces"
             // 日の光がそこまで届くか (山と森の高さだけで調べる、軽い影)
             float SunVisible(float3 p, float3 L)
             {
-                for (int k = 1; k <= 5; k++)
+                [loop] for (int k = 1; k <= 5; k++)
                 {
                     float3 q = p + L * (0.05 * k);
                     if (abs(q.x) > INNER || abs(q.z) > INNER) break;
@@ -448,7 +448,7 @@ Shader "NightShards/Diorama/Terraces"
                 float mist = max(0.0, exp(-max(above, 0.0) / 0.03) * 1.2 + n - 1.1) * 18.0;
                 // かまどの煙: 家の屋根から細く立ちのぼり、風下へたなびく
                 smoke = 0.0;
-                for (int i = 0; i < HOUSES; i++)
+                [loop] for (int i = 0; i < HOUSES; i++)
                 {
                     float3 hs = HOUSE[i];
                     float base = HeightFast(hs.xy) + 0.028;
@@ -481,7 +481,7 @@ Shader "NightShards/Diorama/Terraces"
                 float phase = 0.35 + 2.5 * pow(saturate(dot(rd, sunDir)), 8.0);
                 float3 col = 0;
                 float trans = 1.0;
-                for (int i = 0; i < steps; i++)
+                [loop] for (int i = 0; i < steps; i++)
                 {
                     float3 p = ro + rd * t;
                     float smoke;
@@ -636,7 +636,7 @@ Shader "NightShards/Diorama/Terraces"
                 bool hit = false;
                 float id = 0.0;
                 int steps = (int)_Steps;
-                for (int i = 0; i < 200; i++)
+                [loop] for (int i = 0; i < 200; i++)
                 {
                     if (i >= steps || t > box.y) break;
                     float3 pos = ro + rd * t;

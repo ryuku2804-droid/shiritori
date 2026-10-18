@@ -131,7 +131,7 @@ Shader "NightShards/Diorama/Glacier"
             float Ridged(float2 p)
             {
                 float s = 0.0, a = 0.5, w = 1.0;
-                for (int i = 0; i < 4; i++)
+                [loop] for (int i = 0; i < 4; i++)
                 {
                     float n = 1.0 - abs(ValueNoise(p) * 2.0 - 1.0);
                     n = n * n * w;
@@ -286,7 +286,7 @@ Shader "NightShards/Diorama/Glacier"
                 float res = 1.0;
                 float t = 0.006;
                 int n = (int)_ShadowSteps;
-                for (int i = 0; i < 32; i++)
+                [loop] for (int i = 0; i < 32; i++)
                 {
                     if (i >= n) break;
                     float h = Map(p + l * t).x;
@@ -301,7 +301,7 @@ Shader "NightShards/Diorama/Glacier"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 4; i++)
+                [loop] for (int i = 1; i <= 4; i++)
                 {
                     float d = 0.012 * i;
                     occ += (d - Map(p + n * d).x) * w;
@@ -355,7 +355,7 @@ Shader "NightShards/Diorama/Glacier"
                 float t = tin + dt * Hash21(rd.xy * 517.0 + _Time.y);
                 float3 col = 0;
                 float trans = 1.0;
-                for (int i = 0; i < steps; i++)
+                [loop] for (int i = 0; i < steps; i++)
                 {
                     float3 p = ro + rd * t;
                     float dens = MistDensity(p, impact);
@@ -397,7 +397,7 @@ Shader "NightShards/Diorama/Glacier"
             float3 Reflection(float3 p, float3 r, float3 info, float3 moonDir, float3 moonCol)
             {
                 float t = 0.004;
-                for (int i = 0; i < 40; i++)
+                [loop] for (int i = 0; i < 40; i++)
                 {
                     float3 q = p + r * t;
                     if (abs(q.x) > INNER || abs(q.z) > INNER || q.y > 0.45) break;
@@ -547,7 +547,7 @@ Shader "NightShards/Diorama/Glacier"
                 bool hit = false;
                 float id = 0.0;
                 int steps = (int)_Steps;
-                for (int i = 0; i < 200; i++)
+                [loop] for (int i = 0; i < 200; i++)
                 {
                     if (i >= steps || t > box.y) break;
                     float3 pos = ro + rd * t;

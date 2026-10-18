@@ -10,7 +10,7 @@
 //   ・水はとても静かで、空と山を鏡のように映す
 // 仕掛け (_Event 0〜1): 塩の結晶 (立方体の岩塩) が水の中から次々にせり上がって育ち、日を受けてきらめく
 //
-// 軽くする工夫: きのこの表は [unroll] で決まった番号で読む / きのこの帯の外は調べない / 水の底は影と陰を省く /
+// 軽くする工夫: ループには [loop] を付けて、展開させない (Quest 用の変換が終わらなくなるのを防ぐ) / きのこの帯の外は調べない / 水の底は影と陰を省く /
 //   水の映り込みは低い角度の線だけたどり、安い向きの測り方を使う / 影は近くだけ / 平らな所は大きめの歩幅で進む
 // 外から見たとき、何もない所 (空) は透明にして、ガラスケースの向こうの部屋が見えるようにする。
 // 中に入ったとき (カメラが箱の中) だけ、空を描く
@@ -204,8 +204,8 @@ Shader "NightShards/Diorama/DeadSea"
                 float band = max(max(-0.08 - p.z, p.z - 0.26), abs(p.x) - 0.44);
                 if (band > 0.002) return band;
                 float d = 1e5;
-                // [unroll]: 表 (MUSH) を番号で読むと GPU では遅いので、ループを展開して、番号を決まった数にする
-                [unroll] for (int i = 0; i < MUSHROOMS; i++)
+                // [loop]: ループを展開させない。展開すると、きのこ 9 本分の式が何倍にもふくらみ、Quest 用の変換が時間切れになる
+                [loop] for (int i = 0; i < MUSHROOMS; i++)
                 {
                     float3 m = MUSH[i];
                     float s = m.z * SC;
@@ -227,12 +227,12 @@ Shader "NightShards/Diorama/DeadSea"
                 if (grow < 0.01) return 1.0;
                 if (p.y > WATER + 0.01 * SC) return p.y - WATER - 0.01 * SC + 0.0005;
                 float d = 1e5;
-                [unroll] for (int i = 0; i < MUSHROOMS; i++)
+                [loop] for (int i = 0; i < MUSHROOMS; i++)
                 {
                     float3 m = MUSH[i];
                     float2 c = p.xz - m.xy;
                     if (dot(c, c) > 0.025 * 0.025 * SC * SC) { d = min(d, length(c) - 0.02 * SC); continue; }
-                    for (int k = 0; k < 5; k++)
+                    [loop] for (int k = 0; k < 5; k++)
                     {
                         float fk = i * 5 + k;
                         float a = fk * 2.4 + Hash11(fk) * 1.5;
@@ -323,7 +323,7 @@ Shader "NightShards/Diorama/DeadSea"
                 float res = 1.0;
                 float t = 0.0008;
                 int n = clamp((int)_ShadowSteps, 8, 16);
-                for (int i = 0; i < 32; i++)
+                [loop] for (int i = 0; i < 32; i++)
                 {
                     if (i >= n) break;
                     float3 sp = p + l * t;
@@ -341,7 +341,7 @@ Shader "NightShards/Diorama/DeadSea"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 4; i++)
+                [loop] for (int i = 1; i <= 4; i++)
                 {
                     float d = 0.002 * i;
                     occ += (d - Map(p + n * d).x) * w;
@@ -543,7 +543,7 @@ Shader "NightShards/Diorama/DeadSea"
                 float lastD = 1.0, lastId = 0.0;
                 bool ranOut = false;
                 int steps = (int)_Steps;
-                for (int i = 0; i <= 200; i++)
+                [loop] for (int i = 0; i <= 200; i++)
                 {
                     if (t > box.y) break;
                     if (i >= steps) { ranOut = true; break; }
@@ -591,7 +591,7 @@ Shader "NightShards/Diorama/DeadSea"
                     // 上を向いてはね返る線は、空しか映らないので、たどらない (山ときのこは、低い角度の線にだけ映る)
                     if (rr.y < 0.3)
                     {
-                        for (int k = 0; k < 28; k++)
+                        [loop] for (int k = 0; k < 28; k++)
                         {
                             float3 q = wp + rr * tr;
                             if (q.y > maxHeight || max(abs(q.x), abs(q.z)) > INNER) break;

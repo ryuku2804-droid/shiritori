@@ -318,7 +318,7 @@ Shader "NightShards/Diorama/Torii"
                 float t = 0.0015;
                 int n = max((int)_ShadowSteps, 8);
                 // 近く (鳥居の柱の影の縞が落ちる範囲) だけ、鳥居も木も入れて細かく調べる
-                for (int i = 0; i < 24; i++)
+                [loop] for (int i = 0; i < 24; i++)
                 {
                     if (i >= n || t > 0.05) break;
                     float h = Map(p + l * t).x;
@@ -327,7 +327,7 @@ Shader "NightShards/Diorama/Torii"
                     if (res < 0.01) return 0.0;
                 }
                 // 遠くは、山の高さの表だけで、山の陰に入るかを大まかに調べる (軽い)
-                for (int j = 0; j < 10; j++)
+                [loop] for (int j = 0; j < 10; j++)
                 {
                     float3 q = p + l * t;
                     if (abs(q.x) > INNER || abs(q.z) > INNER || q.y > 0.3) break;
@@ -343,7 +343,7 @@ Shader "NightShards/Diorama/Torii"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 4; i++)
+                [loop] for (int i = 1; i <= 4; i++)
                 {
                     float d = 0.006 * i;
                     occ += (d - Map(p + n * d).x) * w;
@@ -382,7 +382,7 @@ Shader "NightShards/Diorama/Torii"
                 float phase = 0.3 + 2.2 * pow(saturate(dot(rd, normalize(SUN_DIR))), 8.0);
                 float3 col = 0;
                 float trans = 1.0;
-                for (int i = 0; i < 22; i++)
+                [loop] for (int i = 0; i < 22; i++)
                 {
                     if (i >= steps) break;
                     float3 p = ro + rd * t;
@@ -570,7 +570,7 @@ Shader "NightShards/Diorama/Torii"
                 bool hit = false;
                 float id = 0.0;
                 int steps = (int)_Steps;
-                for (int i = 0; i < 200; i++)
+                [loop] for (int i = 0; i < 200; i++)
                 {
                     if (i >= steps || t > box.y) break;
                     float3 pos = ro + rd * t;

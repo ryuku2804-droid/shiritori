@@ -166,7 +166,7 @@ Shader "NightShards/Diorama/Atoll"
             float SpillDip(float th)
             {
                 float s = 0.0;
-                for (int k = 0; k < FALLS; k++)
+                [loop] for (int k = 0; k < FALLS; k++)
                 {
                     float d = AngDist(th, FALL_A[k]) / 0.1;
                     s = max(s, exp(-d * d));
@@ -189,7 +189,7 @@ Shader "NightShards/Diorama/Atoll"
                 float rd = (r - ring) / 0.022;
                 h = max(h, SEA - 0.006 + 0.004 * ValueNoise(xz * 60.0 + _Seed) - 0.03 * (1.0 - exp(-rd * rd)));
                 // 小島: 輪の上に 5 つ。水面より上に出る
-                for (int k = 0; k < MOTUS; k++)
+                [loop] for (int k = 0; k < MOTUS; k++)
                 {
                     float a = MOTU_A[k];
                     float2 c = float2(cos(a), sin(a)) * RingR(a);
@@ -229,7 +229,7 @@ Shader "NightShards/Diorama/Atoll"
             float Palms(float3 p)
             {
                 float d = 1.0;
-                for (int k = 0; k < MOTUS; k++)
+                [loop] for (int k = 0; k < MOTUS; k++)
                 {
                     float a = MOTU_A[k];
                     float2 c = float2(cos(a), sin(a)) * RingR(a);
@@ -246,7 +246,7 @@ Shader "NightShards/Diorama/Atoll"
                         if (dot(q, q) > 0.0036 && length(p - base) > 0.06) continue;
                         d = min(d, SdCapsule(p, base, top, 0.0022));
                         // 葉: てっぺんから 6 枚、外へのびて垂れ下がる
-                        for (int f = 0; f < 6; f++)
+                        [loop] for (int f = 0; f < 6; f++)
                         {
                             float b = f * 1.047 + fk;
                             float3 dir = float3(cos(b), 0.0, sin(b));
@@ -295,7 +295,7 @@ Shader "NightShards/Diorama/Atoll"
                 float res = 1.0;
                 float t = 0.004;
                 int n = (int)_ShadowSteps;
-                for (int i = 0; i < 32; i++)
+                [loop] for (int i = 0; i < 32; i++)
                 {
                     if (i >= n) break;
                     float h = Map(p + l * t).x;
@@ -310,7 +310,7 @@ Shader "NightShards/Diorama/Atoll"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 4; i++)
+                [loop] for (int i = 1; i <= 4; i++)
                 {
                     float d = 0.008 * i;
                     occ += (d - Map(p + n * d).x) * w;
@@ -333,7 +333,7 @@ Shader "NightShards/Diorama/Atoll"
                 float3 col = 0;
                 float trans = 1.0;
                 float flow = 1.0 - 0.75 * smoothstep(0.0, 1.0, _Event); // 潮が引くと細くなる
-                for (int k = 0; k < FALLS; k++)
+                [loop] for (int k = 0; k < FALLS; k++)
                 {
                     float a = FALL_A[k];
                     float2 dir = float2(cos(a), sin(a));
@@ -353,7 +353,7 @@ Shader "NightShards/Diorama/Atoll"
                     const int steps = 16;
                     float dt = (tout - tin) / steps;
                     float t = tin + dt * Hash21(rd.xy * 331.0 + _Time.y + k);
-                    for (int s = 0; s < steps; s++)
+                    [loop] for (int s = 0; s < steps; s++)
                     {
                         float3 q = o + v * t;
                         float fallen = max(SEA - q.y, 0.0);
@@ -381,7 +381,7 @@ Shader "NightShards/Diorama/Atoll"
             float CloudDensity(float3 p)
             {
                 float dens = 0.0;
-                for (int k = 0; k < CLOUDS; k++)
+                [loop] for (int k = 0; k < CLOUDS; k++)
                 {
                     float4 c = CLOUD[k];
                     float3 q = p - c.xyz - float3(sin(_Time.y * 0.05 + k) * 0.02, 0, 0);
@@ -409,7 +409,7 @@ Shader "NightShards/Diorama/Atoll"
                 float t = tin + dt * Hash21(rd.zx * 517.0 + _Time.y);
                 float3 col = 0;
                 float trans = 1.0;
-                for (int i = 0; i < 24; i++)
+                [loop] for (int i = 0; i < 24; i++)
                 {
                     if (i >= steps) break;
                     float3 p = ro + rd * t;
@@ -485,7 +485,7 @@ Shader "NightShards/Diorama/Atoll"
                     bedCol = lerp(bedCol, float3(0.55, 0.42, 0.38), coral * 0.7);
                     // 浅瀬を泳ぐ魚の影
                     float fishShadow = 1.0;
-                    for (int k = 0; k < 6; k++)
+                    [loop] for (int k = 0; k < 6; k++)
                     {
                         float fk = k;
                         float a = t * (0.25 + 0.04 * fk) + fk * 1.1;
@@ -610,7 +610,7 @@ Shader "NightShards/Diorama/Atoll"
                 bool hit = false;
                 float id = 0.0;
                 int steps = (int)_Steps;
-                for (int i = 0; i < 200; i++)
+                [loop] for (int i = 0; i < 200; i++)
                 {
                     if (i >= steps || t > box.y) break;
                     float3 pos = ro + rd * t;

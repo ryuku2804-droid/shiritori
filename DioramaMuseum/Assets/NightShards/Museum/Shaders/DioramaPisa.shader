@@ -263,7 +263,7 @@ Shader "NightShards/Diorama/Pisa"
                 float res = 1.0;
                 float t = 0.001;
                 int n = max((int)_ShadowSteps, 8);
-                for (int i = 0; i < 32; i++)
+                [loop] for (int i = 0; i < 32; i++)
                 {
                     if (i >= n) break;
                     float3 sp = p + l * t;
@@ -280,7 +280,7 @@ Shader "NightShards/Diorama/Pisa"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 4; i++)
+                [loop] for (int i = 1; i <= 4; i++)
                 {
                     float d = 0.006 * i;
                     occ += (d - Map(p + n * d).x) * w;
@@ -310,7 +310,7 @@ Shader "NightShards/Diorama/Pisa"
             {
                 float3 col = 0;
                 float t = _Time.y;
-                for (int i = 0; i < BIRDS; i++)
+                [loop] for (int i = 0; i < BIRDS; i++)
                 {
                     float3 dir;
                     float flying;
@@ -539,7 +539,7 @@ Shader "NightShards/Diorama/Pisa"
                 bool hit = false;
                 float id = 0.0;
                 int steps = (int)_Steps;
-                for (int i = 0; i < 200; i++)
+                [loop] for (int i = 0; i < 200; i++)
                 {
                     if (i >= steps || t > box.y) break;
                     float3 pos = ro + rd * t;

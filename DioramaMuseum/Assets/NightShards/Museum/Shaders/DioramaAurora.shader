@@ -222,7 +222,7 @@ Shader "NightShards/Diorama/Aurora"
             {
                 float occ = 0.0;
                 float w = 1.0;
-                for (int i = 1; i <= 4; i++)
+                [loop] for (int i = 1; i <= 4; i++)
                 {
                     float d = 0.01 * i;
                     occ += (d - Map(p + n * d).x) * w;
@@ -251,7 +251,7 @@ Shader "NightShards/Diorama/Aurora"
                 float amp = 1.0 + 0.8 * _Event;
                 float w = max(0.014 + 0.008 * _Event, dt * 0.5); // カーテンの厚み (粗く進むときは、取りこぼさないよう厚く)
                 float3 col = 0;
-                for (int s = 0; s < 64; s++)
+                [loop] for (int s = 0; s < 64; s++)
                 {
                     if (s >= steps) break;
                     float3 p = ro + rd * t;
@@ -411,7 +411,7 @@ Shader "NightShards/Diorama/Aurora"
                 bool hit = false;
                 float id = 0.0;
                 int steps = (int)_Steps;
-                for (int i = 0; i < 200; i++)
+                [loop] for (int i = 0; i < 200; i++)
                 {
                     if (i >= steps || t > box.y) break;
                     float3 pos = ro + rd * t;
