@@ -49,6 +49,37 @@ namespace NightShards.Museum
             foreach (var m in materials) m.mainTexture = font.material.mainTexture;
         }
 
+        // 再生を始めたとき: シーンにあるすべての文字について、フォントに文字の絵を作らせ、文字のマテリアルに入れ直す。
+        // フォントの文字の絵 (テクスチャ) はシーンに保存されないので、再生のたび (とくに Android に切りかえたあと) 空になり、
+        // 美術館を組み立てたときに入れたテクスチャのままだと、文字が見えなくなる
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        static void RefreshAllOnPlay()
+        {
+            materials.Clear();
+            listening = false;
+            var byFont = new Dictionary<Font, System.Text.StringBuilder>();
+            var meshes = Object.FindObjectsByType<TextMesh>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (var tm in meshes)
+            {
+                if (tm.font == null) continue;
+                if (!byFont.TryGetValue(tm.font, out var sb)) byFont[tm.font] = sb = new System.Text.StringBuilder();
+                sb.Append(tm.text);
+            }
+            // まず全部の文字の絵を作らせる (作り直されてテクスチャが変わっても、このあと入れ直すので大丈夫)
+            foreach (var kv in byFont) kv.Key.RequestCharactersInTexture(kv.Value.ToString(), FontSize);
+            foreach (var tm in meshes)
+            {
+                if (tm.font == null) continue;
+                var r = tm.GetComponent<MeshRenderer>();
+                if (r == null || r.sharedMaterial == null) continue;
+                if (r.sharedMaterial != tm.font.material) Refresh(r.sharedMaterial, tm.font);
+                // 文字の絵の位置が変わっているかもしれないので、文字の形を作り直させる
+                string text = tm.text;
+                tm.text = "";
+                tm.text = text;
+            }
+        }
+
         // 1行の高さが lineHeight (m) になるように文字を置く。左上をそろえる
         public static TextMesh Add(Transform parent, string name, string text, Vector3 localPos, float lineHeight,
             Color color, Font font, Material mat)
