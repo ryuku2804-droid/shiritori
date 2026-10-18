@@ -54,6 +54,7 @@ Shader "NightShards/Diorama/Uyuni"
 
             HLSLPROGRAM
             #pragma target 3.5
+            #pragma use_dxc vulkan // Quest (Vulkan) 用は新しいコンパイラー (DXC) で変換する。古いほうだと大きいシェーダーが時間切れになる
             #pragma vertex Vert
             #pragma fragment Frag
             #pragma multi_compile_instancing
@@ -660,6 +661,7 @@ Shader "NightShards/Diorama/Uyuni"
 
             HLSLPROGRAM
             #pragma target 3.5
+            #pragma use_dxc vulkan // Quest (Vulkan) 用は新しいコンパイラー (DXC) で変換する。古いほうだと大きいシェーダーが時間切れになる
             #pragma vertex DepthVert
             #pragma fragment DepthFrag
             #pragma multi_compile_instancing
