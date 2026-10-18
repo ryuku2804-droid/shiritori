@@ -10,6 +10,8 @@ FILES = [
      "Quest のとき、シェーダーの _DioramaLite を 1 にする。世界の中の光をたどる回数 (72) と、いちばん粗い細かさ (45%) を決める"),
     ("Assets/NightShards/Museum/Scripts/DioramaWorld.cs", "変更",
      "Quest では、世界の中の光をたどる回数を 140 → 72 に。世界の中にいる間だけ、画面を 45% まで粗くしてよいことにする"),
+    ("Assets/NightShards/Museum/Scripts/MuseumPost.cs", "そのまま",
+     "Quest のときだけ、ブルーム (光のにじみ) とビネット (四隅の暗がり) を切る"),
     ("Assets/NightShards/Museum/Scripts/AutoQuality.cs", "変更",
      "いちばん粗い細かさ (MinScale) を、ほかのスクリプトから変えられるようにした"),
     ("Assets/NightShards/Museum/Shaders/DioramaAtoll.shader", "変更",
