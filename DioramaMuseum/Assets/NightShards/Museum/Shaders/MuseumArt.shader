@@ -288,6 +288,7 @@ Shader "NightShards/MuseumArt"
                 // 足し算で重ねるものは、霧の中では黒へ消える。不透明の障子は霧の色に溶ける
                 if (_Mode > 1.5 && _Mode < 2.5) col = MixFog(col, input.fogFactor);
                 else col = MixFogColor(col, half3(0, 0, 0), input.fogFactor);
+                col = min(max(col, 0.0), 64.0); // あふれた点を取りのぞく (ブルームで画面が白くとばないように)
                 return half4(col, 1.0);
             }
             ENDHLSL

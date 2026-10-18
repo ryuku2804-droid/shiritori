@@ -15,11 +15,11 @@ namespace NightShards.Museum
         // false にすると自動調整を止める (PerfDebug の F4 で、手で決めるとき)
         public static bool Enabled = true;
         // 目標の FPS
-        public static float TargetFps = 50f;
-        // いまの細かさ (0.4〜1)
+        public static float TargetFps = 40f; // パソコン。VR では VRRig が 72 にする
+        // いまの細かさ (0.6〜1)
         public static float CurrentScale { get; private set; } = 1f;
 
-        const float MinScale = 0.4f, MaxScale = 1f, Step = 0.05f, Interval = 0.5f;
+        const float MinScale = 0.6f, MaxScale = 1f, Step = 0.05f, Interval = 1f; // 60% より粗くすると、文字や細い線が消える
 
         UniversalRenderPipelineAsset urp;
         float originalScale = -1f;
@@ -70,6 +70,7 @@ namespace NightShards.Museum
             if (timer < Interval) return;
 
             float fps = frames / Mathf.Max(frameSum, 1e-4f);
+            // 細かさを変えると、ざらつきの模様が変わって、ちらついて見える。だから 1 秒ごとに、ゆっくり変える
             timer = 0f; frameSum = 0f; frames = 0;
             // 目標より 1 割遅ければ粗く、2 割以上速ければ細かく (行ったり来たりしないよう、間をあける)
             if (fps < TargetFps * 0.9f) CurrentScale = Mathf.Max(MinScale, CurrentScale - Step);

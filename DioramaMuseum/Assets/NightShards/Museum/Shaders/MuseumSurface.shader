@@ -449,7 +449,11 @@ Shader "NightShards/MuseumSurface"
 
                 half4 color = UniversalFragmentPBR(inputData, surface);
                 color.rgb = MixFog(color.rgb, inputData.fogCoord);
-                return color;
+                // 計算があふれた点 (無限大・非数) を取りのぞく。1 点でも残ると、ブルームで画面じゅうが白くとぶ。
+                // (Android に切りかえると、光の計算が精度の低い数 (half) で行われ、つやのある床や天井のハイライトであふれやすい)
+                float3 safe = color.rgb;
+                safe = min(max(safe, 0.0), 64.0);
+                return half4(safe, 1.0);
             }
             ENDHLSL
         }
