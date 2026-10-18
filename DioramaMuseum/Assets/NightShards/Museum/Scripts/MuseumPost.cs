@@ -7,6 +7,7 @@ namespace NightShards.Museum
     // 画面の仕上げ (ポストプロセス)。プレイヤーに付ける。
     //   ブルーム (明るい所がにじむ)・ACES のトーンマップ (映画のような明るさの階調)・ビネット (画面の四隅を暗く)
     //   ※ 鑑賞モードのぼかし (被写界深度) は、ジオラマまでぼやけてしまうのでやめた
+    // Quest では、ブルームとビネットを切る (QuestQuality と同じく、軽くするため)
     // 設定はすべてコードで作るので、シーンの Global Volume を編集しなくてよい (こちらのほうが優先される)
     public class MuseumPost : MonoBehaviour
     {
@@ -33,6 +34,12 @@ namespace NightShards.Museum
             var vig = baseProfile.Add<Vignette>(true);
             vig.intensity.Override(vignette);
             vig.smoothness.Override(0.45f);
+            if (QuestQuality.IsMobile)
+            {
+                // Quest では、ブルームとビネットを切る (画面全体を何度もなぞるので重い)。トーンマップは明るさのために残す
+                bloom.intensity.Override(0f);
+                vig.intensity.Override(0f);
+            }
             baseVolume = MakeVolume("Museum Post", baseProfile, 10f);
         }
 

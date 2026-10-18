@@ -57,7 +57,8 @@ namespace NightShards.Museum
             }
             urp.upscalingFilter = UpscalingFilterSelection.FSR;
             urp.msaaSampleCount = 1;
-            CurrentScale = Mathf.Clamp(0.75f, MinScale, MaxScale); // まずは 75% から始めて、FPS を見ながら合わせる
+            // まずは 75% (Quest では 70%) から始めて、FPS を見ながら合わせる
+            CurrentScale = Mathf.Clamp(QuestQuality.IsMobile ? 0.7f : 0.75f, MinScale, MaxScale);
             urp.renderScale = CurrentScale;
         }
 
